@@ -2,6 +2,7 @@ import net.beadsproject.beads.core.AudioContext
 import net.beadsproject.beads.data.Buffer
 import net.beadsproject.beads.ugens.Gain
 import net.beadsproject.beads.ugens.Glide
+import net.beadsproject.beads.ugens.ScalingMixer
 import net.beadsproject.beads.ugens.WavePlayer
 import processing.core.PApplet
 
@@ -49,12 +50,8 @@ class NoteFrequencies {
     }
 }
 
-/**
- * https://manualzz.com/doc/23754747/sonifying-processing--the-beads-tutorial
- */
-class Audio {
-    private val audioContext = AudioContext()
-
+class AudioThing(audioContext: AudioContext,
+                 mixer: ScalingMixer) {
     private val frequencyGlide = Glide(audioContext,
         440f,
         0f);
@@ -75,10 +72,61 @@ class Audio {
         gainGlide
     )
 
-    fun initialize() {
+    init {
         gain.addInput(wavePlayer)
+        mixer.addInput(gain)
+    }
+
+    fun setFrequency(frequency: Float) {
+        frequencyGlide.value = frequency
+    }
+}
+
+class AudioThingFactory(private val audioContext: AudioContext,
+                        private val mixer: ScalingMixer) {
+    fun newAudioThing() = AudioThing(audioContext, mixer)
+}
+
+/**
+ * https://manualzz.com/doc/23754747/sonifying-processing--the-beads-tutorial
+ */
+class Audio {
+    private val audioContext = AudioContext()
+    private val mixer = ScalingMixer(audioContext)
+    private val gainGlide = Glide(
+        audioContext,
+        0.5f,
+        0f);
+    private val gain = Gain(
+        audioContext,
+        1,
+        gainGlide
+    )
+
+    private val audioThingFactory = AudioThingFactory(audioContext, mixer)
+
+    private val audioThing1 = audioThingFactory.newAudioThing()
+    private val audioThing2 = audioThingFactory.newAudioThing()
+    private val audioThing3 = audioThingFactory.newAudioThing()
+    private val audioThing4 = audioThingFactory.newAudioThing()
+
+    /*
+     * A.next().next().next()
+     * A.next(chord).next(chord).next(chord)
+     * A.next(progression)* .next(progression)
+     *
+     * context.add(perspective): 12 perspectives? or one per person? Fundamentals, adding mults
+     */
+
+    fun initialize() {
+        gain.addInput(mixer)
         audioContext.out.addInput(gain)
         audioContext.start()
+
+        audioThing1.setFrequency(NoteFrequencies.C[1])
+        audioThing2.setFrequency(NoteFrequencies.E[2])
+        audioThing3.setFrequency(NoteFrequencies.G[3])
+        audioThing4.setFrequency(NoteFrequencies.B[3])
     }
 
     fun setGain(gain: Float) {
@@ -86,7 +134,6 @@ class Audio {
     }
 
     fun setFrequency(freq: Float) {
-        frequencyGlide.value = freq
     }
 }
 
@@ -113,6 +160,7 @@ class MySketch : PApplet() {
 
         ellipse(mouseXf, mouseYf, 20f, 20f)
         audio.setFrequency(freq)
+        audio.setGain(mouseXf / width.toFloat())
 
         text("Freq: $freq", 100f, 120f);
     }
