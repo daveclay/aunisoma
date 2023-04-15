@@ -110,10 +110,18 @@ class Audio {
     }
 
     fun setNotes(notes: Collection<Note>) {
+        val prevFreq = 0
+        val baseOctave = 3
         notes.withIndex().forEach { (index, note) ->
             if (index < audioThings.size) {
                 val audioThing = audioThings[index]
-                audioThing.setFrequency(note.frequencyAtOctave(3))
+                val frequencyAtOctave = note.frequencyAtOctave(baseOctave)
+                if (frequencyAtOctave < prevFreq) {
+                    val up = note.frequencyAtOctave(baseOctave + 1)
+                    audioThing.setFrequency(up)
+                } else {
+                    audioThing.setFrequency(frequencyAtOctave)
+                }
             }
         }
     }
