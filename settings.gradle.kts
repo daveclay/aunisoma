@@ -1,3 +1,3 @@
 
-rootProject.name = "burning-man-2023"
+rootProject.name = "aunisoma"
 
