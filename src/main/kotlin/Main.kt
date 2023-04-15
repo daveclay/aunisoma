@@ -1,8 +1,4 @@
-import musictheory.ChordType
-import musictheory.Note
-import musictheory.Note.Companion.NOTES
-import musictheory.Progression
-import musictheory.Scale
+import musictheory.*
 import net.beadsproject.beads.core.AudioContext
 import net.beadsproject.beads.data.Buffer
 import net.beadsproject.beads.ugens.Gain
@@ -133,6 +129,7 @@ class MySketch : PApplet() {
     val progression = Progression.i_iii_IV_V
     val scale = Scale.MINOR_SCALE
     val rootNote = Note.C
+    val musicalKey = Key(rootNote, scale)
 
     override fun settings() {
         size(500, 500)
@@ -153,15 +150,16 @@ class MySketch : PApplet() {
 
         ellipse(mouseXf, mouseYf, 20f, 20f)
 
-        val scaleIndiciesIndex = interpolateMouseWidth(mouseXf, progression.scaleIndicies.size)
-        val scaleIndexToStart = progression.scaleIndicies.toList().get(scaleIndiciesIndex);
+        val scaleIndiciesIndex = interpolateMouseWidth(mouseXf, progression.scalePositions.size)
+        val scaleIndexToStart = progression.scalePositions.toList().get(scaleIndiciesIndex);
 
-        val chord = scale.buildChord(scaleIndexToStart, ChordType.TRIAD_CHORD)
+        val scaleChord = scale.buildScaleChord(scaleIndexToStart, ChordType.TRIAD_CHORD)
 
-        val chordNotes = chord.buildNotes(rootNote)
+        val chordNotes = scaleChord.buildNotes(rootNote)
 
         audio.setNotes(chordNotes)
 
-        text("Notes: ${chordNotes.map { note -> note.name }.joinToString(", ")}", 100f, 120f);
+        val notesText = "Notes: ${chordNotes.map { note -> note.name }.joinToString(", ")}"
+        text("Chord: ${scaleChord.name()} - $notesText", 100f, 120f);
     }
 }
