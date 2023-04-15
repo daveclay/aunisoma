@@ -12,24 +12,31 @@ import org.junit.jupiter.params.provider.CsvSource
 internal class IntervalTest {
 
     @Test
-    fun testRootNotesForRootInMajorScale() {
+    fun testRootForRootInMajorScale() {
         val scale = Scale.MAJOR_SCALE
-        val notes = scale.buildChordNotes(Note.C, 0, ChordType.TRIAD_CHORD)
+        val notes = scale.buildChordNotes(Note.C, Scale.ScalePosition.ROOT, ChordType.TRIAD_CHORD)
         assertEquals(listOf(Note.C, Note.E, Note.G), notes)
     }
 
     @Test
-    fun testRootNotesForThirdInMajorScale() {
+    fun testTriadChordForThirdInMajorScale() {
         val scale = Scale.MAJOR_SCALE
-        val notes = scale.buildChordNotes(Note.C, 2, ChordType.TRIAD_CHORD)
+        val notes = scale.buildChordNotes(Note.C, Scale.ScalePosition.THIRD, ChordType.TRIAD_CHORD)
         assertEquals(listOf(Note.E, Note.G, Note.B), notes)
     }
 
     @Test
-    fun testRootNotesForFourthInMajorScale() {
+    fun testTriadChordAtFourthInMajorScale() {
         val scale = Scale.MAJOR_SCALE
-        val notes = scale.buildChordNotes(Note.C, 3, ChordType.TRIAD_CHORD)
+        val notes = scale.buildChordNotes(Note.C, Scale.ScalePosition.FOURTH, ChordType.TRIAD_CHORD)
         assertEquals(listOf(Note.F, Note.A, Note.C), notes)
+    }
+
+    @Test
+    fun testPowerChordAtFourthInMajorScale() {
+        val scale = Scale.MAJOR_SCALE
+        val notes = scale.buildChordNotes(Note.C, Scale.ScalePosition.FOURTH, ChordType.POWER_CHORD)
+        assertEquals(listOf(Note.F, Note.C), notes)
     }
 
     @Test

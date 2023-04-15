@@ -146,7 +146,7 @@ class MySketch : PApplet() {
         ellipse(mouseXf, mouseYf, 20f, 20f)
 
         val scaleIndiciesIndex = interpolateMouseWidth(mouseXf, progression.scaleIndicies.size)
-        val scaleIndexToStart = progression.scaleIndicies[scaleIndiciesIndex]; // note to start with
+        val scaleIndexToStart = progression.scaleIndicies.toList().get(scaleIndiciesIndex);
 
         val chordNotes = scale.buildChordNotes(rootNote, scaleIndexToStart, ChordType.TRIAD_CHORD)
         audio.setNotes(chordNotes)

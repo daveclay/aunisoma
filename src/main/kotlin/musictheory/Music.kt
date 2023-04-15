@@ -133,10 +133,10 @@ enum class Scale(val display: String, vararg val intervals: Interval) {
 
     // todo: kind of chord: triad regardless of minor/major?
     fun buildChordNotes(rootNote: Note,
-                        startOnIntervalIndex: Int,
-                        chordType: ChordType): Collection<Note> {
+                        position: ScalePosition,
+                        chordType: ChordType): List<Note> {
 
-        val intervals = chordType.intervalsFromScale(startOnIntervalIndex, this)
+        val intervals = chordType.intervalsFromScale(position, this)
 
         return intervals.map { interval ->
             interval.fromNote(rootNote)
@@ -169,9 +169,9 @@ class ChordType(val scalePositions: Array<Scale.ScalePosition>) {
         ))
     }
 
-    fun intervalsFromScale(offset: Int, scale: Scale): Collection<Interval> {
-        return scalePositions.map { scalePosition ->
-            val boundedIndex = scale.boundedIndex(scalePosition.scaleIntervalIndex + offset)
+    fun intervalsFromScale(position: Scale.ScalePosition, scale: Scale): List<Interval> {
+        return scalePositions.map { chordTypePositions ->
+            val boundedIndex = scale.boundedIndex(chordTypePositions.scaleIntervalIndex + position.scaleIntervalIndex)
             scale.intervals[boundedIndex]
         }
     }
@@ -224,10 +224,10 @@ class Chord(val name: String,
     }
 }
 
-class Progression(val scaleIndicies: Array<Int>) {
+class Progression(val scaleIndicies: List<Scale.ScalePosition>) {
     companion object {
         val I_iii_IV = Progression(
-            arrayOf(0, 2, 3)
+            listOf(Scale.ScalePosition.ROOT, Scale.ScalePosition.THIRD, Scale.ScalePosition.FOURTH)
         )
     }
 }
