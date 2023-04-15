@@ -21,6 +21,8 @@ dependencies {
     // find  /Applications/Processing.app/Contents/Java -name "*.jar"                                                                                                                      Sat 158:17:17
     implementation(files("/Applications/Processing.app/Contents/Java/core.jar"))
     testImplementation(kotlin("test"))
+    testImplementation(platform("org.junit:junit-bom:5.9.2"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
 }
 
 tasks.test {
