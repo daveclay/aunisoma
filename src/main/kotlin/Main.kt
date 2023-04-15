@@ -130,8 +130,8 @@ class Audio {
 class MySketch : PApplet() {
     private val audio = Audio()
 
-    val progression = Progression.I_iii_IV
-    val scale = Scale.MAJOR_SCALE
+    val progression = Progression.i_iii_IV_V
+    val scale = Scale.MINOR_SCALE
     val rootNote = Note.C
 
     override fun settings() {
@@ -156,7 +156,10 @@ class MySketch : PApplet() {
         val scaleIndiciesIndex = interpolateMouseWidth(mouseXf, progression.scaleIndicies.size)
         val scaleIndexToStart = progression.scaleIndicies.toList().get(scaleIndiciesIndex);
 
-        val chordNotes = scale.buildChordNotes(rootNote, scaleIndexToStart, ChordType.TRIAD_CHORD)
+        val chord = scale.buildChord(scaleIndexToStart, ChordType.TRIAD_CHORD)
+
+        val chordNotes = chord.buildNotes(rootNote)
+
         audio.setNotes(chordNotes)
 
         text("Notes: ${chordNotes.map { note -> note.name }.joinToString(", ")}", 100f, 120f);

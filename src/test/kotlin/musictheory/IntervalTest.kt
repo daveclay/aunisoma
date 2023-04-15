@@ -1,13 +1,8 @@
 package musictheory
 
-import musictheory.Note.Companion.NOTES
-import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Assertions.assertEquals
 
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
-import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.CsvSource
 
 internal class IntervalTest {
 
@@ -40,7 +35,7 @@ internal class IntervalTest {
     }
 
     @Test
-    fun hi() {
+    fun testBuildChordNotes() {
         val progression = Progression.I_iii_IV
         val scale = Scale.MAJOR_SCALE
         val rootNote = Note.C
@@ -49,5 +44,11 @@ internal class IntervalTest {
 
         val notes = scale.buildChordNotes(rootNote, scaleIndexToStart, ChordType.TRIAD_CHORD)
         assertEquals(listOf(Note.F, Note.A, Note.C), notes)
+    }
+
+    @Test
+    fun testFindChordByIntervalsMatchesRegardlessOfOrder() {
+        val found = Chord.findByIntervals(listOf(Interval.UNISON, Interval.FIFTH, Interval.MAJOR_THIRD))
+        assertEquals(Chord.MAJOR_TRIAD, found)
     }
 }
