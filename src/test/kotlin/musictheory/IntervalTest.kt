@@ -14,28 +14,22 @@ internal class IntervalTest {
     @Test
     fun testRootNotesForRootInMajorScale() {
         val scale = Scale.MAJOR_SCALE
-        val notes = scale.buildChordNotes(Note.C, 0)
-        assertEquals(Note.C, notes[0])
-        assertEquals(Note.E, notes[1])
-        assertEquals(Note.G, notes[2])
+        val notes = scale.buildChordNotes(Note.C, 0, ChordType.TRIAD_CHORD)
+        assertEquals(listOf(Note.C, Note.E, Note.G), notes)
     }
 
     @Test
     fun testRootNotesForThirdInMajorScale() {
         val scale = Scale.MAJOR_SCALE
-        val notes = scale.buildChordNotes(Note.C, 2)
-        assertEquals(Note.E, notes[0])
-        assertEquals(Note.G, notes[1])
-        assertEquals(Note.B, notes[2])
+        val notes = scale.buildChordNotes(Note.C, 2, ChordType.TRIAD_CHORD)
+        assertEquals(listOf(Note.E, Note.G, Note.B), notes)
     }
 
     @Test
     fun testRootNotesForFourthInMajorScale() {
         val scale = Scale.MAJOR_SCALE
-        val notes = scale.buildChordNotes(Note.C, 3)
-        assertEquals(Note.F, notes[0])
-        assertEquals(Note.A, notes[1])
-        assertEquals(Note.C, notes[2])
+        val notes = scale.buildChordNotes(Note.C, 3, ChordType.TRIAD_CHORD)
+        assertEquals(listOf(Note.F, Note.A, Note.C), notes)
     }
 
     @Test
@@ -46,10 +40,7 @@ internal class IntervalTest {
         val index = 2 // root, third, fourth
         val scaleIndexToStart = progression.scaleIndicies[index]; // note to start with
 
-        val notes = scale.buildChordNotes(rootNote, scaleIndexToStart)
-        assertEquals(Note.F, notes[0])
-        assertEquals(Note.A, notes[1])
-        assertEquals(Note.C, notes[2])
-
+        val notes = scale.buildChordNotes(rootNote, scaleIndexToStart, ChordType.TRIAD_CHORD)
+        assertEquals(listOf(Note.F, Note.A, Note.C), notes)
     }
 }

@@ -1,3 +1,4 @@
+import musictheory.ChordType
 import musictheory.Note
 import musictheory.Note.Companion.NOTES
 import musictheory.Progression
@@ -108,7 +109,7 @@ class Audio {
         audioThing1.setFrequency(freq)
     }
 
-    fun setNotes(notes: Array<Note>) {
+    fun setNotes(notes: Collection<Note>) {
         notes.withIndex().forEach { (index, note) ->
             if (index < audioThings.size) {
                 val audioThing = audioThings[index]
@@ -147,7 +148,7 @@ class MySketch : PApplet() {
         val scaleIndiciesIndex = interpolateMouseWidth(mouseXf, progression.scaleIndicies.size)
         val scaleIndexToStart = progression.scaleIndicies[scaleIndiciesIndex]; // note to start with
 
-        val chordNotes = scale.buildChordNotes(rootNote, scaleIndexToStart)
+        val chordNotes = scale.buildChordNotes(rootNote, scaleIndexToStart, ChordType.TRIAD_CHORD)
         audio.setNotes(chordNotes)
 
         text("Notes: ${chordNotes.map { note -> note.name }.joinToString(", ")}", 100f, 120f);

@@ -51,6 +51,23 @@ class Note(val name: String, val frequencies: Array<Float>) {
     fun indexOfNote() = NOTES.indexOf(this)
 
     override fun toString() = name
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as Note
+
+        if (name != other.name) return false
+        if (!frequencies.contentEquals(other.frequencies)) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = name.hashCode()
+        result = 31 * result + frequencies.contentHashCode()
+        return result
+    }
 }
 
 class Notes(val allNotes: Array<Note>) {
@@ -99,28 +116,64 @@ enum class Scale(val display: String, vararg val intervals: Interval) {
     MINOR_SCALE( "Minor", Interval.UNISON, Interval.MAJOR_SECOND, Interval.MINOR_THIRD, Interval.FOURTH, Interval.FIFTH, Interval.MINOR_SIXTH, Interval.MINOR_SEVENTH),
     MAJOR_SCALE( "Major", Interval.UNISON, Interval.MAJOR_SECOND, Interval.MAJOR_THIRD, Interval.FOURTH, Interval.FIFTH, Interval.MAJOR_SIXTH, Interval.MAJOR_SEVENTH);
 
+    enum class ScalePosition(val scaleIntervalIndex: Int) {
+        // Which Interval in the Scale?
+        ROOT(0),
+        SECOND(1),
+        THIRD(2),
+        FOURTH(3),
+        FIFTH(4),
+        SIXTH(5),
+        SEVENTH(6);
+    }
+
     // TODO: would it be easier to just name the chords for each interval?
     // otherwise, I have to say "take the 2 from this scale, build a chord from it using a third up from _that_ note, and a fifth from _that_ note, even though those will be
     // major/minor and different "indicies" counting-wise
 
-    fun buildChordNotes(rootNote: Note, intervalIndex: Int): Array<Note> {
-        // TODO: only 3, from root, plus intervals?
-        val boundedIndex = intervalIndex % intervals.size
-        val thirdIndex = boundedIndex + 2
-        val fifthIndex = boundedIndex + 4
+    // todo: kind of chord: triad regardless of minor/major?
+    fun buildChordNotes(rootNote: Note,
+                        startOnIntervalIndex: Int,
+                        chordType: ChordType): Collection<Note> {
 
-        val boundedThirdIndex = thirdIndex % intervals.size
-        val boundedFifthIndex = fifthIndex % intervals.size
+        val intervals = chordType.intervalsFromScale(startOnIntervalIndex, this)
 
-        val chordInterval = intervals[boundedIndex]
-        val thirdInterval = intervals[boundedThirdIndex]
-        val fifthInterval = intervals[boundedFifthIndex]
+        return intervals.map { interval ->
+            interval.fromNote(rootNote)
+        }
+    }
 
-        return arrayOf(
-            chordInterval.fromNote(rootNote),
-            thirdInterval.fromNote(rootNote),
-            fifthInterval.fromNote(rootNote)
-        )
+    fun boundedIndex(index: Int) = index % intervals.size
+}
+
+interface ChordBuilder {
+    fun fromRootNote(rootNote: Note): Array<Note>
+}
+
+class ChordType(val scalePositions: Array<Scale.ScalePosition>) {
+    companion object {
+        val TRIAD_CHORD = ChordType(arrayOf(
+            Scale.ScalePosition.ROOT,
+            Scale.ScalePosition.THIRD,
+            Scale.ScalePosition.FIFTH
+        ))
+        val POWER_CHORD = ChordType(arrayOf(
+            Scale.ScalePosition.ROOT,
+            Scale.ScalePosition.FIFTH
+        ))
+        val SEVENTH_CHORD = ChordType(arrayOf(
+            Scale.ScalePosition.ROOT,
+            Scale.ScalePosition.THIRD,
+            Scale.ScalePosition.FIFTH,
+            Scale.ScalePosition.SEVENTH
+        ))
+    }
+
+    fun intervalsFromScale(offset: Int, scale: Scale): Collection<Interval> {
+        return scalePositions.map { scalePosition ->
+            val boundedIndex = scale.boundedIndex(scalePosition.scaleIntervalIndex + offset)
+            scale.intervals[boundedIndex]
+        }
     }
 }
 
