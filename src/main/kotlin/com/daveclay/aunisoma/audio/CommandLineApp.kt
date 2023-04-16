@@ -1,4 +1,4 @@
-package com.daveclay.aunisoma.musictheory
+package com.daveclay.aunisoma.audio
 
 import com.daveclay.aunisoma.audio.Audio
 import java.util.*
