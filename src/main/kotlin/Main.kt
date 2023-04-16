@@ -151,15 +151,14 @@ class MySketch : PApplet() {
         ellipse(mouseXf, mouseYf, 20f, 20f)
 
         val scaleIndiciesIndex = interpolateMouseWidth(mouseXf, progression.scalePositions.size)
-        val scaleIndexToStart = progression.scalePositions.toList().get(scaleIndiciesIndex);
+        val scaleIndexToStart = progression.scalePositions[scaleIndiciesIndex];
 
-        val scaleChord = scale.buildScaleChord(scaleIndexToStart, ChordType.TRIAD_CHORD)
+        val keyChord = musicalKey.getChord(ChordType.TRIAD_CHORD, scaleIndexToStart)
+        val notes = keyChord.getNotes()
 
-        val chordNotes = scaleChord.buildNotes(rootNote)
+        audio.setNotes(notes)
 
-        audio.setNotes(chordNotes)
-
-        val notesText = "Notes: ${chordNotes.map { note -> note.name }.joinToString(", ")}"
-        text("Chord: ${scaleChord.name()} - $notesText", 100f, 120f);
+        val notesText = "Notes: ${notes.map { note -> note.name }.joinToString(", ")}"
+        text("Chord: ${keyChord.name()} - $notesText", 100f, 120f);
     }
 }

@@ -25,16 +25,4 @@ class ChordType(val scalePositions: Array<Scale.ScalePosition>) {
         )
         // TODO: How might a ChordType specify a non-Scale interval?
     }
-
-    fun chordFromScale(position: Scale.ScalePosition, scale: Scale): ScaleChord {
-        val intervals = intervalsFromScale(position, scale)
-        return ScaleChord(position, scale, intervals)
-    }
-
-    private fun intervalsFromScale(position: Scale.ScalePosition, scale: Scale): List<Interval> {
-        return scalePositions.map { chordTypePositions ->
-            val boundedIndex = scale.boundedIndex(chordTypePositions.scaleIntervalIndex + position.scaleIntervalIndex)
-            scale.intervals[boundedIndex]
-        }
-    }
 }

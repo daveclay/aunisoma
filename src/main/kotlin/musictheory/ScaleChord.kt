@@ -1,10 +1,9 @@
 package musictheory
 
 /**
- * A Chord's Intervals are relative to _itself_, a ScaleChord's intervals are relative to the Scale.
+ * Is there a use for a Chord that references a Scale but _not_ a Key?
  */
-class ScaleChord(val positionInScale: Scale.ScalePosition,
-                 val scale: Scale,
+class ScaleChord(val scale: Scale,
                  val intervalsRelativeToScale: List<Interval>) {
 
     fun name() = getChord().name
@@ -31,10 +30,9 @@ class ScaleChord(val positionInScale: Scale.ScalePosition,
         }
     }
 
-    // TODO: could just as well be Key instead of Note. It's the root of the key.
-    fun buildNotes(rootNote: Note): Collection<Note> {
+    fun buildNotes(key: Key): List<Note> {
         return intervalsRelativeToScale.map { interval ->
-            interval.fromNote(rootNote)
+            interval.fromNote(key.rootNote)
         }
     }
 }

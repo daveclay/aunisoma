@@ -76,9 +76,17 @@ enum class Scale(val display: String, vararg val intervals: Interval) {
     // otherwise, I have to say "take the 2 from this scale, build a chord from it using a third up from _that_ note, and a fifth from _that_ note, even though those will be
     // major/minor and different "indicies" counting-wise
 
-    fun buildScaleChord(position: ScalePosition, chordType: ChordType): ScaleChord {
-        return chordType.chordFromScale(position, this)
+    fun buildScaleChord(chordType: ChordType, position: ScalePosition): ScaleChord {
+        val intervals = intervalsForChordTypeAtPosition(chordType, position)
+        return ScaleChord(this, intervals)
     }
 
-    fun boundedIndex(index: Int) = index % intervals.size
+    private fun intervalsForChordTypeAtPosition(chordType: ChordType, position: ScalePosition): List<Interval> {
+        return chordType.scalePositions.map { chordTypePositions ->
+            val boundedIndex = boundedIndex(chordTypePositions.scaleIntervalIndex + position.scaleIntervalIndex)
+            intervals[boundedIndex]
+        }
+    }
+
+    private fun boundedIndex(index: Int) = index % intervals.size
 }
