@@ -1,10 +1,12 @@
 package musictheory
 
-class KeyChord(val scaleChord: ScaleChord, val key: Key) {
+class KeyChord(private val chordIntervals: ChordIntervals, key: Key) {
+    val name = chordIntervals.name
+    val notes = buildNotes(key)
 
-    fun getNotes(): List<Note> {
-        return scaleChord.buildNotes(key)
+    private fun buildNotes(key: Key): List<Note> {
+        return chordIntervals.intervalsRelativeToScale.map { interval ->
+            interval.fromNote(key.rootNote)
+        }
     }
-
-    fun name() = scaleChord.name()
 }

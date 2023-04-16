@@ -154,11 +154,11 @@ class MySketch : PApplet() {
         val scaleIndexToStart = progression.scalePositions[scaleIndiciesIndex];
 
         val keyChord = musicalKey.getChord(ChordType.TRIAD_CHORD, scaleIndexToStart)
-        val notes = keyChord.getNotes()
+        val notes = keyChord.notes
 
         audio.setNotes(notes)
 
         val notesText = "Notes: ${notes.map { note -> note.name }.joinToString(", ")}"
-        text("Chord: ${keyChord.name()} - $notesText", 100f, 120f);
+        text("Chord: ${keyChord.name} - $notesText", 100f, 120f);
     }
 }

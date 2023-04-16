@@ -26,11 +26,7 @@ enum class Interval(val index: Int) {
     companion object {
         fun intervalForDistance(distance: Int): Interval {
             val boundDistance = distance % 12
-            return if (boundDistance == 12) {
-                UNISON
-            } else {
-                values().first { interval -> interval.index == boundDistance }
-            }
+            return values().first { interval -> interval.index == boundDistance }
         }
     }
 }
