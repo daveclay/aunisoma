@@ -1,6 +1,9 @@
 package com.daveclay.aunisoma.audio
 
-import com.daveclay.aunisoma.audio.Audio
+import com.daveclay.aunisoma.musictheory.ChordType
+import com.daveclay.aunisoma.musictheory.Key
+import com.daveclay.aunisoma.musictheory.Note
+import com.daveclay.aunisoma.musictheory.Scale
 import java.util.*
 import kotlin.concurrent.thread
 
