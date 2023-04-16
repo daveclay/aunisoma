@@ -1,4 +1,4 @@
-package musictheory
+package com.daveclay.aunisoma.musictheory
 
 class Progression(val scalePositions: List<Scale.ScalePosition>) {
     companion object {

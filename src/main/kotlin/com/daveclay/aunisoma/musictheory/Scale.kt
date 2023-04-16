@@ -1,23 +1,24 @@
-package musictheory
+package com.daveclay.aunisoma.musictheory
 
-enum class Scale(val display: String, vararg val intervals: Interval) {
-    UNISON_SCALE( "Unison", Interval.UNISON),
-    PERFECT_SCALE( "Perfect", Interval.UNISON, Interval.FOURTH, Interval.FIFTH),
-    MINOR_PENTATONIC_SCALE( "Minor Pentatonic",
+enum class Scale(val names: List<String>, vararg val intervals: Interval) {
+    UNISON_SCALE(
+        listOf("Unison"), Interval.UNISON),
+    PERFECT_SCALE( listOf("Perfect"), Interval.UNISON, Interval.FOURTH, Interval.FIFTH),
+    MINOR_PENTATONIC_SCALE( listOf("Minor Pentatonic"),
         Interval.UNISON,
         Interval.MINOR_THIRD,
         Interval.FOURTH,
         Interval.FIFTH,
         Interval.MINOR_SEVENTH
     ),
-    MAJOR_PENTATONIC_SCALE( "Major Pentatonic",
+    MAJOR_PENTATONIC_SCALE( listOf("Major Pentatonic"),
         Interval.UNISON,
         Interval.MAJOR_THIRD,
         Interval.FOURTH,
         Interval.FIFTH,
         Interval.MAJOR_SEVENTH
     ),
-    BLUES_CHROMATIC_SCALE( "Blues Chromatic",
+    BLUES_CHROMATIC_SCALE( listOf("Blues Chromatic"),
         Interval.UNISON,
         Interval.MINOR_THIRD,
         Interval.MAJOR_THIRD,
@@ -26,7 +27,7 @@ enum class Scale(val display: String, vararg val intervals: Interval) {
         Interval.FIFTH,
         Interval.MINOR_SEVENTH
     ),
-    BLUES_MAJOR_SCALE( "Blues Major",
+    BLUES_MAJOR_SCALE( listOf("Blues Major"),
         Interval.UNISON,
         Interval.MAJOR_THIRD,
         Interval.FOURTH,
@@ -34,7 +35,7 @@ enum class Scale(val display: String, vararg val intervals: Interval) {
         Interval.FIFTH,
         Interval.MAJOR_SEVENTH
     ),
-    BLUES_MINOR_SCALE( "Blues Minor",
+    BLUES_MINOR_SCALE( listOf("Blues Minor"),
         Interval.UNISON,
         Interval.MINOR_THIRD,
         Interval.FOURTH,
@@ -42,7 +43,7 @@ enum class Scale(val display: String, vararg val intervals: Interval) {
         Interval.FIFTH,
         Interval.MINOR_SEVENTH
     ),
-    MINOR_SCALE( "Minor",
+    MINOR_SCALE( listOf("Minor", "min"),
         Interval.UNISON,
         Interval.MAJOR_SECOND,
         Interval.MINOR_THIRD,
@@ -51,7 +52,7 @@ enum class Scale(val display: String, vararg val intervals: Interval) {
         Interval.MINOR_SIXTH,
         Interval.MINOR_SEVENTH
     ),
-    MAJOR_SCALE( "Major",
+    MAJOR_SCALE( listOf("Major", "maj"),
         Interval.UNISON,
         Interval.MAJOR_SECOND,
         Interval.MAJOR_THIRD,
@@ -89,4 +90,12 @@ enum class Scale(val display: String, vararg val intervals: Interval) {
     }
 
     private fun boundedIndex(index: Int) = index % intervals.size
+
+    companion object {
+        fun findByName(scaleString: String): Scale? {
+            return values().firstOrNull { scale ->
+                scale.name == scaleString || scale.names.contains(scaleString)
+            }
+        }
+    }
 }

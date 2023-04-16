@@ -1,4 +1,4 @@
-package musictheory
+package com.daveclay.aunisoma.musictheory
 
 class KeyChord(private val chordIntervals: ChordIntervals, key: Key) {
     val name = chordIntervals.name

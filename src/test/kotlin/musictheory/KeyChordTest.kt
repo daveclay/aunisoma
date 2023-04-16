@@ -1,5 +1,6 @@
 package musictheory
 
+import com.daveclay.aunisoma.musictheory.*
 import org.junit.jupiter.api.Assertions.assertEquals
 
 import org.junit.jupiter.api.Test

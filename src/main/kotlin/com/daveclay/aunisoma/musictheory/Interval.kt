@@ -1,4 +1,4 @@
-package musictheory
+package com.daveclay.aunisoma.musictheory
 
 enum class Interval(val index: Int) {
     UNISON(0),

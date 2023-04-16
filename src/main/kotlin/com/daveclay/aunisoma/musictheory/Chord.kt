@@ -1,4 +1,4 @@
-package musictheory
+package com.daveclay.aunisoma.musictheory
 
 class Chord(val name: String,
             val symbol: String,
@@ -6,7 +6,7 @@ class Chord(val name: String,
 
     companion object {
         val  MAJOR_TRIAD: Chord = Chord(
-            "Major Triad", "", listOf(Interval.UNISON, Interval.MAJOR_THIRD, Interval.FIFTH)
+            "Major Triad", "M", listOf(Interval.UNISON, Interval.MAJOR_THIRD, Interval.FIFTH)
         )
 
         val  MAJOR_SUSPENDED_FOURTH_TRIAD: Chord = Chord(
@@ -22,21 +22,21 @@ class Chord(val name: String,
         )
 
         val  DOMINANT_SEVENTH_CHORD: Chord = Chord(
-            "Dominant 7th Chord", "7", listOf(
+            "Dominant 7th ", "7", listOf(
                 Interval.UNISON, Interval.MAJOR_THIRD, Interval.FIFTH,
                 Interval.MINOR_SEVENTH
             )
         )
 
         val  MAJOR_SEVENTH_CHORD: Chord = Chord(
-            "Major 7th Chord", "M7",
+            "Major 7th ", "M7",
             listOf(
                 Interval.UNISON, Interval.MAJOR_THIRD, Interval.FIFTH, Interval.MAJOR_SEVENTH
             )
         )
 
         val  MINOR_SEVENTH_CHORD: Chord = Chord(
-            "Minor 7th Chord", "m7",
+            "Minor 7th ", "m7",
             listOf(
                 Interval.UNISON, Interval.MINOR_THIRD, Interval.FIFTH, Interval.MINOR_SEVENTH
             )
@@ -47,14 +47,14 @@ class Chord(val name: String,
         )
 
         val  DIMINISHED_SEVENTH_CHORD: Chord = Chord(
-            "Diminished 7th Chord", "dim7", listOf(
+            "Diminished 7th ", "dim7", listOf(
                 Interval.UNISON,
                 Interval.MINOR_THIRD, Interval.DIMINISHED_FIFTH, Interval.DIMINISHED_SEVENTH
             )
         )
 
         val  HALF_DIMINISHED_SEVENTH_CHORD: Chord = Chord(
-            "Half-Diminished 7th Chord", "7b5", listOf(
+            "Half-Diminished 7th", "7b5", listOf(
                 Interval.UNISON,
                 Interval.MINOR_THIRD, Interval.DIMINISHED_FIFTH, Interval.MINOR_SEVENTH
             )
@@ -80,6 +80,12 @@ class Chord(val name: String,
             DIMINISHED_SEVENTH_CHORD,
             HALF_DIMINISHED_SEVENTH_CHORD
         )
+
+        fun findByName(name: String): Chord? {
+            return ALL_CHORDS_I_CAN_THINK_OF_AT_THE_MOMENT.first { chord ->
+                chord.name == name || chord.symbol == name
+            }
+        }
 
         fun findByIntervals(intervals: List<Interval>): Chord {
             val foundChord = ALL_CHORDS_I_CAN_THINK_OF_AT_THE_MOMENT.filter { chord ->

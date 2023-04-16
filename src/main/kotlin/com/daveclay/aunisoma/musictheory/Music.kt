@@ -1,4 +1,4 @@
-package musictheory
+package com.daveclay.aunisoma.musictheory
 
 interface ChordBuilder {
     fun fromRootNote(rootNote: Note): Array<Note>

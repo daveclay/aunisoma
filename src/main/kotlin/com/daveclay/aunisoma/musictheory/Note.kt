@@ -1,8 +1,28 @@
-package musictheory
+package com.daveclay.aunisoma.musictheory
+
+import java.lang.IllegalArgumentException
 
 class Note(val name: String, val frequencies: Array<Float>) {
 
     companion object {
+        fun findByString(noteString: String): Note {
+            return when(noteString) {
+                "A" -> Note.A
+                "A#" -> Note.A_SHARP
+                "B" -> Note.B
+                "C" -> Note.C
+                "C#" -> Note.C_SHARP
+                "D" -> Note.D
+                "D#" -> Note.D_SHARP
+                "E" -> Note.E
+                "F" -> Note.F
+                "F#" -> Note.F_SHARP
+                "G" -> Note.G
+                "G#" -> Note.G_SHARP
+                else -> throw IllegalArgumentException("No clue what note $noteString is pal")
+            }
+        }
+
         val C = Note(
             "C", arrayOf(
                 65.41f, 130.81f, 261.63f, 523.25f, 1046.50f, 2093.00f, 4186.01f

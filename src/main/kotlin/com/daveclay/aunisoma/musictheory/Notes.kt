@@ -1,4 +1,4 @@
-package musictheory
+package com.daveclay.aunisoma.musictheory
 
 class Notes(val allNotes: Array<Note>) {
     val size = allNotes.size

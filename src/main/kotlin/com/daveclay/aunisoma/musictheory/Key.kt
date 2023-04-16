@@ -1,4 +1,4 @@
-package musictheory
+package com.daveclay.aunisoma.musictheory
 
 class Key(val rootNote: Note, val scale: Scale) {
 

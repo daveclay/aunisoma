@@ -1,5 +1,9 @@
 package musictheory
 
+import com.daveclay.aunisoma.musictheory.ChordIntervals
+import com.daveclay.aunisoma.musictheory.ChordType
+import com.daveclay.aunisoma.musictheory.Interval
+import com.daveclay.aunisoma.musictheory.Scale
 import org.junit.jupiter.api.Assertions.assertEquals
 
 import org.junit.jupiter.api.Test

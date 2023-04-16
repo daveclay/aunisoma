@@ -1,4 +1,4 @@
-package musictheory
+package com.daveclay.aunisoma.musictheory
 
 /**
  * A ChordInterval represents a Chord built from intervals relative to a Scale. By referencing the Intervals relative
