@@ -49,11 +49,13 @@ internal class ScaleTest {
             ChordIntervals(listOf(Interval.FOURTH, Interval.UNISON)), chordIntervals)
     }
 
-    /*
     @Test
-    fun testFindChordByIntervalsMatchesRegardlessOfOrder() {
-        val found = Chord.findByIntervals(listOf(Interval.UNISON, Interval.FIFTH, Interval.MAJOR_THIRD))
-        assertEquals(Chord.MAJOR_TRIAD, found)
+    fun testDiminishedChordAtSeventhInMajorScale() {
+        val scale = Scale.MAJOR_SCALE
+        val chordIntervals = scale.buildChordIntervals(ChordType.TRIAD_CHORD, Scale.ScalePosition.SEVENTH)
+        assertEquals(
+            ChordIntervals(listOf(Interval.MAJOR_SEVENTH, Interval.MAJOR_SECOND, Interval.FOURTH)), chordIntervals)
+
+        assertEquals(Chord.DIMINISHED, chordIntervals.chord)
     }
-     */
 }

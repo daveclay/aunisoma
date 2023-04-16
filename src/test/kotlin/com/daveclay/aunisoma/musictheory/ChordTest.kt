@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test
 internal class ChordTest {
 
     @Test
-    fun testChordName_MinorTriadAtSecondPositionInCMajorScale() {
+    fun testFindByIntervals_MinorTriadAtSecondPositionInCMinorScale() {
         // C MAJOR_SCALE - SEVENTH - Chord: I don't know - Notes: B, D, F
         val chord = Chord.findByIntervals(
             listOf(
@@ -18,5 +18,4 @@ internal class ChordTest {
 
         assertEquals(Chord.DIMINISHED, chord)
     }
-
 }

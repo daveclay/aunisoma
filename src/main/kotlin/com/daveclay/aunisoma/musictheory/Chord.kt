@@ -45,7 +45,7 @@ class Chord(val name: String,
             "Diminished", "dim",
             listOf(
                 Interval.UNISON,
-                Interval.MAJOR_THIRD,
+                Interval.MINOR_THIRD,
                 Interval.DIMINISHED_FIFTH
             )
         )
