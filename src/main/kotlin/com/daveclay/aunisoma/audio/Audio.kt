@@ -1,6 +1,5 @@
 package com.daveclay.aunisoma.audio
 
-import VoiceBuilder
 import com.daveclay.aunisoma.musictheory.*
 import net.beadsproject.beads.core.AudioContext
 import net.beadsproject.beads.ugens.Gain
