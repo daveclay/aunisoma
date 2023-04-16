@@ -60,11 +60,19 @@ class Chord(val name: String,
             )
         )
 
+        val FIFTH = Chord(
+            "Fifth", "5", listOf(
+                Interval.UNISON,
+                Interval.FIFTH
+            )
+        )
+
         val ALL_CHORDS_I_CAN_THINK_OF_AT_THE_MOMENT = listOf(
             MAJOR_TRIAD,
             MAJOR_SUSPENDED_FOURTH_TRIAD,
             MAJOR_SUSPENDED_SECOND_TRIAD,
             MINOR_TRIAD,
+            FIFTH,
             DOMINANT_SEVENTH_CHORD,
             MAJOR_SEVENTH_CHORD,
             MINOR_SEVENTH_CHORD,
