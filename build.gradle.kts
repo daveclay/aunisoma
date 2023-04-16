@@ -19,7 +19,7 @@ dependencies {
     implementation("org.clojars.automata:tritonus-aos:1.0.0")
     // Processing 4 - from the Download application contents
     // find  /Applications/Processing.app/Contents/Java -name "*.jar"                                                                                                                      Sat 158:17:17
-    implementation(files("/Applications/Processing.app/Contents/Java/core.jar"))
+    // implementation(files("/Applications/Processing.app/Contents/Java/core.jar"))
     testImplementation(kotlin("test"))
     testImplementation(platform("org.junit:junit-bom:5.9.2"))
     testImplementation("org.junit.jupiter:junit-jupiter")
