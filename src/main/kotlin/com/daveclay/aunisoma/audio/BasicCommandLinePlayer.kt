@@ -1,17 +1,20 @@
 package com.daveclay.aunisoma.audio
 
-import com.daveclay.aunisoma.audio.Audio
+import com.daveclay.aunisoma.musictheory.ChordType
+import com.daveclay.aunisoma.musictheory.Key
+import com.daveclay.aunisoma.musictheory.Note
+import com.daveclay.aunisoma.musictheory.Scale
 import java.util.*
 import kotlin.concurrent.thread
 
 
 fun main(args: Array<String>) {
     thread(start = true) {
-        CommandLineApp().start()
+        BasicCommandLinePlayer().start()
     }
 }
 
-class CommandLineApp {
+class BasicCommandLinePlayer {
     val audio = Audio()
     val reader = Scanner(System.`in`)
     fun start() {
@@ -23,13 +26,13 @@ class CommandLineApp {
 
         val noteHandler: (String) -> Unit = { noteString ->
             val note = Note.findByString(noteString)
-            audio.musicalKey = Key(note, audio.musicalKey.scale)
+            audio.key = Key(note, audio.key.scale)
         }
 
         val scaleHandler: (String) -> Unit = { scaleString ->
             val scale = Scale.findByName(scaleString)
             if (scale != null) {
-                audio.musicalKey = Key(audio.musicalKey.rootNote, scale)
+                audio.key = Key(audio.key.rootNote, scale)
             } else {
                 val scales = Scale.values().map { scale -> scale.names }.flatten().joinToString(", ")
                 println("Don't know what scale $scaleString is, try one of: $scales")
@@ -78,8 +81,7 @@ class CommandLineApp {
 
                 val keyChord = audio.update()
 
-                val notesText = "Notes: ${keyChord.notes.map { note -> note.name }.joinToString(", ")}"
-                println("Chord: ${keyChord.name} - $notesText")
+                println("${audio.key.rootNote} ${audio.key.scale.name} - ${audio.scalePosition.name} - $keyChord")
             } catch (err: Exception) {
                 err.printStackTrace()
             }

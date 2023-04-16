@@ -8,9 +8,10 @@ import net.beadsproject.beads.ugens.ScalingMixer
 import net.beadsproject.beads.ugens.WavePlayer
 
 class Voice(audioContext: AudioContext,
-            mixer: ScalingMixer
+            mixer: ScalingMixer,
+            buffer: Buffer
 ) {
-    private val frequencyGlide = Glide(
+    val frequencyGlide = Glide(
         audioContext,
         440f,
         0f
@@ -19,7 +20,7 @@ class Voice(audioContext: AudioContext,
     private val wavePlayer = WavePlayer(
         audioContext,
         frequencyGlide,
-        Buffer.SINE
+        buffer
     )
 
     private val gainGlide = Glide(
@@ -28,7 +29,7 @@ class Voice(audioContext: AudioContext,
         0f
     );
 
-    private val gain = Gain(
+    val gain = Gain(
         audioContext,
         1,
         gainGlide
@@ -41,5 +42,9 @@ class Voice(audioContext: AudioContext,
 
     fun setFrequency(frequency: Float) {
         frequencyGlide.value = frequency
+    }
+
+    fun setGain(value: Float) {
+        gain.gain = value
     }
 }

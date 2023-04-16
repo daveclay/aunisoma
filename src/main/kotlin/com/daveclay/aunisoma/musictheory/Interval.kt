@@ -7,7 +7,7 @@ enum class Interval(val index: Int) {
     MINOR_THIRD(3),
     MAJOR_THIRD(4),
     FOURTH(5),
-    FLAT_FIFTH(6),
+    DIMINISHED_FIFTH(6),
     FIFTH(7),
     MINOR_SIXTH(8),
     MAJOR_SIXTH(9),
@@ -15,7 +15,7 @@ enum class Interval(val index: Int) {
     MAJOR_SEVENTH(11),
     OCTAVE(12),
     ROOT(UNISON.index),
-    DIMINISHED_FIFTH(FLAT_FIFTH.index),
+    FLAT_FIFTH(DIMINISHED_FIFTH.index),
     TRITONE(FLAT_FIFTH.index),
     DIMINISHED_SEVENTH(MAJOR_SIXTH.index);
 

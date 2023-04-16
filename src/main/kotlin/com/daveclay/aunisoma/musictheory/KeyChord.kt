@@ -9,4 +9,9 @@ class KeyChord(private val chordIntervals: ChordIntervals, key: Key) {
             interval.fromNote(key.rootNote)
         }
     }
+
+    override fun toString(): String {
+        val notesText = notes.map { note -> note.name }.joinToString(", ")
+        return "$name ($notesText)"
+    }
 }
