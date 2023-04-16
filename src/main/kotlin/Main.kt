@@ -12,8 +12,8 @@ fun main(args: Array<String>) {
 }
 
 
-class AudioThing(audioContext: AudioContext,
-                 mixer: ScalingMixer) {
+class Voice(audioContext: AudioContext,
+            mixer: ScalingMixer) {
     private val frequencyGlide = Glide(audioContext,
         440f,
         0f);
@@ -44,9 +44,9 @@ class AudioThing(audioContext: AudioContext,
     }
 }
 
-class AudioThingFactory(private val audioContext: AudioContext,
-                        private val mixer: ScalingMixer) {
-    fun newAudioThing() = AudioThing(audioContext, mixer)
+class VoiceBuilder(private val audioContext: AudioContext,
+                   private val mixer: ScalingMixer) {
+    fun buildNewVoice() = Voice(audioContext, mixer)
 }
 
 /**
@@ -65,17 +65,16 @@ class Audio {
         gainGlide
     )
 
-    private val audioThingFactory = AudioThingFactory(audioContext, mixer)
+    private val voiceBuilder = VoiceBuilder(audioContext, mixer)
 
-    private val audioThing1 = audioThingFactory.newAudioThing()
-    private val audioThing2 = audioThingFactory.newAudioThing()
-    private val audioThing3 = audioThingFactory.newAudioThing()
-    // private val audioThing4 = audioThingFactory.newAudioThing()
+    private val voice1 = voiceBuilder.buildNewVoice()
+    private val voice2 = voiceBuilder.buildNewVoice()
+    private val voice3 = voiceBuilder.buildNewVoice()
 
-    private val audioThings = arrayOf(
-        audioThing1,
-        audioThing2,
-        audioThing3,
+    private val voices = arrayOf(
+        voice1,
+        voice2,
+        voice3,
     )
 
     /*
@@ -91,26 +90,19 @@ class Audio {
         audioContext.out.addInput(gain)
         audioContext.start()
 
-        audioThing1.setFrequency(Note.C.frequencyAtOctave(3))
-        audioThing2.setFrequency(Note.E.frequencyAtOctave(3))
-        audioThing3.setFrequency(Note.G.frequencyAtOctave(3))
+        voice1.setFrequency(Note.C.frequencyAtOctave(3))
+        voice2.setFrequency(Note.E.frequencyAtOctave(3))
+        voice3.setFrequency(Note.G.frequencyAtOctave(3))
         // audioThing4.setFrequency(Note.C.frequencyAtOctave(4))
     }
 
-    fun setGain(gain: Float) {
-        gainGlide.value = gain
-    }
+    fun setNotes(notes: List<Note>) {
+        val prevFreq = 0 // open up the chord voicing by going an octave up instead of all notes in the same octave.
+        val baseOctave = 2
 
-    fun setFrequency(freq: Float) {
-        audioThing1.setFrequency(freq)
-    }
-
-    fun setNotes(notes: Collection<Note>) {
-        val prevFreq = 0
-        val baseOctave = 3
         notes.withIndex().forEach { (index, note) ->
-            if (index < audioThings.size) {
-                val audioThing = audioThings[index]
+            if (index < voices.size) {
+                val audioThing = voices[index]
                 val frequencyAtOctave = note.frequencyAtOctave(baseOctave)
                 if (frequencyAtOctave < prevFreq) {
                     val up = note.frequencyAtOctave(baseOctave + 1)
@@ -150,10 +142,11 @@ class MySketch : PApplet() {
 
         ellipse(mouseXf, mouseYf, 20f, 20f)
 
-        val scaleIndiciesIndex = interpolateMouseWidth(mouseXf, progression.scalePositions.size)
-        val scaleIndexToStart = progression.scalePositions[scaleIndiciesIndex];
+        val scalePositionIndex = interpolateMouseWidth(mouseXf, progression.scalePositions.size)
+        val scalePosition = progression.scalePositions[scalePositionIndex];
 
-        val keyChord = musicalKey.getChord(ChordType.TRIAD_CHORD, scaleIndexToStart)
+        // Combine a Progression with a ChordType for each index in a Scale - play different chords per scale index.
+        val keyChord = musicalKey.getChord(ChordType.TRIAD_CHORD, scalePosition)
         val notes = keyChord.notes
 
         audio.setNotes(notes)
