@@ -1,4 +1,4 @@
-package musictheory
+package com.daveclay.aunisoma.musictheory
 
 import com.daveclay.aunisoma.musictheory.ChordIntervals
 import com.daveclay.aunisoma.musictheory.ChordType
@@ -23,6 +23,14 @@ internal class ScaleTest {
         val chordIntervals = scale.buildChordIntervals(ChordType.TRIAD_CHORD, Scale.ScalePosition.THIRD)
         assertEquals(
             ChordIntervals(listOf(Interval.MAJOR_THIRD, Interval.FIFTH, Interval.MAJOR_SEVENTH)), chordIntervals)
+    }
+
+    @Test
+    fun testTriadChordAtSecondInMajorScale() {
+        val scale = Scale.MAJOR_SCALE
+        val chordIntervals = scale.buildChordIntervals(ChordType.TRIAD_CHORD, Scale.ScalePosition.SECOND)
+        assertEquals(
+            ChordIntervals(listOf(Interval.MAJOR_SECOND, Interval.FOURTH, Interval.MAJOR_SIXTH)), chordIntervals)
     }
 
     @Test

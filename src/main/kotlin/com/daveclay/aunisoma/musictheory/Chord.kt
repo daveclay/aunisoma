@@ -5,58 +5,96 @@ class Chord(val name: String,
             val intervals: List<Interval>) {
 
     companion object {
-        val  MAJOR_TRIAD: Chord = Chord(
-            "Major Triad", "M", listOf(Interval.UNISON, Interval.MAJOR_THIRD, Interval.FIFTH)
+        val  MAJOR_TRIAD = Chord(
+            "Major Triad", "M",
+            listOf(
+                Interval.UNISON,
+                Interval.MAJOR_THIRD,
+                Interval.FIFTH
+            )
         )
 
-        val  MAJOR_SUSPENDED_FOURTH_TRIAD: Chord = Chord(
-            "Major Suspended Fourth Triad", "sus4", listOf(Interval.UNISON, Interval.FOURTH, Interval.FIFTH)
+        val  MAJOR_SUSPENDED_FOURTH_TRIAD = Chord(
+            "Major Suspended Fourth Triad", "sus4",
+            listOf(
+                Interval.UNISON,
+                Interval.FOURTH,
+                Interval.FIFTH
+            )
         )
 
-        val  MAJOR_SUSPENDED_SECOND_TRIAD: Chord = Chord(
-            "Major Suspended Second Triad", "sus2", listOf(Interval.UNISON, Interval.MAJOR_SECOND, Interval.FIFTH)
+        val  MAJOR_SUSPENDED_SECOND_TRIAD = Chord(
+            "Major Suspended Second Triad", "sus2",
+            listOf(
+                Interval.UNISON,
+                Interval.MAJOR_SECOND,
+                Interval.FIFTH
+            )
         )
 
-        val  MINOR_TRIAD: Chord = Chord(
-            "Minor Triad", "m", listOf(Interval.UNISON, Interval.MINOR_THIRD, Interval.FIFTH)
+        val  MINOR_TRIAD = Chord(
+            "Minor Triad", "m",
+            listOf(
+                Interval.UNISON,
+                Interval.MINOR_THIRD,
+                Interval.FIFTH
+            )
         )
 
-        val  DOMINANT_SEVENTH_CHORD: Chord = Chord(
-            "Dominant 7th ", "7", listOf(
-                Interval.UNISON, Interval.MAJOR_THIRD, Interval.FIFTH,
+        val  DIMINISHED = Chord(
+            "Diminished", "dim",
+            listOf(
+                Interval.UNISON,
+                Interval.MAJOR_THIRD,
+                Interval.DIMINISHED_FIFTH
+            )
+        )
+
+        val  DOMINANT_SEVENTH_CHORD = Chord(
+            "Dominant 7th ", "7",
+            listOf(
+                Interval.UNISON,
+                Interval.MAJOR_THIRD,
+                Interval.FIFTH,
                 Interval.MINOR_SEVENTH
             )
         )
 
-        val  MAJOR_SEVENTH_CHORD: Chord = Chord(
+        val  MAJOR_SEVENTH_CHORD = Chord(
             "Major 7th ", "M7",
             listOf(
-                Interval.UNISON, Interval.MAJOR_THIRD, Interval.FIFTH, Interval.MAJOR_SEVENTH
+                Interval.UNISON,
+                Interval.MAJOR_THIRD,
+                Interval.FIFTH,
+                Interval.MAJOR_SEVENTH
             )
         )
 
-        val  MINOR_SEVENTH_CHORD: Chord = Chord(
+        val  MINOR_SEVENTH_CHORD = Chord(
             "Minor 7th ", "m7",
             listOf(
-                Interval.UNISON, Interval.MINOR_THIRD, Interval.FIFTH, Interval.MINOR_SEVENTH
+                Interval.UNISON,
+                Interval.MINOR_THIRD,
+                Interval.FIFTH,
+                Interval.MINOR_SEVENTH
             )
         )
 
-        val  DIMINISHED_TRIAD: Chord = Chord(
-            "Diminished Triad", "dim", listOf(Interval.UNISON, Interval.MINOR_THIRD, Interval.DIMINISHED_FIFTH)
-        )
-
-        val  DIMINISHED_SEVENTH_CHORD: Chord = Chord(
+        val  DIMINISHED_SEVENTH_CHORD = Chord(
             "Diminished 7th ", "dim7", listOf(
                 Interval.UNISON,
-                Interval.MINOR_THIRD, Interval.DIMINISHED_FIFTH, Interval.DIMINISHED_SEVENTH
+                Interval.MINOR_THIRD,
+                Interval.DIMINISHED_FIFTH,
+                Interval.DIMINISHED_SEVENTH
             )
         )
 
-        val  HALF_DIMINISHED_SEVENTH_CHORD: Chord = Chord(
+        val  HALF_DIMINISHED_SEVENTH_CHORD = Chord(
             "Half-Diminished 7th", "7b5", listOf(
                 Interval.UNISON,
-                Interval.MINOR_THIRD, Interval.DIMINISHED_FIFTH, Interval.MINOR_SEVENTH
+                Interval.MINOR_THIRD,
+                Interval.DIMINISHED_FIFTH,
+                Interval.MINOR_SEVENTH
             )
         )
 
@@ -72,11 +110,11 @@ class Chord(val name: String,
             MAJOR_SUSPENDED_FOURTH_TRIAD,
             MAJOR_SUSPENDED_SECOND_TRIAD,
             MINOR_TRIAD,
+            DIMINISHED,
             FIFTH,
             DOMINANT_SEVENTH_CHORD,
             MAJOR_SEVENTH_CHORD,
             MINOR_SEVENTH_CHORD,
-            DIMINISHED_TRIAD,
             DIMINISHED_SEVENTH_CHORD,
             HALF_DIMINISHED_SEVENTH_CHORD
         )
@@ -88,6 +126,7 @@ class Chord(val name: String,
         }
 
         fun findByIntervals(intervals: List<Interval>): Chord {
+            // TODO: find matching indexes if not found (DIMINISHED vs FLAT_FIFTH, etc)
             val foundChord = ALL_CHORDS_I_CAN_THINK_OF_AT_THE_MOMENT.filter { chord ->
                 chord.intervals.size == intervals.size && chord.intervals.containsAll(intervals)
             }.firstOrNull()

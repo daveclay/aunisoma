@@ -1,5 +1,7 @@
 package com.daveclay.aunisoma.musictheory
 
+import kotlin.random.Random
+
 enum class Scale(val names: List<String>, vararg val intervals: Interval) {
     UNISON_SCALE(
         listOf("Unison"), Interval.UNISON),
@@ -76,6 +78,10 @@ enum class Scale(val names: List<String>, vararg val intervals: Interval) {
     // TODO: would it be easier to just name the chords for each interval?
     // otherwise, I have to say "take the 2 from this scale, build a chord from it using a third up from _that_ note, and a fifth from _that_ note, even though those will be
     // major/minor and different "indicies" counting-wise
+
+    fun randomPosition(): ScalePosition {
+        return ScalePosition.values()[Random.nextInt(ScalePosition.values().size)]
+    }
 
     fun buildChordIntervals(chordType: ChordType, position: ScalePosition): ChordIntervals {
         val intervals = intervalsForChordTypeAtPosition(chordType, position)

@@ -124,4 +124,8 @@ class Note(val name: String, val frequencies: Array<Float>) {
         result = 31 * result + frequencies.contentHashCode()
         return result
     }
+
+    fun toInterval(interval: Interval): Note {
+        return interval.fromNote(this)
+    }
 }
