@@ -389,7 +389,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
 
         delayMs += this.reverberationDelayMs * i;
 
-        if (leftPanelIndex > 0) {
+        if (leftPanelIndex >= 0) {
           reverberations[reverberations.length] = new Reverberation(
             leftPanelIndex,
             delayMs,
@@ -397,7 +397,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
           )
         }
 
-        if (rightPanelIndex < this.maxPanelIndex) {
+        if (rightPanelIndex <= this.maxPanelIndex) {
           reverberations[reverberations.length] = new Reverberation(
             rightPanelIndex,
             delayMs,
