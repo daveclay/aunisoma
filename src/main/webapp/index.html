@@ -46,6 +46,10 @@ document.addEventListener("DOMContentLoaded", (event) => {
   const GRADIENT_ELEMENT = document.getElementById("gradient");
   const GRADIENT_LINE_TEMPLATE_ELEMENT = document.getElementById("gradientLineTemplate");
 
+  function randomIntBetween(min, max) {
+    return min + Math.round(Math.random() * (max - min));
+  }
+
   function clone(templateElement) {
     let clone = templateElement.cloneNode(true);
     clone.attributes.removeNamedItem("id");
@@ -104,7 +108,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
     getColorAtValue(value) {
       //GradientValuePoint[] points = getGradientValuePointForValue(value);
       let points = this.getGradientValuePointsForValue(value);
-      console.log(points, "for", value);
+      // console.log(points, "for", value);
 
       // ratio = zero-based value / range
       // ratio = val - min / max - min;
@@ -308,6 +312,65 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
   }
 
+  class Range {
+    constructor(min, max) {
+      this.min = min;
+      this.max = max;
+    }
+
+    randomDistribution(count) {
+      let length = this.max - this.min;
+      let divisionLength = length / count;
+      let distribution = [];
+      for (let i = 0; i < count; i++) {
+        // TODO: constraints on window size here?
+        let value = randomIntBetween(divisionLength * .2, divisionLength * 1.5);
+        distribution[i] = Math.min(value, this.max);
+      }
+
+      return distribution;
+    }
+
+    randomIntBetween() {
+      return randomIntBetween(this.min, this.max);
+    }
+  }
+
+  class ReverberationConfig {
+    constructor(maxReverberationDistance,
+                minReverberations,
+                maxReverberations,
+                reverberationTimingMinMs,
+                reverberationTimingMaxMs) {
+      this.maxReverberationDistance = maxReverberationDistance;
+      this.minReverberations = minReverberations;
+      this.maxReverberations = maxReverberations;
+      this.reverberationsRange = new Range(
+        this.minReverberations,
+        this.maxReverberations
+      );
+      this.reverberationTimingMinMs = reverberationTimingMinMs;
+      this.reverberationTimingMaxMs = reverberationTimingMaxMs;
+      this.reverberationTimingRange = new Range(
+        this.reverberationTimingMinMs,
+        this.reverberationTimingMaxMs
+      );
+    }
+
+    getReverberationDelaysMs() {
+      let count = this.getRandomReverberationsCount();
+      return this.reverberationTimingRange.randomDistribution(count);
+    }
+
+    getRandomReverberationsCount() {
+      return this.reverberationsRange.randomIntBetween();
+    }
+
+    getRandomReverberationDistance() {
+      return Math.round(Math.random() * this.maxReverberationDistance);
+    }
+  }
+
   class Panel {
     constructor(panelElement, index, context) {
       this.context = context;
@@ -319,6 +382,9 @@ document.addEventListener("DOMContentLoaded", (event) => {
       this.gradientValueMap = getBasicGradient();
       this.intervalId = null;
       this.reverberating = false;
+      this.reverberationConfig = new ReverberationConfig(
+
+      );
 
       panelElement.addEventListener("mouseover", () => this.triggerInteraction());
     }
@@ -336,19 +402,21 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
 
     triggerNeighborReverberations() {
-      let numberOfReverbs = 1 + Math.round(Math.random() * 4);
-      for (let i = 0; i < numberOfReverbs; i++) {
+      let reverberationDelaysMs = this.context.reverberationConfig.getReverberationDelaysMs();
+      for (let i = 0; i < reverberationDelaysMs.length; i++) {
+        let randomNeighborPanel = this.context.getRandomNeighborPanel(this);
         setTimeout(
-          () => this.context.getRandomNeighborPanel(this).triggerReverberation(),
-          200 + Math.round(Math.random() * 800));
+          () => randomNeighborPanel.triggerReverberation(),
+          reverberationDelaysMs[i]);
       }
     }
 
+
     triggerReverberation() {
       if (this.intervalId == null) {
-        this.steps = 30;
+        // TODO: slow this down, less jittery, give time for overlap
+        this.steps = 100;
         this.reverberating = true;
-        // TODO: dim the light
         this.startAnimation();
       } else {
         // TODO: what if I'm triggered? wave overlap - interpolate new colors
@@ -357,6 +425,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
 
     startAnimation() {
       this.tick = 0;
+      // TODO: this.animationFrameMs
       this.intervalId = setInterval(() => this.animateStep(), 1);
     }
 
@@ -396,6 +465,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
       let color = this.gradientValueMap.getColorForValue(value);
       if (this.reverberating) {
         // TODO: alter this slightly, but it has to be done per _reverberation_.
+        // TODO: set min color
         color.dimBy(.3);
       }
       return color;
@@ -403,8 +473,9 @@ document.addEventListener("DOMContentLoaded", (event) => {
   }
 
   class PanelContext {
-    constructor(numberOfPanels, maxReverberationDistance) {
-      this.maxReverberationDistance = maxReverberationDistance;
+    constructor(numberOfPanels,
+                reverberationConfig) {
+      this.reverberationConfig = reverberationConfig;
       this.numberOfPanels = numberOfPanels;
       this.panels = [];
     }
@@ -419,7 +490,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
     getRandomNeighborPanel(fromPanel) {
       let fromIndex = fromPanel.index;
 
-      let distance = Math.round(Math.random() * this.maxReverberationDistance);
+      let distance = this.reverberationConfig.getRandomReverberationDistance();
 
       let reverberatingPanelIndex;
       if (fromIndex !== 0 && (fromIndex === this.panels.length - 1 || Math.round(Math.random()) < .5)) {
@@ -432,11 +503,20 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
   }
 
-  const MAX_REVERBERATION_DISTANCE = 4;
+  const MAX_REVERBERATION_DISTANCE = 3;
+  const minReverberations = 1;
+  const maxReverberations = 8;
+  const reverberationTimingMinMs = 500;
+  const reverberationTimingMaxMs = 1500;
 
   let panelContext = new PanelContext(
     NUMBER_OF_PANELS,
-    MAX_REVERBERATION_DISTANCE
+    new ReverberationConfig(
+      MAX_REVERBERATION_DISTANCE,
+      minReverberations,
+      maxReverberations,
+      reverberationTimingMinMs,
+      reverberationTimingMaxMs)
   );
   panelContext.createPanels();
 });
