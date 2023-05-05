@@ -1,0 +1,328 @@
+<html>
+<style>
+    body {
+        background-color: black;
+    }
+    #stage {
+    }
+    .panel {
+        display: inline-block;
+        width: 100px; /* 24" */
+        height: 200px; /* 48" */
+        background-color: rgb(60, 0, 0);
+        border: 1px solid #222222;
+        margin: 5px;
+    }
+    #panelTemplate {
+        display: none;
+    }
+    #gradient {
+        display: block;
+        width: 800px;
+        height: 100px;
+    }
+    #gradientLineTemplate {
+        display: none;
+    }
+    .gradientLine {
+        display: inline-block;
+        width: 4px;
+        height: 100px;
+        margin: 0;
+        padding: 0;
+    }
+</style>
+<body>
+<div id="stage">
+</div>
+<div id="gradient"></div>
+<div id="gradientLineTemplate" class="gradientLine"></div>
+<div id="panelTemplate" class="panel"></div>
+<script>
+document.addEventListener("DOMContentLoaded", (event) => {
+  const NUMBER_OF_PANELS = 20;
+  const PANEL_TEMPLATE_ELEMENT = document.getElementById("panelTemplate");
+  const STAGE = document.getElementById("stage");
+  const GRADIENT_ELEMENT = document.getElementById("gradient");
+  const GRADIENT_LINE_TEMPLATE_ELEMENT = document.getElementById("gradientLineTemplate");
+
+  function clone(templateElement) {
+    let clone = templateElement.cloneNode(true);
+    clone.attributes.removeNamedItem("id");
+    return clone;
+  }
+
+  function removeChildren(element) {
+    while (element.firstChild) {
+      element.removeChild(element.firstChild);
+    }
+  }
+
+  function newPanel(index) {
+    let panelElement = clone(PANEL_TEMPLATE_ELEMENT);
+    panelElement.classList.add("panel");
+    STAGE.appendChild(panelElement);
+    return new Panel(panelElement, index);
+  }
+
+  function lerp(a, b, step) {
+    return (1 - step) * a + step * b;
+  }
+
+  class Color {
+    constructor(red, green, blue) {
+      this.red = red;
+      this.green = green;
+      this.blue = blue;
+    }
+
+    toHexString() {
+      return "#"
+        + this.red.toString(16).padStart(2, "0")
+        + this.green.toString(16).padStart(2, "0")
+        + this.blue.toString(16).padStart(2, "0");
+    }
+  }
+
+  class GradientValuePoint {
+    constructor(value, colorValue) {
+      this.value = value;
+      this.colorValue = colorValue;
+    }
+  }
+
+  class SingleGradientValueMap {
+    constructor() {
+      this.gradientValuePoints = []; // new ArrayList<GradientValuePoint>();
+    }
+
+    getColorAtValue(value) {
+      //GradientValuePoint[] points = getGradientValuePointForValue(value);
+      let points = this.getGradientValuePointsForValue(value);
+      console.log(points, "for", value);
+
+      // ratio = zero-based value / range
+      // ratio = val - min / max - min;
+      let min = points[0].value;
+      let max = points[1].value;
+      let ratio = (value - min) / (max - min);
+
+      // ints
+      let minColor = points[0].colorValue;
+      let maxColor = points[1].colorValue;
+
+      // int
+      let colorRange = maxColor - minColor;
+      // double
+      let colorValue =  colorRange * ratio;
+
+      // int
+      let color = minColor + Math.round(colorValue);
+      if (color > 255) {
+        return 255;
+      } else if (color < 0) {
+        return 0;
+      }
+
+      return color;
+    }
+
+
+    //GradientValuePoint[] getGradientValuePointForValue(double value) {
+    getGradientValuePointsForValue(value) {
+      let lowerPoint = null;
+      let matchingPointsForValue = null;
+      for (let i = 0; i < this.gradientValuePoints.length; i++) {
+        let point = this.gradientValuePoints[i];
+        if (value >= point.value) {
+          lowerPoint = point;
+        } else {
+          if (lowerPoint == null) {
+            matchingPointsForValue = [ point, point ];
+          } else {
+            matchingPointsForValue = [ lowerPoint, point ];
+          }
+          break;
+        }
+      }
+
+      if (matchingPointsForValue) {
+        return matchingPointsForValue;
+      }
+
+      // otherwise, use the max two points
+      return [
+        this.gradientValuePoints[this.gradientValuePoints.length - 2],
+        this.gradientValuePoints[this.gradientValuePoints.length - 1]
+      ];
+    }
+
+    addPoint(value, color) {
+      let point = new GradientValuePoint(value, color);
+      this.gradientValuePoints.push(point);
+    }
+
+    setGradientValuePoints(points) {
+      this.gradientValuePoints = points;
+    }
+
+    reset() {
+      this.gradientValuePoints.clear();
+    }
+  }
+
+  class GradientValueMap {
+
+    constructor() {
+      this.redMap = new SingleGradientValueMap();
+      this.greenMap = new SingleGradientValueMap();
+      this.blueMap = new SingleGradientValueMap();
+    }
+
+    reset() {
+      this.redMap.reset();
+      this.greenMap.reset();
+      this.blueMap.reset();
+    }
+
+    addRedPoint(value, color) {
+      this.redMap.addPoint(value, color);
+    }
+
+    addGreenPoint(value, color) {
+      this.greenMap.addPoint(value, color);
+    }
+
+    addBluePoint(value, color) {
+      this.blueMap.addPoint(value, color);
+    }
+
+    getColorForValue(value) {
+      let red = this.redMap.getColorAtValue(value);
+      let green = this.greenMap.getColorAtValue(value);
+      let blue = this.blueMap.getColorAtValue(value);
+      return new Color(red, green, blue);
+    }
+  }
+
+  function getBasicGradient() {
+    let gradientValueMap = new GradientValueMap();
+    gradientValueMap.addRedPoint(0, 60);
+    gradientValueMap.addGreenPoint(0, 0);
+    gradientValueMap.addBluePoint(0, 0);
+
+    gradientValueMap.addRedPoint(.3, 30);
+    gradientValueMap.addGreenPoint(.3, 0);
+    gradientValueMap.addBluePoint(.3, 100);
+
+    gradientValueMap.addRedPoint(.6, 0);
+    gradientValueMap.addGreenPoint(.6, 0);
+    gradientValueMap.addBluePoint(.6, 180);
+
+    gradientValueMap.addRedPoint(.8, 0);
+    gradientValueMap.addGreenPoint(.8, 100);
+    gradientValueMap.addBluePoint(.8, 220);
+
+    gradientValueMap.addRedPoint(1, 0);
+    gradientValueMap.addGreenPoint(1, 180);
+    gradientValueMap.addBluePoint(1, 255);
+
+    return gradientValueMap;
+  }
+
+  function getFireGradient() {
+    let gradientValueMap = new GradientValueMap();
+    gradientValueMap.addRedPoint(0, 60);
+    gradientValueMap.addGreenPoint(0, 0);
+    gradientValueMap.addBluePoint(0, 0);
+
+    gradientValueMap.addRedPoint(.1, 100);
+    gradientValueMap.addGreenPoint(.1, 0);
+    gradientValueMap.addBluePoint(.1, 0);
+
+    gradientValueMap.addRedPoint(.6, 200);
+    gradientValueMap.addGreenPoint(.6, 0);
+    gradientValueMap.addBluePoint(.6, 0);
+
+    gradientValueMap.addRedPoint(.8, 255);
+    gradientValueMap.addGreenPoint(.8, 0);
+    gradientValueMap.addBluePoint(.8, 0);
+
+    gradientValueMap.addRedPoint(1, 255);
+    gradientValueMap.addGreenPoint(1, 255);
+    gradientValueMap.addBluePoint(1, 0);
+
+    return gradientValueMap;
+  }
+
+  function showGradientElement(panel) {
+    removeChildren(GRADIENT_ELEMENT);
+    for (const step of Array(panel.steps).keys()) {
+      let color = panel.getColorForValue(step / panel.steps);
+      let gradientLineElement = clone(GRADIENT_LINE_TEMPLATE_ELEMENT);
+      gradientLineElement.style.backgroundColor = color;
+      GRADIENT_ELEMENT.appendChild(gradientLineElement);
+    }
+  }
+
+  class Panel {
+    constructor(panelElement, index) {
+      this.panelElement = panelElement;
+      this.index = index;
+      this.direction = true;
+      this.tick = 0;
+      this.steps = 100;
+      this.gradientValueMap = getFireGradient();
+      this.intervalId = null;
+
+      panelElement.addEventListener("mouseover", () => this.triggerInteraction());
+    }
+
+    triggerInteraction() {
+      if (this.intervalId == null) {
+        this.intervalId = setInterval(() => this.animateStep(), 1);
+        showGradientElement(this);
+      }
+    }
+
+    animateStep() {
+      if (this.direction) {
+        this.tick += 1;
+      } else {
+        this.tick -= 1;
+      }
+      this.panelElement.style.backgroundColor = this.nextColor();
+      if (this.direction) {
+        if (this.tick >= this.steps) {
+          this.direction = false;
+        }
+      } else {
+        if (this.tick === 0) {
+          clearInterval(this.intervalId);
+          this.intervalId = null;
+          this.tick = 0;
+          this.direction = true;
+        }
+      }
+    }
+
+    nextColor() {
+      let value = this.tick / this.steps;
+      return this.getColorForValue(value);
+    }
+
+    getColorForValue(value) {
+      let color = this.gradientValueMap.getColorForValue(value);
+      return color.toHexString();
+    }
+  }
+
+  let panels = [];
+  for (const index of Array(NUMBER_OF_PANELS).keys()) {
+    panels.push(newPanel(index));
+  }
+});
+
+</script>
+</body>
+</html>
