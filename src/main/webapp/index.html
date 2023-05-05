@@ -214,6 +214,16 @@ document.addEventListener("DOMContentLoaded", (event) => {
   function getBasicGradient() {
     let gradientValueMap = new GradientValueMap();
     gradientValueMap.addRGBPoint(0,   60,   0,   0);
+    gradientValueMap.addRGBPoint(.3, 255,   0,   0);
+    gradientValueMap.addRGBPoint(.6, 255,   0, 255);
+    gradientValueMap.addRGBPoint(1,    0, 255, 255);
+
+    return gradientValueMap;
+  }
+
+  function getStraightFireGradient() {
+    let gradientValueMap = new GradientValueMap();
+    gradientValueMap.addRGBPoint(0,   60,   0,   0);
     gradientValueMap.addRGBPoint(.4, 255,   0,   0);
     gradientValueMap.addRGBPoint(1,  255, 255,   0);
 
