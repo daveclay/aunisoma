@@ -58,15 +58,11 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
   }
 
-  function newPanel(index) {
+  function newPanel(index, context) {
     let panelElement = clone(PANEL_TEMPLATE_ELEMENT);
     panelElement.classList.add("panel");
     STAGE.appendChild(panelElement);
-    return new Panel(panelElement, index);
-  }
-
-  function lerp(a, b, step) {
-    return (1 - step) * a + step * b;
+    return new Panel(panelElement, index, context);
   }
 
   class Color {
@@ -74,6 +70,15 @@ document.addEventListener("DOMContentLoaded", (event) => {
       this.red = red;
       this.green = green;
       this.blue = blue;
+    }
+
+    dimBy(amount) {
+      if (amount < 0) {
+        return;
+      }
+      this.red = Math.round(this.red * amount);
+      this.green = Math.round(this.green * amount);
+      this.blue = Math.round(this.blue * amount);
     }
 
     toHexString() {
@@ -304,7 +309,8 @@ document.addEventListener("DOMContentLoaded", (event) => {
   }
 
   class Panel {
-    constructor(panelElement, index) {
+    constructor(panelElement, index, context) {
+      this.context = context;
       this.panelElement = panelElement;
       this.index = index;
       this.direction = true;
@@ -312,15 +318,46 @@ document.addEventListener("DOMContentLoaded", (event) => {
       this.steps = 100;
       this.gradientValueMap = getBasicGradient();
       this.intervalId = null;
+      this.reverberating = false;
 
       panelElement.addEventListener("mouseover", () => this.triggerInteraction());
     }
 
     triggerInteraction() {
       if (this.intervalId == null) {
-        this.intervalId = setInterval(() => this.animateStep(), 1);
+        this.steps = 100;
+        this.reverberating = false;
+        this.startAnimation();
         showGradientElement(this);
+        this.triggerNeighborReverberations();
+      } else {
+        // TODO: overlap, what if I'm reverberating?
       }
+    }
+
+    triggerNeighborReverberations() {
+      let numberOfReverbs = 1 + Math.round(Math.random() * 4);
+      for (let i = 0; i < numberOfReverbs; i++) {
+        setTimeout(
+          () => this.context.getRandomNeighborPanel(this).triggerReverberation(),
+          200 + Math.round(Math.random() * 800));
+      }
+    }
+
+    triggerReverberation() {
+      if (this.intervalId == null) {
+        this.steps = 30;
+        this.reverberating = true;
+        // TODO: dim the light
+        this.startAnimation();
+      } else {
+        // TODO: what if I'm triggered? wave overlap - interpolate new colors
+      }
+    }
+
+    startAnimation() {
+      this.tick = 0;
+      this.intervalId = setInterval(() => this.animateStep(), 1);
     }
 
     animateStep() {
@@ -329,19 +366,25 @@ document.addEventListener("DOMContentLoaded", (event) => {
       } else {
         this.tick -= 1;
       }
-      this.panelElement.style.backgroundColor = this.nextColor();
+      this.setColor(this.nextColor());
       if (this.direction) {
         if (this.tick >= this.steps) {
           this.direction = false;
         }
       } else {
         if (this.tick === 0) {
+          this.setColor(this.gradientValueMap.getColorForValue(0));
           clearInterval(this.intervalId);
+          this.reverberating = false;
           this.intervalId = null;
           this.tick = 0;
           this.direction = true;
         }
       }
+    }
+
+    setColor(color) {
+      this.panelElement.style.backgroundColor = color.toHexString();
     }
 
     nextColor() {
@@ -351,14 +394,51 @@ document.addEventListener("DOMContentLoaded", (event) => {
 
     getColorForValue(value) {
       let color = this.gradientValueMap.getColorForValue(value);
-      return color.toHexString();
+      if (this.reverberating) {
+        // TODO: alter this slightly, but it has to be done per _reverberation_.
+        color.dimBy(.3);
+      }
+      return color;
     }
   }
 
-  let panels = [];
-  for (const index of Array(NUMBER_OF_PANELS).keys()) {
-    panels.push(newPanel(index));
+  class PanelContext {
+    constructor(numberOfPanels, maxReverberationDistance) {
+      this.maxReverberationDistance = maxReverberationDistance;
+      this.numberOfPanels = numberOfPanels;
+      this.panels = [];
+    }
+
+    createPanels() {
+      for (const index of Array(this.numberOfPanels).keys()) {
+        this.panels.push(newPanel(index, this));
+      }
+    }
+
+    // TODO: collect a couple, time them apart a bit
+    getRandomNeighborPanel(fromPanel) {
+      let fromIndex = fromPanel.index;
+
+      let distance = Math.round(Math.random() * this.maxReverberationDistance);
+
+      let reverberatingPanelIndex;
+      if (fromIndex !== 0 && (fromIndex === this.panels.length - 1 || Math.round(Math.random()) < .5)) {
+        reverberatingPanelIndex = Math.max(0, fromIndex - distance);
+      } else {
+        reverberatingPanelIndex = Math.min(this.panels.length - 1, fromIndex + distance);
+      }
+
+      return this.panels[reverberatingPanelIndex];
+    }
   }
+
+  const MAX_REVERBERATION_DISTANCE = 4;
+
+  let panelContext = new PanelContext(
+    NUMBER_OF_PANELS,
+    MAX_REVERBERATION_DISTANCE
+  );
+  panelContext.createPanels();
 });
 
 </script>
