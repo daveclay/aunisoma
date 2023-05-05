@@ -336,38 +336,52 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
   }
 
+  class Reverberation {
+    constructor(panelIndex, delayMs) {
+      this.panelIndex = panelIndex;
+      this.delayMs = delayMs;
+    }
+  }
+
   class ReverberationConfig {
     constructor(maxReverberationDistance,
-                minReverberations,
-                maxReverberations,
-                reverberationTimingMinMs,
-                reverberationTimingMaxMs) {
+                reverberationDelayMs,
+                numberOfPanels) {
       this.maxReverberationDistance = maxReverberationDistance;
-      this.minReverberations = minReverberations;
-      this.maxReverberations = maxReverberations;
-      this.reverberationsRange = new Range(
-        this.minReverberations,
-        this.maxReverberations
-      );
-      this.reverberationTimingMinMs = reverberationTimingMinMs;
-      this.reverberationTimingMaxMs = reverberationTimingMaxMs;
-      this.reverberationTimingRange = new Range(
-        this.reverberationTimingMinMs,
-        this.reverberationTimingMaxMs
-      );
+      this.reverberationDelayMs = reverberationDelayMs;
+      this.maxPanelIndex = numberOfPanels - 1;
     }
 
-    getReverberationDelaysMs() {
-      let count = this.getRandomReverberationsCount();
-      return this.reverberationTimingRange.randomDistribution(count);
+    getReverberations(fromIndex) {
+      let reverberations = [];
+      let delayMs = this.reverberationDelayMs;
+      for (let i = 0; i < this.maxReverberationDistance; i++) {
+        // two at a time
+        let distanceFromIndex = i + 1;
+        let leftPanelIndex = fromIndex - distanceFromIndex;
+        let rightPanelIndex = fromIndex + distanceFromIndex;
+
+        delayMs += this.reverberationDelayMs * i;
+
+        if (leftPanelIndex > 0) {
+          reverberations[reverberations.length] = new Reverberation(
+            leftPanelIndex,
+            delayMs
+          )
+        }
+
+        if (rightPanelIndex < this.maxPanelIndex) {
+          reverberations[reverberations.length] = new Reverberation(
+            rightPanelIndex,
+            delayMs
+          )
+        }
+      }
+      return reverberations;
     }
 
     getRandomReverberationsCount() {
       return this.reverberationsRange.randomIntBetween();
-    }
-
-    getRandomReverberationDistance() {
-      return Math.round(Math.random() * this.maxReverberationDistance);
     }
   }
 
@@ -402,15 +416,15 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
 
     triggerNeighborReverberations() {
-      let reverberationDelaysMs = this.context.reverberationConfig.getReverberationDelaysMs();
-      for (let i = 0; i < reverberationDelaysMs.length; i++) {
-        let randomNeighborPanel = this.context.getRandomNeighborPanel(this);
+      let reverberations = this.context.reverberationConfig.getReverberations(this.index);
+      for (let i = 0; i < reverberations.length; i++) {
+        let reverberation = reverberations[i];
+        let neighborPanel = this.context.getPanelAt(reverberation.panelIndex);
         setTimeout(
-          () => randomNeighborPanel.triggerReverberation(),
-          reverberationDelaysMs[i]);
+          () => neighborPanel.triggerReverberation(),
+          reverberation.delayMs);
       }
     }
-
 
     triggerReverberation() {
       if (this.intervalId == null) {
@@ -486,37 +500,20 @@ document.addEventListener("DOMContentLoaded", (event) => {
       }
     }
 
-    // TODO: collect a couple, time them apart a bit
-    getRandomNeighborPanel(fromPanel) {
-      let fromIndex = fromPanel.index;
-
-      let distance = this.reverberationConfig.getRandomReverberationDistance();
-
-      let reverberatingPanelIndex;
-      if (fromIndex !== 0 && (fromIndex === this.panels.length - 1 || Math.round(Math.random()) < .5)) {
-        reverberatingPanelIndex = Math.max(0, fromIndex - distance);
-      } else {
-        reverberatingPanelIndex = Math.min(this.panels.length - 1, fromIndex + distance);
-      }
-
-      return this.panels[reverberatingPanelIndex];
+    getPanelAt(index) {
+      return this.panels[index];
     }
   }
 
-  const MAX_REVERBERATION_DISTANCE = 3;
-  const minReverberations = 1;
-  const maxReverberations = 8;
-  const reverberationTimingMinMs = 500;
-  const reverberationTimingMaxMs = 1500;
+  const MAX_REVERBERATION_DISTANCE = 7;
+  const reverberationDelayMs = 100;
 
   let panelContext = new PanelContext(
     NUMBER_OF_PANELS,
     new ReverberationConfig(
       MAX_REVERBERATION_DISTANCE,
-      minReverberations,
-      maxReverberations,
-      reverberationTimingMinMs,
-      reverberationTimingMaxMs)
+      reverberationDelayMs,
+      NUMBER_OF_PANELS)
   );
   panelContext.createPanels();
 });
