@@ -423,10 +423,26 @@ document.addEventListener("DOMContentLoaded", (event) => {
       this.reverberationDistance = 0;
       this.idleColor = this.gradientValueMap.getColorForValue(0);
 
-      panelElement.addEventListener("mouseover", () => this.triggerInteraction());
+      panelElement.addEventListener("touch", () => this.triggerInteraction());
+      panelElement.addEventListener("click", () => this.triggerInteraction());
+    }
+
+    reset() {
+      this.setColor(this.idleColor);
+      clearInterval(this.intervalId);
+      this.reverberating = false;
+      this.reverberationDistance = 0;
+      this.intervalId = null;
+      this.tick = 0;
+      this.direction = true;
     }
 
     triggerInteraction() {
+      if (this.reverberating) {
+        // TODO: don't reset the color - fade from current color to target color (in general need to allow for panel color to interpolate to some other color, as the interaction color will be complex combination of colors)
+        this.reset();
+      }
+
       if (this.intervalId == null) {
         this.steps = 100;
         this.reverberating = false;
@@ -480,13 +496,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
         }
       } else {
         if (this.tick === 0) {
-          this.setColor(this.idleColor);
-          clearInterval(this.intervalId);
-          this.reverberating = false;
-          this.reverberationDistance = 0;
-          this.intervalId = null;
-          this.tick = 0;
-          this.direction = true;
+          this.reset();
         }
       }
     }
