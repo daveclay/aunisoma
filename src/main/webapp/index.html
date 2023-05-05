@@ -7,8 +7,8 @@
     }
     .panel {
         display: inline-block;
-        width: 100px; /* 24" */
-        height: 200px; /* 48" */
+        width: 50px; /* 24" */
+        height: 100px; /* 48" */
         background-color: rgb(60, 0, 0);
         border: 1px solid #222222;
         margin: 5px;
@@ -50,6 +50,16 @@ document.addEventListener("DOMContentLoaded", (event) => {
     return min + Math.round(Math.random() * (max - min));
   }
 
+  function dimValueBy(value, amount, minLimit) {
+    if (amount < 0) {
+      return value;
+    }
+    if (!minLimit) {
+      minLimit = 0;
+    }
+    return Math.max(minLimit, Math.round(value * (1 - amount)));
+  }
+
   function clone(templateElement) {
     let clone = templateElement.cloneNode(true);
     clone.attributes.removeNamedItem("id");
@@ -76,13 +86,28 @@ document.addEventListener("DOMContentLoaded", (event) => {
       this.blue = blue;
     }
 
+    setMinRed(minRed) {
+      this.minRed = minRed;
+    }
+
+    setMinGreen(minGreen) {
+      this.minGreen = minGreen;
+    }
+
+    setMinBlue(minBlue) {
+      this.minBlue = minBlue;
+    }
+
+    setMinColor(color) {
+      this.setMinRed(color.red);
+      this.setMinGreen(color.green);
+      this.setMinBlue(color.blue);
+    }
+
     dimBy(amount) {
-      if (amount < 0) {
-        return;
-      }
-      this.red = Math.round(this.red * amount);
-      this.green = Math.round(this.green * amount);
-      this.blue = Math.round(this.blue * amount);
+      this.red = dimValueBy(this.red, amount, this.minRed);
+      this.green = dimValueBy(this.green, amount, this.minGreen);
+      this.blue = dimValueBy(this.blue, amount, this.minBlue);
     }
 
     toHexString() {
@@ -337,9 +362,10 @@ document.addEventListener("DOMContentLoaded", (event) => {
   }
 
   class Reverberation {
-    constructor(panelIndex, delayMs) {
+    constructor(panelIndex, delayMs, distance) {
       this.panelIndex = panelIndex;
       this.delayMs = delayMs;
+      this.distance = distance;
     }
   }
 
@@ -366,22 +392,20 @@ document.addEventListener("DOMContentLoaded", (event) => {
         if (leftPanelIndex > 0) {
           reverberations[reverberations.length] = new Reverberation(
             leftPanelIndex,
-            delayMs
+            delayMs,
+            distanceFromIndex
           )
         }
 
         if (rightPanelIndex < this.maxPanelIndex) {
           reverberations[reverberations.length] = new Reverberation(
             rightPanelIndex,
-            delayMs
+            delayMs,
+            distanceFromIndex
           )
         }
       }
       return reverberations;
-    }
-
-    getRandomReverberationsCount() {
-      return this.reverberationsRange.randomIntBetween();
     }
   }
 
@@ -393,12 +417,11 @@ document.addEventListener("DOMContentLoaded", (event) => {
       this.direction = true;
       this.tick = 0;
       this.steps = 100;
-      this.gradientValueMap = getBasicGradient();
+      this.gradientValueMap = context.idleGradient;
       this.intervalId = null;
       this.reverberating = false;
-      this.reverberationConfig = new ReverberationConfig(
-
-      );
+      this.reverberationDistance = 0;
+      this.idleColor = this.gradientValueMap.getColorForValue(0);
 
       panelElement.addEventListener("mouseover", () => this.triggerInteraction());
     }
@@ -421,16 +444,17 @@ document.addEventListener("DOMContentLoaded", (event) => {
         let reverberation = reverberations[i];
         let neighborPanel = this.context.getPanelAt(reverberation.panelIndex);
         setTimeout(
-          () => neighborPanel.triggerReverberation(),
+          () => neighborPanel.triggerReverberation(reverberation.distance),
           reverberation.delayMs);
       }
     }
 
-    triggerReverberation() {
+    triggerReverberation(distanceFromTriggeringPanel) {
       if (this.intervalId == null) {
         // TODO: slow this down, less jittery, give time for overlap
         this.steps = 100;
         this.reverberating = true;
+        this.reverberationDistance = distanceFromTriggeringPanel;
         this.startAnimation();
       } else {
         // TODO: what if I'm triggered? wave overlap - interpolate new colors
@@ -456,9 +480,10 @@ document.addEventListener("DOMContentLoaded", (event) => {
         }
       } else {
         if (this.tick === 0) {
-          this.setColor(this.gradientValueMap.getColorForValue(0));
+          this.setColor(this.idleColor);
           clearInterval(this.intervalId);
           this.reverberating = false;
+          this.reverberationDistance = 0;
           this.intervalId = null;
           this.tick = 0;
           this.direction = true;
@@ -476,21 +501,23 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
 
     getColorForValue(value) {
-      let color = this.gradientValueMap.getColorForValue(value);
       if (this.reverberating) {
-        // TODO: alter this slightly, but it has to be done per _reverberation_.
-        // TODO: set min color
-        color.dimBy(.3);
+        let max = this.context.reverberationConfig.maxReverberationDistance;
+        let amount = (max - this.reverberationDistance) / max;
+        return this.gradientValueMap.getColorForValue(value * amount);
+      } else {
+        return this.gradientValueMap.getColorForValue(value);
       }
-      return color;
     }
   }
 
   class PanelContext {
     constructor(numberOfPanels,
-                reverberationConfig) {
+                reverberationConfig,
+                idleGradient) {
       this.reverberationConfig = reverberationConfig;
       this.numberOfPanels = numberOfPanels;
+      this.idleGradient = idleGradient;
       this.panels = [];
     }
 
@@ -505,15 +532,16 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
   }
 
-  const MAX_REVERBERATION_DISTANCE = 7;
-  const reverberationDelayMs = 100;
+  const MAX_REVERBERATION_DISTANCE = 5;
+  const reverberationDelayMs = 50;
 
   let panelContext = new PanelContext(
     NUMBER_OF_PANELS,
     new ReverberationConfig(
       MAX_REVERBERATION_DISTANCE,
       reverberationDelayMs,
-      NUMBER_OF_PANELS)
+      NUMBER_OF_PANELS),
+    getStraightFireGradient()
   );
   panelContext.createPanels();
 });
