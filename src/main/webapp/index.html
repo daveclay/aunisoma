@@ -75,6 +75,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
   function newPanel(index, context) {
     let panelElement = clone(PANEL_TEMPLATE_ELEMENT);
     panelElement.classList.add("panel");
+    panelElement.classList.add("panel-" + index);
     STAGE.appendChild(panelElement);
     return new Panel(panelElement, index, context);
   }
@@ -108,6 +109,13 @@ document.addEventListener("DOMContentLoaded", (event) => {
       this.red = dimValueBy(this.red, amount, this.minRed);
       this.green = dimValueBy(this.green, amount, this.minGreen);
       this.blue = dimValueBy(this.blue, amount, this.minBlue);
+    }
+
+    interpolate(color) {
+      let red = (this.red + color.red) / 2;
+      let green = (this.green + color.green) / 2;
+      let blue = (this.blue + color.blue) / 2;
+      return new Color(red, green, blue);
     }
 
     toHexString() {
@@ -422,12 +430,14 @@ document.addEventListener("DOMContentLoaded", (event) => {
       this.reverberating = false;
       this.reverberationDistance = 0;
       this.idleColor = this.gradientValueMap.getColorForValue(0);
+      this.setColor(this.idleColor);
 
       panelElement.addEventListener("touch", () => this.triggerInteraction());
       panelElement.addEventListener("click", () => this.triggerInteraction());
     }
 
     reset() {
+      this.panelElement.style.borderColor = "#222222";
       this.setColor(this.idleColor);
       clearInterval(this.intervalId);
       this.reverberating = false;
@@ -459,31 +469,50 @@ document.addEventListener("DOMContentLoaded", (event) => {
       for (let i = 0; i < reverberations.length; i++) {
         let reverberation = reverberations[i];
         let neighborPanel = this.context.getPanelAt(reverberation.panelIndex);
-        setTimeout(
+        // so it can cancel if someone comes sooner, I think?
+        neighborPanel.timeoutId = setTimeout(
           () => neighborPanel.triggerReverberation(reverberation.distance),
           reverberation.delayMs);
       }
     }
 
     triggerReverberation(distanceFromTriggeringPanel) {
-      if (this.intervalId == null) {
-        // TODO: slow this down, less jittery, give time for overlap
+      if (this.timeoutId) {
+        // TODO: not quite right - probably take into account which _event_ triggered this last, not when it was scheduled to trigger.
+        clearTimeout(this.timeoutId);
+      }
+      if (this.reverberationDistance > 0 && this.reverberationDistance < distanceFromTriggeringPanel) {
+        return;
+      }
+      if (this.intervalId != null && !this.reverberating) {
+        return;
+      }
+      // TODO: if this is _currently_ reverberating, reset and _new_ reverberate. But actually, we want to overlap here.
+      // TODO: do we need to model the ReverberationWave itself, in order to contain the state present in the wave?
+      if (this.intervalId != null) {
+        // TODO: what if I'm triggered? wave overlap - interpolate new colors
+        // TODO: create a dynamic gradient, from my start point to some target point?
+        clearInterval(this.intervalId);
+      }
+
         this.steps = 100;
+        this.direction = true;
         this.reverberating = true;
         this.reverberationDistance = distanceFromTriggeringPanel;
         this.startAnimation();
-      } else {
-        // TODO: what if I'm triggered? wave overlap - interpolate new colors
-      }
     }
 
     startAnimation() {
-      this.tick = 0;
       // TODO: this.animationFrameMs
       this.intervalId = setInterval(() => this.animateStep(), 1);
     }
 
     animateStep() {
+      if (this.reverberating) {
+        this.panelElement.style.borderColor = "red";
+      } else {
+        this.panelElement.style.borderColor = "blue";
+      }
       if (this.direction) {
         this.tick += 1;
       } else {
@@ -502,7 +531,8 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
 
     setColor(color) {
-      this.panelElement.style.backgroundColor = color.toHexString();
+      this.color = color;
+      this.panelElement.style.backgroundColor = this.color.toHexString();
     }
 
     nextColor() {
@@ -514,10 +544,9 @@ document.addEventListener("DOMContentLoaded", (event) => {
       if (this.reverberating) {
         let max = this.context.reverberationConfig.maxReverberationDistance;
         let amount = (max - this.reverberationDistance) / max;
-        return this.gradientValueMap.getColorForValue(value * amount);
-      } else {
-        return this.gradientValueMap.getColorForValue(value);
+        value = value * amount
       }
+      return this.gradientValueMap.getColorForValue(value);
     }
   }
 
