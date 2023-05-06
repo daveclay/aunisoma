@@ -23,7 +23,20 @@
         width: 50px; /* 24" */
         overflow-x: clip;
     }
+    .panelReverberationInfo {
+        display: inline-block;
+        width: 50px;
+        height: 20px;
+        margin: 5px;
+        border: 1px solid #222222;
+    }
     #panelTemplate {
+        display: none;
+    }
+    #reverberationInfoTemplate {
+        display: none;
+    }
+    #panelReverberationInfoTemplate {
         display: none;
     }
     #gradient {
@@ -45,14 +58,19 @@
 <body>
 <div id="stage">
 </div>
+<div id="reverberationsInfo">
+</div>
+<div id="reverberationInfoTemplate" class="reverberationInfo">
+
+</div>
+<div id="panelReverberationInfoTemplate" class="panelReverberationInfo"></div>
 <div id="gradient"></div>
 <div id="panelTemplate" class="panelContainer">
     <div class="panel"></div>
     <div class="panelInfo">0</div>
 </div>
 <hr>
-<input type="text" id="eventLoopInfo"/>
-<input type="text" id="durationValueInfo"/>
+Event Loop: <input type="text" id="eventLoopInfo"/>
 <hr>
 <textarea id="triggerScript" rows="10" cols="100">
 6 at 0ms
@@ -68,7 +86,9 @@ document.addEventListener("DOMContentLoaded", (event) => {
   const TRIGGER_SCRIPT_TEXTAREA = document.getElementById("triggerScript");
   const TRIGGER_SCRIPT_BUTTON = document.getElementById("triggerScriptButton");
   const EVENT_LOOP_INFO_ELEMENT = document.getElementById("eventLoopInfo");
-  const DURATION_VALUE_INFO_ELEMENT = document.getElementById("durationValueInfo");
+  const REVERBERATIONS_INFO_ELEMENT = document.getElementById("reverberationsInfo");
+  const REVERBERATION_INFO_TEMPLATE_ELEMENT = document.getElementById("reverberationInfoTemplate");
+  const PANEL_REVERBERATION_INFO_TEMPLATE_ELEMENT = document.getElementById("panelReverberationInfoTemplate");
 
   function randomIntBetween(min, max) {
     return min + Math.round(Math.random() * (max - min));
@@ -394,6 +414,56 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
   }
 
+  class PanelReverberation {
+    constructor(panel,
+                reverberation) {
+      this.panel = panel;
+      this.reverberation = reverberation;
+      this.startTick = null;
+      this.elapsedDurationTicks = -1;
+      this.reverberationConfig = this.panel.panelContext.reverberationConfig;
+      this.currentValue = 0;
+      this.distanceFromTrigger = this.reverberation.getDistanceFromTriggerToPanel(this.panel);
+      this.scale = this._calculateScale();
+    }
+
+    _calculateScale() {
+      if (this.panel === this.reverberation.sourcePanel) {
+        return 1;
+      } else {
+        let maxDistance = this.reverberationConfig.maxReverberationDistance;
+        return (maxDistance - this.distanceFromTrigger) / maxDistance;
+      }
+    }
+
+    update(tick) {
+      if (this.startTick == null) {
+        this.startTick = tick;
+      }
+
+      if (this.isDone()) {
+        return;
+      }
+
+      let durationTicks = this.reverberationConfig.triggerPanelDurationTicks;
+      let halfDurationTicks = durationTicks / 2;
+      this.elapsedDurationTicks = tick - this.startTick;
+      if (this.elapsedDurationTicks < halfDurationTicks) {
+        // on our way up
+        this.currentValue = this.elapsedDurationTicks / halfDurationTicks;
+      } else {
+        // on our way down
+        this.currentValue = (durationTicks - this.elapsedDurationTicks) / halfDurationTicks;
+      }
+
+      this.currentValue = this.currentValue * this.scale;
+    }
+
+    isDone() {
+      return this.elapsedDurationTicks >= this.reverberationConfig.triggerPanelDurationTicks;
+    }
+  }
+
   class Reverberation {
     constructor(sourcePanel,
                 reverberationConfig,
@@ -401,19 +471,31 @@ document.addEventListener("DOMContentLoaded", (event) => {
       this.sourcePanel = sourcePanel;
       this.reverberationConfig = reverberationConfig;
       this.panelContext = panelContext;
-      // TODO: this was the timeout stuff before; so this is the time span the entire Reveberation is actively animating
-      this.totalDurationTicks = 200;
+      this.panelReverberationsByPanelIndex = {};
       this.startTick = 0;
-      this.currentTick = null;
-      this.elapsedDurationTicks = 0;
-      this.currentDurationValue = 0;
-      this.reverberatingPanels = this._getReverberatingPanels();
+
+      this.panelReverberationsByPanelIndex[this.sourcePanel.index] = new PanelReverberation(this.sourcePanel, this);
+      this._collectReverberatingPanels().forEach(panel => {
+        this.panelReverberationsByPanelIndex[panel.index] = new PanelReverberation(panel, this)
+      });
+      this.panelReverberations = Object.values(this.panelReverberationsByPanelIndex);
+
+      /*
+      this.reverberationInfoElement = clone(REVERBERATION_INFO_TEMPLATE_ELEMENT);
+      this.reverberationInfoElement.id = "reverberationInfo-" + this.sourcePanel.index;
+      this.panelContext.panels.forEach(panel => {
+        let panelReverberationInfoElement = clone(PANEL_REVERBERATION_INFO_TEMPLATE_ELEMENT);
+        panelReverberationInfoElement.id = "panelReverberationInfo-" + this.sourcePanel.index + "-revPanel-" + panel.index;
+        this.reverberationInfoElement.appendChild(panelReverberationInfoElement);
+      });
+      REVERBERATIONS_INFO_ELEMENT.appendChild(this.reverberationInfoElement);
+       */
     }
 
-    _getReverberatingPanels() {
+    _collectReverberatingPanels() {
       let fromIndex = this.sourcePanel.index;
       let reverberatingPanels = [];
-      for (let i = 0; i < this.panelContext.reverberationConfig.maxReverberationDistance; i++) {
+      for (let i = 0; i < this.reverberationConfig.maxReverberationDistance - 1; i++) {
         let distanceFromIndex = i + 1;
         let leftPanelIndex = fromIndex - distanceFromIndex;
         let rightPanelIndex = fromIndex + distanceFromIndex;
@@ -434,31 +516,39 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
 
     update(tick) {
-      this.currentTick = tick;
-      this.elapsedDurationTicks = (this.currentTick - this.startTick);
-      // max is half-way through the duration - goes up, then down.
-      if (this.elapsedDurationTicks < this.totalDurationTicks / 2) {
-        this.currentDurationValue = this.elapsedDurationTicks / (this.totalDurationTicks / 2);
-      } else {
-        this.currentDurationValue = (this.totalDurationTicks - this.elapsedDurationTicks) / (this.totalDurationTicks / 2);
-      }
-      DURATION_VALUE_INFO_ELEMENT.value = this.currentDurationValue;
+      this.panelReverberations.forEach(panelReverberation => {
+        let reverberationPanelDelayTicks = this.reverberationConfig.reverberationPanelDelayTicks;
+        let delayForPanelToStartTicks = panelReverberation.distanceFromTrigger * reverberationPanelDelayTicks;
+        // Note: this.startTick is when the Reverberation starts, and this waits for a delay to start calculating values
+        let totalElapsedTicks = tick - this.startTick;
+        if (totalElapsedTicks >= delayForPanelToStartTicks) {
+          // waited long enough from the trigger tick, start keeping track of the duration
+          panelReverberation.update(tick)
+        }
+      });
     }
 
     isDead() {
-      return this.elapsedDurationTicks >= this.totalDurationTicks;
+      let activePanelReverberations = this.panelReverberations.filter(panelReverberation => !panelReverberation.isDone());
+      return activePanelReverberations.length === 0;
     }
 
     getDistanceFromTriggerToPanel(panel) {
       return Math.abs(this.sourcePanel.index - panel.index);
     }
+
+    getValueForPanel(panel) {
+      return this.panelReverberationsByPanelIndex[panel.index].currentValue;
+    }
   }
 
   class ReverberationConfig {
     constructor(maxReverberationDistance,
-                reverberationDelayMs) {
+                reverberationPanelDelayTicks,
+                triggerPanelDurationTicks) {
       this.maxReverberationDistance = maxReverberationDistance;
-      this.reverberationDelayMs = reverberationDelayMs;
+      this.reverberationPanelDelayTicks = reverberationPanelDelayTicks;
+      this.triggerPanelDurationTicks = triggerPanelDurationTicks;
     }
   }
 
@@ -493,6 +583,10 @@ document.addEventListener("DOMContentLoaded", (event) => {
       panelElement.addEventListener("click", () => this.triggerInteraction());
     }
 
+    getPanelReverberationInfoElement() {
+      return this.panelElement.querySelector("div[id='panelReverberationInfo-" + this.index + "']");
+    }
+
     reset() {
       this.setColor(this.idleColor);
     }
@@ -518,32 +612,22 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
 
     nextColor(tick, reverberations) {
-      // TODO: ok, here we go. what panels are in a reverberation? am I in a reverberation?
-      // how do I calculate this? a value for each reverberation, noting if I'm also the source of the trigger.
-      // Map this into a value set - how much of each Gradient am I going to use?
-      // Or: this just conditionally defines what Gradient to use.
-
-      // collect values & gradients? combine gradients, and then values? hrmmm, no.
+      // TODO: something like reverberation.getPanelReverberation(this);
       let valueSums = 0;
       reverberations.forEach(reverberation => {
-        if (reverberation.sourcePanel === this) {
-          // then I'm a trigger! yay! not sure what that means, but shrug!
-          // TODO: animation time is _not_ based on tick length. It is based on how close we are to the max value.
-          // If I'm 50% within a reverberation, and I'm triggered, it will take _less_ time to get to max trigger color.
-          // so what are my start/end? Choose arbitrary end of 1, and some 0..1 value based on the current input value.
-          let durationValue = reverberation.currentDurationValue;
-          valueSums += durationValue; // what about fading out? so it's HALF.
-        } else {
-          let distanceFromTrigger = reverberation.getDistanceFromTriggerToPanel(this);
-          let max = this.panelContext.reverberationConfig.maxReverberationDistance;
-          let distanceValue = (max - distanceFromTrigger) / max;
-          // now, how far I am from a reverb source is the color value at that distance and that tick.
-          valueSums += distanceValue * reverberation.currentDurationValue;
-        }
-      })
+        let reverberationPanelValue = reverberation.getValueForPanel(this);
+        // this.updatePanelReverberationInfo(reverberation, reverberationPanelValue);
+        valueSums += reverberationPanelValue;
+      });
 
-      this.panelInfoElement.innerText = valueSums.toString().substring(0, 4);
+      // this.panelInfoElement.innerText = valueSums.toString().substring(0, 4);
       return this.panelContext.idleGradient.getColorForValue(valueSums);
+    }
+
+    updatePanelReverberationInfo(reverberation, value) {
+      let selectors = "div[id='panelReverberationInfo-" + reverberation.sourcePanel.index + "-revPanel-" + this.index + "']";
+      let panelReverberationInfoElement = reverberation.reverberationInfoElement.querySelector(selectors);
+      panelReverberationInfoElement.innerText = value.toString().substring(0, 4);
     }
   }
 
@@ -578,11 +662,11 @@ document.addEventListener("DOMContentLoaded", (event) => {
     _collectActivePanelReverberations() {
       let uniqueActivePanels = {} // gotta cleanup, tho
       this.allActiveReverberations.forEach(reverberation => {
-        this._addPanelToActiveReverberations(reverberation.sourcePanel, reverberation, uniqueActivePanels);
-        let panels = reverberation.reverberatingPanels;
-        panels.forEach(panel => {
+        reverberation.panelReverberations.forEach(panelReverberation => {
+          let panel = panelReverberation.panel;
+          let reverberation = panelReverberation.reverberation;
           this._addPanelToActiveReverberations(panel, reverberation, uniqueActivePanels);
-        })
+        });
       });
 
       return Object.values(uniqueActivePanels);
@@ -641,18 +725,28 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
 
     reapDeadReverberations() {
-      this.allActiveReverberations = this.allActiveReverberations.filter(reverberation => !reverberation.isDead());
+      this.allActiveReverberations = this.allActiveReverberations.filter(reverberation => {
+        if (reverberation.isDead()) {
+          // REVERBERATIONS_INFO_ELEMENT.removeChild(reverberation.reverberationInfoElement);
+          return false;
+        } else {
+          return true;
+        }
+      });
     }
   }
 
   EVENT_LOOP_INFO_ELEMENT.value = "stopped";
 
   const MAX_REVERBERATION_DISTANCE = 5;
-  const REVERB_DELAY_MS = 50;
+  const REVERB_DELAY_TICKS = 20;
+  const TRIGGER_PANEL_DURATION_TICKS = 200;
 
   let reverberationConfig = new ReverberationConfig(
     MAX_REVERBERATION_DISTANCE,
-    REVERB_DELAY_MS);
+    REVERB_DELAY_TICKS,
+    TRIGGER_PANEL_DURATION_TICKS
+  );
 
   let panelContext = new PanelContext(
     NUMBER_OF_PANELS,
