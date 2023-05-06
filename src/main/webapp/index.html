@@ -38,6 +38,12 @@
 <div id="gradient"></div>
 <div id="gradientLineTemplate" class="gradientLine"></div>
 <div id="panelTemplate" class="panel"></div>
+<textarea id="triggerScript" rows="10" cols="100">
+1 at 0ms
+4 at 100ms
+2 at 2000ms
+</textarea>
+<button id="triggerScriptButton" value="run">Run</button>
 <script>
 document.addEventListener("DOMContentLoaded", (event) => {
   const NUMBER_OF_PANELS = 20;
@@ -45,6 +51,8 @@ document.addEventListener("DOMContentLoaded", (event) => {
   const STAGE = document.getElementById("stage");
   const GRADIENT_ELEMENT = document.getElementById("gradient");
   const GRADIENT_LINE_TEMPLATE_ELEMENT = document.getElementById("gradientLineTemplate");
+  const TRIGGER_SCRIPT_TEXTAREA = document.getElementById("triggerScript");
+  const TRIGGER_SCRIPT_BUTTON = document.getElementById("triggerScriptButton");
 
   function randomIntBetween(min, max) {
     return min + Math.round(Math.random() * (max - min));
@@ -482,11 +490,14 @@ document.addEventListener("DOMContentLoaded", (event) => {
         clearTimeout(this.timeoutId);
       }
       if (this.reverberationDistance > 0 && this.reverberationDistance < distanceFromTriggeringPanel) {
+        // this branch is if another closer reverb already triggered this panel
         return;
       }
       if (this.intervalId != null && !this.reverberating) {
+        // this is if we're interacting directly with this panel when a reverberation is triggered
         return;
       }
+
       // TODO: if this is _currently_ reverberating, reset and _new_ reverberate. But actually, we want to overlap here.
       // TODO: do we need to model the ReverberationWave itself, in order to contain the state present in the wave?
       if (this.intervalId != null) {
@@ -569,6 +580,11 @@ document.addEventListener("DOMContentLoaded", (event) => {
     getPanelAt(index) {
       return this.panels[index];
     }
+
+    triggerPanel(panelIndex) {
+      let panel = this.getPanelAt(panelIndex);
+      panel.triggerInteraction();
+    }
   }
 
   const MAX_REVERBERATION_DISTANCE = 5;
@@ -583,6 +599,19 @@ document.addEventListener("DOMContentLoaded", (event) => {
     getStraightFireGradient()
   );
   panelContext.createPanels();
+
+  function runScript() {
+    let triggers = TRIGGER_SCRIPT_TEXTAREA.value.split("\n");
+    triggers.forEach(trigger => {
+      let triggerCmd = trigger.split(" ");
+      setTimeout(
+        () => panelContext.triggerPanel(parseInt(triggerCmd[0])),
+        parseInt(triggerCmd[2])
+      );
+    });
+  }
+
+  TRIGGER_SCRIPT_BUTTON.addEventListener("click", () => runScript());
 });
 
 </script>
