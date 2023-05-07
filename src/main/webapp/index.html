@@ -73,14 +73,14 @@
 Event Loop: <input type="text" id="eventLoopInfo"/>
 <hr>
 <textarea id="triggerScript" rows="10" cols="30">
-3 at 0ms
-8 at 200ms
-6 at 500ms
-7 at 600ms
-9 at 1000ms
-10 at 1500ms
-11 at 2000ms
-12 at 3000ms
+3 at 0ms for 1500ms
+8 at 200ms for 2000ms
+6 at 500ms for 3000ms
+7 at 600ms for 3000ms
+9 at 1000ms for 5000ms
+10 at 1500ms for 2000ms
+11 at 2000ms for 2000ms
+12 at 3000ms for 3000ms
 </textarea>
 <button id="triggerScriptButton" value="run">Run</button>
 <br/>
@@ -96,6 +96,8 @@ document.addEventListener("DOMContentLoaded", (event) => {
   const TRIGGER_SCRIPT_BUTTON = document.getElementById("triggerScriptButton");
   const TRIGGER_WALK_DOWN_BUTTON = document.getElementById("triggerWalkDownButton");
   const EVENT_LOOP_INFO_ELEMENT = document.getElementById("eventLoopInfo");
+
+  // TODO: show which panels have someone interacting
   const REVERBERATIONS_INFO_ELEMENT = document.getElementById("reverberationsInfo");
   const REVERBERATION_INFO_TEMPLATE_ELEMENT = document.getElementById("reverberationInfoTemplate");
   const PANEL_REVERBERATION_INFO_TEMPLATE_ELEMENT = document.getElementById("panelReverberationInfoTemplate");
@@ -850,6 +852,10 @@ document.addEventListener("DOMContentLoaded", (event) => {
           () => panelContext.triggerPanel(panel),
           parseInt(triggerCmd[2])
         );
+        setTimeout(
+          () => panel.interactionActive = false,
+          parseInt(triggerCmd[4])
+        )
       }
     });
   }
