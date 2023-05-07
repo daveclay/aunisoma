@@ -448,7 +448,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
       if (this.panel === this.reverberation.sourcePanel) {
         return 1;
       } else {
-        let maxDistance = this.reverberationConfig.maxReverberationDistance;
+        let maxDistance = this.reverberation.distance;
         return (maxDistance - this.distanceFromTrigger) / maxDistance;
       }
     }
@@ -488,6 +488,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
       this.sourcePanel = sourcePanel;
       this.reverberationConfig = reverberationConfig;
       this.panelContext = panelContext;
+      this.distance = this.reverberationConfig.getReverberationDistance();
       this.panelReverberationsByPanelIndex = {};
       this.startTick = 0;
 
@@ -512,7 +513,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
     _collectReverberatingPanels() {
       let fromIndex = this.sourcePanel.index;
       let reverberatingPanels = [];
-      for (let i = 0; i < this.reverberationConfig.maxReverberationDistance - 1; i++) {
+      for (let i = 0; i < this.distance - 1; i++) {
         let distanceFromIndex = i + 1;
         let leftPanelIndex = fromIndex - distanceFromIndex;
         let rightPanelIndex = fromIndex + distanceFromIndex;
@@ -560,12 +561,17 @@ document.addEventListener("DOMContentLoaded", (event) => {
   }
 
   class ReverberationConfig {
-    constructor(maxReverberationDistance,
+    constructor(minReverberationDistance,
+                maxReverberationDistance,
                 reverberationPanelDelayTicks,
                 triggerPanelDurationTicks) {
-      this.maxReverberationDistance = maxReverberationDistance;
+      this.reverberationDistanceRange = new Range(minReverberationDistance, maxReverberationDistance);
       this.reverberationPanelDelayTicks = reverberationPanelDelayTicks;
       this.triggerPanelDurationTicks = triggerPanelDurationTicks;
+    }
+
+    getReverberationDistance() {
+      return this.reverberationDistanceRange.randomIntBetween();
     }
   }
 
@@ -631,7 +637,6 @@ document.addEventListener("DOMContentLoaded", (event) => {
     nextColor(tick, reverberations) {
       let valueSums = 0;
       reverberations.forEach(reverberation => {
-        // TODO: here's where we mix.
         let reverberationPanelValue = reverberation.getValueForPanel(this);
         // this.updatePanelReverberationInfo(reverberation, reverberationPanelValue);
         valueSums += reverberationPanelValue;
@@ -755,11 +760,13 @@ document.addEventListener("DOMContentLoaded", (event) => {
 
   EVENT_LOOP_INFO_ELEMENT.value = "stopped";
 
-  const MAX_REVERBERATION_DISTANCE = 5;
+  const MIN_REVERBERATION_DISTANCE = 2;
+  const MAX_REVERBERATION_DISTANCE = 6;
   const REVERB_DELAY_TICKS = 20;
   const TRIGGER_PANEL_DURATION_TICKS = 200;
 
   let reverberationConfig = new ReverberationConfig(
+    MIN_REVERBERATION_DISTANCE,
     MAX_REVERBERATION_DISTANCE,
     REVERB_DELAY_TICKS,
     TRIGGER_PANEL_DURATION_TICKS
