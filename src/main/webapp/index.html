@@ -306,6 +306,18 @@ document.addEventListener("DOMContentLoaded", (event) => {
     return gradientValueMap;
   }
 
+  function getGradient() {
+    let gradientValueMap = new GradientValueMap();
+    gradientValueMap.addRGBPoint(0,   60,   0,   0);
+    gradientValueMap.addRGBPoint(.4, 255,   0,   0);
+    gradientValueMap.addRGBPoint(1,  255, 255,   0);
+    gradientValueMap.addRGBPoint(1.2,  0, 255, 255);
+    gradientValueMap.addRGBPoint(1.5,  0, 255,   0);
+    gradientValueMap.addRGBPoint(2,  0,   0, 255);
+
+    return gradientValueMap;
+  }
+
   function getStraightFireGradient() {
     let gradientValueMap = new GradientValueMap();
     gradientValueMap.addRGBPoint(0,   60,   0,   0);
@@ -612,9 +624,9 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
 
     nextColor(tick, reverberations) {
-      // TODO: something like reverberation.getPanelReverberation(this);
       let valueSums = 0;
       reverberations.forEach(reverberation => {
+        // TODO: here's where we mix.
         let reverberationPanelValue = reverberation.getValueForPanel(this);
         // this.updatePanelReverberationInfo(reverberation, reverberationPanelValue);
         valueSums += reverberationPanelValue;
@@ -751,7 +763,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
   let panelContext = new PanelContext(
     NUMBER_OF_PANELS,
     reverberationConfig,
-    getStraightFireGradient()
+    getGradient()
   );
 
   panelContext.createPanels();
