@@ -216,13 +216,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
 
       // int
       let color = minColor + Math.round(colorValue);
-      if (color > 255) {
-        return 255;
-      } else if (color < 0) {
-        return 0;
-      }
-
-      return color;
+      return Math.min(255, Math.max(0, color));
     }
 
 
@@ -326,7 +320,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
     gradientValueMap.addRGBPoint(1,  255, 255,   0);
     gradientValueMap.addRGBPoint(1.2,  0, 255,   0);
     gradientValueMap.addRGBPoint(1.5,  0, 100, 255);
-    gradientValueMap.addRGBPoint(2,  0,   255, 255);
+    gradientValueMap.addRGBPoint(2, 255,    0, 255);
 
     return gradientValueMap;
   }
@@ -448,6 +442,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
       this.elapsedDurationTicks = -1;
       this.interactionConfig = this.panel.panelContext.interactionConfig;
       this.currentValue = 0;
+      this.animationLoopDurationTicks = this.interactionConfig.initialTriggerPanelAnimationLoopDurationTicks;
       this.distanceFromTrigger = this.interaction.getDistanceFromTriggerToPanel(this.panel);
       this.scale = this._calculateScale();
     }
@@ -475,8 +470,8 @@ document.addEventListener("DOMContentLoaded", (event) => {
         return;
       }
 
-      let animationLoopDurationTicks = this.interactionConfig.triggerPanelAnimationLoopDurationTicks;
-      let halfAnimationLoopDurationTicks = animationLoopDurationTicks / 2; // for up and down
+      // TODO: random range of triggerPanelAnimationLoopDurationTicks per cycle
+      let halfAnimationLoopDurationTicks = this.animationLoopDurationTicks / 2; // for up and down
 
       this.elapsedDurationTicks = tick - this.startTick;
 
@@ -484,17 +479,21 @@ document.addEventListener("DOMContentLoaded", (event) => {
       // interaction, then this "finishes" the animation loop, when the value hits 0. PanelInteraction live as long
       // as the interaction does, if we want to revive a reverberation every so often; rather than create a whole
       // new Reverberation that lives and dies. TODO: except that this doesn't control the delay that makes the wave pattern.
-      let loopingElapsedDuration = this.elapsedDurationTicks % animationLoopDurationTicks;
+      let loopingElapsedDuration = this.elapsedDurationTicks % this.animationLoopDurationTicks;
 
       if (loopingElapsedDuration < halfAnimationLoopDurationTicks) {
         // on our way up
         this.currentValue = loopingElapsedDuration / halfAnimationLoopDurationTicks;
       } else {
         // on our way down
-        this.currentValue = (animationLoopDurationTicks - loopingElapsedDuration) / halfAnimationLoopDurationTicks;
+        this.currentValue = (this.animationLoopDurationTicks - loopingElapsedDuration) / halfAnimationLoopDurationTicks;
       }
 
       this.currentValue = this.currentValue * this.scale;
+
+      if (this.currentValue === 0 && this.isSourceInteraction()) {
+        this.animationLoopDurationTicks = this.interactionConfig.getTriggerPanelAnimationLoopDurationTicks();
+      }
     }
 
     _isAnimationLoopDone() {
@@ -630,14 +629,20 @@ document.addEventListener("DOMContentLoaded", (event) => {
     constructor(minReverberationDistance,
                 maxReverberationDistance,
                 reverberationPanelDelayTicks,
-                triggerPanelAnimationLoopDurationTicks) {
+                minTriggerPanelAnimationLoopDurationTicks,
+                maxTriggerPanelAnimationLoopDurationTicks) {
       this.reverberationDistanceRange = new Range(minReverberationDistance, maxReverberationDistance);
       this.reverberationPanelDelayTicks = reverberationPanelDelayTicks;
-      this.triggerPanelAnimationLoopDurationTicks = triggerPanelAnimationLoopDurationTicks;
+      this.triggerPanelAnimationLoopDurationTicksRange = new Range(minTriggerPanelAnimationLoopDurationTicks, maxTriggerPanelAnimationLoopDurationTicks);
+      this.initialTriggerPanelAnimationLoopDurationTicks = (maxTriggerPanelAnimationLoopDurationTicks + minTriggerPanelAnimationLoopDurationTicks) / 2;
     }
 
     getReverberationDistance() {
       return this.reverberationDistanceRange.randomIntBetween();
+    }
+
+    getTriggerPanelAnimationLoopDurationTicks() {
+      return this.triggerPanelAnimationLoopDurationTicksRange.randomIntBetween();
     }
   }
 
@@ -824,13 +829,15 @@ document.addEventListener("DOMContentLoaded", (event) => {
   const MIN_REVERBERATION_DISTANCE = 2;
   const MAX_REVERBERATION_DISTANCE = 6;
   const REVERB_DELAY_TICKS = 20;
-  const TRIGGER_PANEL_ANIMATION_LOOP_DURATION_TICKS = 400;
+  const MIN_TRIGGER_PANEL_ANIMATION_LOOP_DURATION_TICKS = 400;
+  const MAX_TRIGGER_PANEL_ANIMATION_LOOP_DURATION_TICKS = 500;
 
   let interactionConfig = new InteractionConfig(
     MIN_REVERBERATION_DISTANCE,
     MAX_REVERBERATION_DISTANCE,
     REVERB_DELAY_TICKS,
-    TRIGGER_PANEL_ANIMATION_LOOP_DURATION_TICKS
+    MIN_TRIGGER_PANEL_ANIMATION_LOOP_DURATION_TICKS,
+    MAX_TRIGGER_PANEL_ANIMATION_LOOP_DURATION_TICKS
   );
 
   let panelContext = new PanelContext(
