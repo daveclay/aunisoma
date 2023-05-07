@@ -73,9 +73,14 @@
 Event Loop: <input type="text" id="eventLoopInfo"/>
 <hr>
 <textarea id="triggerScript" rows="10" cols="100">
-6 at 0ms
-11 at 400ms
-2 at 2000ms
+3 at 0ms
+8 at 200ms
+6 at 500ms
+7 at 600ms
+9 at 1000ms
+10 at 1500ms
+11 at 2000ms
+12 at 3000ms
 </textarea>
 <button id="triggerScriptButton" value="run">Run</button>
 <script>
@@ -311,9 +316,9 @@ document.addEventListener("DOMContentLoaded", (event) => {
     gradientValueMap.addRGBPoint(0,   60,   0,   0);
     gradientValueMap.addRGBPoint(.4, 255,   0,   0);
     gradientValueMap.addRGBPoint(1,  255, 255,   0);
-    gradientValueMap.addRGBPoint(1.2,  0, 255, 255);
-    gradientValueMap.addRGBPoint(1.5,  0, 255,   0);
-    gradientValueMap.addRGBPoint(2,  0,   0, 255);
+    gradientValueMap.addRGBPoint(1.2,  0, 255,   0);
+    gradientValueMap.addRGBPoint(1.5,  0, 100, 255);
+    gradientValueMap.addRGBPoint(2,  0,   255, 255);
 
     return gradientValueMap;
   }
