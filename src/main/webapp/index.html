@@ -444,6 +444,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
       this.interactionConfig = this.panel.panelContext.interactionConfig;
       this.currentValue = 0;
       this.animationLoopDurationTicks = this.interactionConfig.initialTriggerPanelAnimationLoopDurationTicks;
+      // TODO: if we recalc the interaction reverberation distance, then did this PanelReverberation change?
       this.distanceFromTrigger = this.interaction.getDistanceFromTriggerToPanel(this.panel);
       this.scale = this._calculateScale();
     }
@@ -452,6 +453,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
       if (this.panel === this.interaction.sourcePanel) {
         return 1;
       } else {
+        // TODO: this also needs to recalculate
         let maxDistance = this.interaction.distance;
         return (maxDistance - this.distanceFromTrigger) / maxDistance;
       }
@@ -474,7 +476,6 @@ document.addEventListener("DOMContentLoaded", (event) => {
         return;
       }
 
-      // TODO: random range of triggerPanelAnimationLoopDurationTicks per cycle
       let halfAnimationLoopDurationTicks = this.animationLoopDurationTicks / 2; // for up and down
 
       this.elapsedDurationTicks = this.tick - this.startTick;
@@ -535,10 +536,12 @@ document.addEventListener("DOMContentLoaded", (event) => {
       this.startTick = null;
       this.tick = -1;
 
-      // TODO: this is only used to create the PanelReverberations, so it can't be recalculated
+      // TODO: this is only used to create the PanelReverberations, so it can't be recalculated... easily at least.
       this.distance = this.interactionConfig.getReverberationDistance();
+      this._buildPanelReverberations();
+    }
 
-      // lookups
+    _buildPanelReverberations() {
       this.panelReverberationsByPanelIndex = {};
       this.panelReverberationsByPanelIndex[this.sourcePanel.index] = new PanelReverberation(this.sourcePanel, this);
       this._collectReverberatingPanels().forEach(panel => {
@@ -550,6 +553,8 @@ document.addEventListener("DOMContentLoaded", (event) => {
     _collectReverberatingPanels() {
       let fromIndex = this.sourcePanel.index;
       let reverberatingPanels = [];
+      // TODO: to vary the number of panels, we could just have several ready to go, and turn some off, but that's wasteful.
+      // or add, then remove?
       for (let i = 0; i < this.distance - 1; i++) {
         let distanceFromIndex = i + 1;
         let leftPanelIndex = fromIndex - distanceFromIndex;
@@ -564,9 +569,6 @@ document.addEventListener("DOMContentLoaded", (event) => {
         }
       }
       return reverberatingPanels;
-    }
-
-    start(tick) {
     }
 
     update() {
@@ -591,12 +593,11 @@ document.addEventListener("DOMContentLoaded", (event) => {
 
       let last = this._findLastRemainingAliveSourcePanelReverberation();
       if (last != null && last.currentValue === 0) {
-        // TODO: only if we're all at 0, and only if there's one left, and then reset our ticks because we need the delay
-        // maybe retrigger?
         if (Math.random() > .65) {
-          // restart clock
           this.startTick = null;
-          // todo: and only if we're at 0, and don't forget the delay.
+          this.distance = this.interactionConfig.getReverberationDistance();
+          // TODO: works, but is kinda wasteful?
+          this._buildPanelReverberations();
           this.panelReverberations.forEach(panelReverberation => {
             if (!panelReverberation.isSourceInteraction()) {
               panelReverberation.revive();
@@ -786,10 +787,8 @@ document.addEventListener("DOMContentLoaded", (event) => {
      */
     triggerPanel(panel) {
       panel.startInteraction(true);
-      let interaction = this.interactionContext.createInteraction(panel);
-      this.allActiveInteractions[this.allActiveInteractions.length] = interaction;
+      this.allActiveInteractions[this.allActiveInteractions.length] = this.interactionContext.createInteraction(panel);
 
-      interaction.start(this.tick);
       if (this.intervalId == null) {
         this.start();
       }
