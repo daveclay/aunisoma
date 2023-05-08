@@ -878,7 +878,14 @@ document.addEventListener("DOMContentLoaded", (event) => {
     const WALK_DELAY_BETWEEN_PANELS = 1000;
     for (let i = 0; i < NUMBER_OF_PANELS; i++) {
       let time = i * WALK_DELAY_BETWEEN_PANELS
-      setTimeout(() => panelContext.triggerPanel(i), time);
+      setTimeout(() => {
+        let panel = panelContext.getPanelAt(i);
+        panelContext.triggerPanel(panel);
+      }, time);
+      setTimeout(() => {
+        let panel = panelContext.getPanelAt(i);
+        panel.interactionActive = false;
+      }, time + (Math.random() * 6000));
     }
   });
 });
