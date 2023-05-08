@@ -439,6 +439,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
       this.panel = panel;
       this.interaction = interaction;
       this.startTick = null;
+      this.tick = null;
       this.elapsedDurationTicks = -1;
       this.interactionConfig = this.panel.panelContext.interactionConfig;
       this.currentValue = 0;
@@ -460,9 +461,12 @@ document.addEventListener("DOMContentLoaded", (event) => {
       return this.panel.index === this.interaction.sourcePanel.index;
     }
 
-    update(tick) {
+    update() {
       if (this.startTick == null) {
-        this.startTick = tick;
+        this.startTick = 0;
+        this.tick = 0;
+      } else {
+        this.tick += 1;
       }
 
       if (this.isDone()) {
@@ -473,7 +477,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
       // TODO: random range of triggerPanelAnimationLoopDurationTicks per cycle
       let halfAnimationLoopDurationTicks = this.animationLoopDurationTicks / 2; // for up and down
 
-      this.elapsedDurationTicks = tick - this.startTick;
+      this.elapsedDurationTicks = this.tick - this.startTick;
 
       // TODO: whatever the animation logic is, it runs throughout the life of the Interaction. When the panel stops its
       // interaction, then this "finishes" the animation loop, when the value hits 0. PanelInteraction live as long
@@ -491,8 +495,11 @@ document.addEventListener("DOMContentLoaded", (event) => {
 
       this.currentValue = this.currentValue * this.scale;
 
-      if (this.currentValue === 0 && this.isSourceInteraction()) {
+      if (this.currentValue === 0 && this.tick > 0 && this.elapsedDurationTicks > 1 && this.isSourceInteraction()) {
         this.animationLoopDurationTicks = this.interactionConfig.getTriggerPanelAnimationLoopDurationTicks();
+        console.log(this.panel.index, this.animationLoopDurationTicks);
+        this.tick = 0;
+        this.startTick = null;
       }
     }
 
@@ -829,7 +836,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
   const MIN_REVERBERATION_DISTANCE = 2;
   const MAX_REVERBERATION_DISTANCE = 6;
   const REVERB_DELAY_TICKS = 20;
-  const MIN_TRIGGER_PANEL_ANIMATION_LOOP_DURATION_TICKS = 400;
+  const MIN_TRIGGER_PANEL_ANIMATION_LOOP_DURATION_TICKS = 200;
   const MAX_TRIGGER_PANEL_ANIMATION_LOOP_DURATION_TICKS = 500;
 
   let interactionConfig = new InteractionConfig(
