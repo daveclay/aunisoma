@@ -4,7 +4,6 @@
     body {
         background-color: black;
         font-family: monospace;
-        font-size: 10px;
         color: gray;
     }
     #stage {
@@ -27,6 +26,7 @@
         height: 50px;
         overflow-x: clip;
         text-align: center;
+        padding-left: 6px; /* align it center, for some reason */
     }
     .panelReverberationInfo {
         display: inline-block;
@@ -38,27 +38,6 @@
     #panelTemplate {
         display: none;
     }
-    #reverberationInfoTemplate {
-        display: none;
-    }
-    #panelReverberationInfoTemplate {
-        display: none;
-    }
-    #gradient {
-        display: block;
-        width: 800px;
-        height: 100px;
-    }
-    #gradientLineTemplate {
-        display: none;
-    }
-    .gradientLine {
-        display: inline-block;
-        width: 4px;
-        height: 100px;
-        margin: 0;
-        padding: 0;
-    }
     .controlTable tr td {
         border: 1px solid #333333;
         vertical-align: top;
@@ -66,10 +45,6 @@
     }
 </style>
 <div id="stage"></div>
-<div id="reverberationsInfo"></div>
-<div id="reverberationInfoTemplate" class="reverberationInfo"></div>
-<div id="panelReverberationInfoTemplate" class="panelReverberationInfo"></div>
-<div id="gradient"></div>
 <div id="panelTemplate" class="panelContainer">
     <div class="panel"></div>
     <div class="panelInfo">&nbsp;</div>
