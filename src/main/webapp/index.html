@@ -1,4 +1,5 @@
 <html>
+<body>
 <style>
     body {
         background-color: black;
@@ -55,23 +56,18 @@
         padding: 0;
     }
 </style>
-<body>
-<div id="stage">
-</div>
-<div id="reverberationsInfo">
-</div>
-<div id="reverberationInfoTemplate" class="reverberationInfo">
-
-</div>
+<div id="stage"></div>
+<div id="reverberationsInfo"></div>
+<div id="reverberationInfoTemplate" class="reverberationInfo"></div>
 <div id="panelReverberationInfoTemplate" class="panelReverberationInfo"></div>
 <div id="gradient"></div>
 <div id="panelTemplate" class="panelContainer">
     <div class="panel"></div>
     <div class="panelInfo">0</div>
 </div>
-<hr>
+<hr/>
 Event Loop: <input type="text" id="eventLoopInfo"/>
-<hr>
+<hr/>
 <textarea id="triggerScript" rows="10" cols="30">
 3 at 0ms for 1500ms
 8 at 200ms for 2000ms
@@ -85,8 +81,6 @@ Event Loop: <input type="text" id="eventLoopInfo"/>
 <button id="triggerScriptButton" value="run">Run</button>
 <br/>
 <button id="triggerWalkDownButton" value="run">Walk Down</button>
-<pre>
-</pre>
 <script>
 document.addEventListener("DOMContentLoaded", (event) => {
   const NUMBER_OF_PANELS = 20;
@@ -578,7 +572,6 @@ document.addEventListener("DOMContentLoaded", (event) => {
       } else {
         this.tick += 1;
       }
-      // TODO: if we have some "done" PanelReverberations, but this Interaction is still alive, then re-trigger them randomly
 
       this.panelReverberations.forEach(panelReverberation => {
         let reverberationPanelDelayTicks = this.interactionConfig.reverberationPanelDelayTicks;
@@ -591,8 +584,13 @@ document.addEventListener("DOMContentLoaded", (event) => {
         }
       });
 
+      this._maybeRevivePanelReverberations();
+    }
+
+    _maybeRevivePanelReverberations() {
       let last = this._findLastRemainingAliveSourcePanelReverberation();
       if (last != null && last.currentValue === 0) {
+        // TODO: make probability a function in the interaction config
         if (Math.random() > .65) {
           this.startTick = null;
           this.distance = this.interactionConfig.getReverberationDistance();
@@ -614,10 +612,6 @@ document.addEventListener("DOMContentLoaded", (event) => {
       } else {
         return null;
       }
-    }
-
-    _isOnlySourceLeftAlive() {
-      return this._findLastRemainingAliveSourcePanelReverberation() != null;
     }
 
     isDead() {
@@ -818,11 +812,21 @@ document.addEventListener("DOMContentLoaded", (event) => {
         );
       });
 
-      // TODO: only do this when interactivity halts, not one-shot
+      if (this._isAtMaxInteraction()) {
+        // TODO: what? invert? so that _leaving_ causes an interaction? That'd be weird. intriguing.
+        // TODO: or a dance party animation.
+        console.log("We're at max, captain!");
+      }
+
       this.reapDeadReverberations();
       if (this.allActiveInteractions.length === 0) {
         this.stop();
       }
+    }
+
+    _isAtMaxInteraction() {
+      let activePanels = this.panels.filter(panel => panel.interactionActive).length;
+      return activePanels / this.panels.length > .9;
     }
 
     reapDeadReverberations() {
