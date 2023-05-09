@@ -11,6 +11,7 @@
     }
     .panelContainer {
         display: inline-block;
+        min-height: 1px;
     }
     .panel {
         display: block;
@@ -21,8 +22,11 @@
         margin: 5px;
     }
     .panelInfo {
+        display: block;
         width: 50px; /* 24" */
+        height: 50px;
         overflow-x: clip;
+        text-align: center;
     }
     .panelReverberationInfo {
         display: inline-block;
@@ -55,6 +59,11 @@
         margin: 0;
         padding: 0;
     }
+    .controlTable tr td {
+        border: 1px solid #333333;
+        vertical-align: top;
+        padding: 5px;
+    }
 </style>
 <div id="stage"></div>
 <div id="reverberationsInfo"></div>
@@ -63,12 +72,17 @@
 <div id="gradient"></div>
 <div id="panelTemplate" class="panelContainer">
     <div class="panel"></div>
-    <div class="panelInfo">0</div>
+    <div class="panelInfo">&nbsp;</div>
 </div>
+Click on a panel to simulate a person interacting with a panel. Click on the panel again to simulate a person walking away from the panel.
 <hr/>
-Event Loop: <input type="text" id="eventLoopInfo"/>
-<hr/>
-<textarea id="triggerScript" rows="10" cols="30">
+<table class="controlTable">
+    <tr>
+        <td>
+            <p>
+                <label for="triggerScript">Panel interaction script</label>
+            </p>
+            <textarea id="triggerScript" rows="10" cols="30">
 3 at 0ms for 1500ms
 8 at 200ms for 2000ms
 6 at 500ms for 3000ms
@@ -78,9 +92,21 @@ Event Loop: <input type="text" id="eventLoopInfo"/>
 11 at 2000ms for 2000ms
 12 at 3000ms for 3000ms
 </textarea>
-<button id="triggerScriptButton" value="run">Run</button>
-<br/>
-<button id="triggerWalkDownButton" value="run">Walk Down</button>
+            <p>
+                <button id="triggerScriptButton" value="run">Run</button>
+            </p>
+        </td>
+        <td>
+            <p>
+                Preset Scripts
+            </p>
+            <button id="triggerWalkDownButton" value="run">Walk Left to Right</button>
+        </td>
+        <td>
+            Event Loop: <input type="text" id="eventLoopInfo"/>
+        </td>
+    </tr>
+</table>
 <script>
 document.addEventListener("DOMContentLoaded", (event) => {
   const NUMBER_OF_PANELS = 20;
@@ -492,7 +518,6 @@ document.addEventListener("DOMContentLoaded", (event) => {
 
       if (this.currentValue === 0 && this.tick > 0 && this.elapsedDurationTicks > 1 && this.isSourceInteraction()) {
         this.animationLoopDurationTicks = this.interactionConfig.getTriggerPanelAnimationLoopDurationTicks();
-        console.log(this.panel.index, this.animationLoopDurationTicks);
         this.tick = 0;
         this.startTick = null;
       }
@@ -680,7 +705,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
 
       panelElement.addEventListener("click", () => {
         if (this.interactionActive) {
-          this.interactionActive = false;
+          this.stopInteraction();
         } else {
           this.panelContext.triggerPanel(this);
         }
@@ -689,10 +714,12 @@ document.addEventListener("DOMContentLoaded", (event) => {
 
     startInteraction() {
       this.interactionActive = true;
+      this.panelInfoElement.innerText = "Active";
     }
 
     stopInteraction() {
       this.interactionActive = false;
+      this.panelInfoElement.innerHTML = "&nbsp;";
     }
 
     reset() {
@@ -826,7 +853,9 @@ document.addEventListener("DOMContentLoaded", (event) => {
 
     _isAtMaxInteraction() {
       let activePanels = this.panels.filter(panel => panel.interactionActive).length;
-      return activePanels / this.panels.length > .9;
+      let activePercent = activePanels / this.panels.length;
+      console.log(activePercent);
+      return activePercent > .9;
     }
 
     reapDeadReverberations() {
@@ -870,7 +899,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
           parseInt(triggerCmd[2])
         );
         setTimeout(
-          () => panel.interactionActive = false,
+          () => panel.stopInteraction(),
           parseInt(triggerCmd[4])
         )
       }
@@ -888,7 +917,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
       }, time);
       setTimeout(() => {
         let panel = panelContext.getPanelAt(i);
-        panel.interactionActive = false;
+        panel.stopInteraction();
       }, time + (Math.random() * 6000));
     }
   });
