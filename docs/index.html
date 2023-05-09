@@ -192,7 +192,6 @@ document.addEventListener("DOMContentLoaded", (event) => {
     getColorAtValue(value) {
       //GradientValuePoint[] points = getGradientValuePointForValue(value);
       let points = this.getGradientValuePointsForValue(value);
-      // console.log(points, "for", value);
 
       // ratio = zero-based value / range
       // ratio = val - min / max - min;
@@ -313,9 +312,9 @@ document.addEventListener("DOMContentLoaded", (event) => {
     gradientValueMap.addRGBPoint(0,   60,   0,   0);
     gradientValueMap.addRGBPoint(.4, 255,   0,   0);
     gradientValueMap.addRGBPoint(1,  255, 255,   0);
-    gradientValueMap.addRGBPoint(1.2,  0, 255,   0);
-    gradientValueMap.addRGBPoint(1.5,  0, 100, 255);
-    gradientValueMap.addRGBPoint(2, 255,    0, 255);
+    gradientValueMap.addRGBPoint(1.4,  0, 255,   0);
+    gradientValueMap.addRGBPoint(1.8,  0, 255, 255);
+    gradientValueMap.addRGBPoint(2.7,  0,   0, 255);
 
     return gradientValueMap;
   }
@@ -830,7 +829,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
       let activePanels = this.panels.filter(panel => panel.interactionActive).length;
       let activePercent = activePanels / this.panels.length;
       console.log(activePercent);
-      return activePercent > .9;
+      return activePercent > .4;
     }
 
     reapDeadReverberations() {
