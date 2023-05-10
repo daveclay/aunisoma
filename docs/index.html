@@ -75,7 +75,12 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
             <p>
                 Preset Scripts
             </p>
-            <button id="triggerWalkDownButton" value="run">Walk Left to Right</button>
+            <p>
+                <button id="triggerWalkDownButton" value="run">Walk Left to Right</button>
+            </p>
+            <p>
+                <button id="triggerMaxInteractionsButton" value="run">Max Interactions</button>
+            </p>
         </td>
         <td>
             Event Loop: <input type="text" id="eventLoopInfo"/>
@@ -90,6 +95,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
   const TRIGGER_SCRIPT_TEXTAREA = document.getElementById("triggerScript");
   const TRIGGER_SCRIPT_BUTTON = document.getElementById("triggerScriptButton");
   const TRIGGER_WALK_DOWN_BUTTON = document.getElementById("triggerWalkDownButton");
+  const TRIGGER_MAX_BUTTON = document.getElementById("triggerMaxInteractionsButton");
   const EVENT_LOOP_INFO_ELEMENT = document.getElementById("eventLoopInfo");
 
   // TODO: show which panels have someone interacting
@@ -309,12 +315,13 @@ document.addEventListener("DOMContentLoaded", (event) => {
 
   function getGradient() {
     let gradientValueMap = new GradientValueMap();
-    gradientValueMap.addRGBPoint(0,   60,   0,   0);
-    gradientValueMap.addRGBPoint(.4, 255,   0,   0);
-    gradientValueMap.addRGBPoint(1,  255, 255,   0);
-    gradientValueMap.addRGBPoint(1.4,  0, 255,   0);
-    gradientValueMap.addRGBPoint(1.8,  0, 255, 255);
-    gradientValueMap.addRGBPoint(2.7,  0,   0, 255);
+    gradientValueMap.addRGBPoint(0,    60,   0,   0);
+    gradientValueMap.addRGBPoint(.4,  255,   0,   0);
+    gradientValueMap.addRGBPoint(1,   255, 255,   0);
+    gradientValueMap.addRGBPoint(1.2,   0, 255,   0);
+    gradientValueMap.addRGBPoint(1.5,   0, 255, 255);
+    gradientValueMap.addRGBPoint(3.0,   0,   0, 255);
+    gradientValueMap.addRGBPoint(3.7, 255,   0, 255);
 
     return gradientValueMap;
   }
@@ -427,17 +434,113 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
   }
 
+  class Clock {
+    constructor() {
+      this.restart();
+      this.running = false;
+    }
+
+    start() {
+      this.running = true;
+    }
+
+    stop() {
+      this.running = false;
+      this.startTick = null;
+      this.ticks = null;
+    }
+
+    next() {
+      if (!this.running) {
+        this.running = true;
+      }
+      if (this.startTick == null) {
+        this.startTick = 0;
+        this.ticks = 0;
+      } else {
+        this.ticks += 1;
+      }
+    }
+
+    restart() {
+      this.running = true;
+      this.startTick = 0;
+      this.ticks = -1;
+    }
+  }
+
+  class Cycle {
+    constructor(durationTicks,
+                onUpFn,
+                onDownFn) {
+      this.durationTicks = durationTicks;
+      this.onUpFn = onUpFn;
+      this.onDownFn = onDownFn;
+      this.clock = new Clock();
+      this.iterations = 0;
+    }
+
+    stop() {
+      this.clock.stop();
+      this.iterations = 0;
+    }
+
+    next() {
+      if (this.clock.ticks >= this.durationTicks) {
+        // we're cycling; once this goes over the duration, we may as well reset back to 0
+        this.iterations += 1;
+        this.clock.restart();
+      }
+
+      this.clock.next();
+
+      let halfAnimationLoopDurationTicks = this.durationTicks / 2; // for up and down
+      let loopingElapsedDuration = this.clock.ticks % this.durationTicks;
+
+      if (loopingElapsedDuration < halfAnimationLoopDurationTicks) {
+        // on our way up
+        let currentValue = loopingElapsedDuration / halfAnimationLoopDurationTicks;
+        this.onUpFn(currentValue);
+      } else {
+        // on our way down
+        let currentValue = (this.durationTicks - loopingElapsedDuration) / halfAnimationLoopDurationTicks;
+        this.onDownFn(currentValue);
+      }
+    }
+
+    jumpToDownCycle() {
+      this.clock.ticks = this.durationTicks - this.clock.ticks;
+    }
+
+    restart(durationTicks) {
+      if (durationTicks) {
+        this.durationTicks = durationTicks;
+      }
+      this.iterations = 0;
+      this.clock.restart();
+    }
+
+    isCycled() {
+      return this.iterations > 0;
+    }
+
+    isAtZeroPoint() {
+      return this.clock.ticks == null || this.clock.ticks === 0;
+    }
+  }
+
   class PanelReverberation {
     constructor(panel,
                 interaction) {
       this.panel = panel;
       this.interaction = interaction;
-      this.startTick = null;
-      this.tick = null;
-      this.elapsedDurationTicks = -1;
       this.interactionConfig = this.panel.panelContext.interactionConfig;
+      this.cycle = new Cycle(
+        this.interactionConfig.initialTriggerPanelAnimationLoopDurationTicks,
+        (value) => this.onUpCycle(value),
+        (value) => this.onDownCycle(value)
+      );
       this.currentValue = 0;
-      this.animationLoopDurationTicks = this.interactionConfig.initialTriggerPanelAnimationLoopDurationTicks;
       // TODO: if we recalc the interaction reverberation distance, then did this PanelReverberation change?
       this.distanceFromTrigger = this.interaction.getDistanceFromTriggerToPanel(this.panel);
       this.scale = this._calculateScale();
@@ -447,7 +550,6 @@ document.addEventListener("DOMContentLoaded", (event) => {
       if (this.panel === this.interaction.sourcePanel) {
         return 1;
       } else {
-        // TODO: this also needs to recalculate
         let maxDistance = this.interaction.distance;
         return (maxDistance - this.distanceFromTrigger) / maxDistance;
       }
@@ -457,53 +559,54 @@ document.addEventListener("DOMContentLoaded", (event) => {
       return this.panel.index === this.interaction.sourcePanel.index;
     }
 
+    start() {
+      this.started = true;
+      this.cycle.clock.start();
+    }
+
+    onUpCycle(value) {
+      // on our way up
+      this._setValue(value);
+      if (this.isSourceInteraction() && !this.panel.interactionActive) {
+        this.cycle.jumpToDownCycle();
+      }
+    }
+
+    onDownCycle(value) {
+      // on our way down
+      this._setValue(value);
+    }
+
+    _setValue(value) {
+      this.currentValue = value * this.scale;
+    }
+
     update() {
-      if (this.startTick == null) {
-        this.startTick = 0;
-        this.tick = 0;
-      } else {
-        this.tick += 1;
+      if (!this.started) {
+        return;
       }
 
       if (this.isDone()) {
         // don't loop anymore; we might end up starting a new animation loop when we should actually stop.
+        this.cycle.stop();
         return;
       }
 
-      let halfAnimationLoopDurationTicks = this.animationLoopDurationTicks / 2; // for up and down
+      this.cycle.next();
 
-      this.elapsedDurationTicks = this.tick - this.startTick;
-
-      // TODO: whatever the animation logic is, it runs throughout the life of the Interaction. When the panel stops its
-      // interaction, then this "finishes" the animation loop, when the value hits 0. PanelInteraction live as long
-      // as the interaction does, if we want to revive a reverberation every so often; rather than create a whole
-      // new Reverberation that lives and dies. TODO: except that this doesn't control the delay that makes the wave pattern.
-      let loopingElapsedDuration = this.elapsedDurationTicks % this.animationLoopDurationTicks;
-
-      if (loopingElapsedDuration < halfAnimationLoopDurationTicks) {
-        // on our way up
-        this.currentValue = loopingElapsedDuration / halfAnimationLoopDurationTicks;
-      } else {
-        // on our way down
-        this.currentValue = (this.animationLoopDurationTicks - loopingElapsedDuration) / halfAnimationLoopDurationTicks;
-      }
-
-      this.currentValue = this.currentValue * this.scale;
-
-      if (this.currentValue === 0 && this.tick > 0 && this.elapsedDurationTicks > 1 && this.isSourceInteraction()) {
-        this.animationLoopDurationTicks = this.interactionConfig.getTriggerPanelAnimationLoopDurationTicks();
-        this.tick = 0;
-        this.startTick = null;
+      if (this.isSourceInteraction() && this._isAnimationLoopDone()) {
+        this.cycle.restart(this.interactionConfig.getTriggerPanelAnimationLoopDurationTicks());
       }
     }
 
     _isAnimationLoopDone() {
-      return this.elapsedDurationTicks > 1 && this.currentValue === 0;
+      return this.cycle.isCycled() && this.cycle.isAtZeroPoint() && this.currentValue === 0;
     }
 
     isDone() {
-      // TODO: while this works, it's overly complicated. Instead, the source interaction says "stop" and this "finishes"
-      // in that case, this really represents whether we're still animating?
+      if (!this.cycle.clock.running) {
+        return true;
+      }
       if (this.isSourceInteraction()) {
         return this._isAnimationLoopDone() && !this.panel.interactionActive;
       } else {
@@ -512,8 +615,8 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
 
     revive() {
-      this.startTick = null;
-      this.elapsedDurationTicks = -1;
+      this.cycle.restart();
+      this.started = true;
     }
   }
 
@@ -525,19 +628,20 @@ document.addEventListener("DOMContentLoaded", (event) => {
       this.interactionConfig = interactionConfig;
       this.panelContext = panelContext;
 
-      // things that get reset
-      this.startTick = null;
-      this.tick = -1;
+      this.clock = new Clock();
+
+      this.panelReverberationsByPanelIndex = {};
+      this.panelReverberationsByPanelIndex[this.sourcePanel.index] = new PanelReverberation(this.sourcePanel, this);
 
       // TODO: this is only used to create the PanelReverberations, so it can't be recalculated... easily at least.
+      // TODO: also, we may already have PanelReverberation instances running if this panel was recently active!
       this.distance = this.interactionConfig.getReverberationDistance();
       this._buildPanelReverberations();
     }
 
     _buildPanelReverberations() {
-      this.panelReverberationsByPanelIndex = {};
-      this.panelReverberationsByPanelIndex[this.sourcePanel.index] = new PanelReverberation(this.sourcePanel, this);
       this._collectReverberatingPanels().forEach(panel => {
+        // TODO: we're just dropping the reference to the old one, not ensuring it's "done". It _should_ be, but that's implicit, and why we might have more bugs with panels reverberating when we don't want them to.
         this.panelReverberationsByPanelIndex[panel.index] = new PanelReverberation(panel, this)
       });
       this.panelReverberations = Object.values(this.panelReverberationsByPanelIndex);
@@ -564,44 +668,31 @@ document.addEventListener("DOMContentLoaded", (event) => {
       return reverberatingPanels;
     }
 
+    start() {
+      this.panelReverberations.forEach(panelReverberation => {
+        panelReverberation.start();
+      });
+    }
+
     update() {
-      if (this.startTick == null) {
-        this.startTick = 0;
-        this.tick = 0;
-      } else {
-        this.tick += 1;
-      }
+      this.clock.next();
+      this.isAtZeroPoint = this.calculateIsAtZeroPoint()
 
       this.panelReverberations.forEach(panelReverberation => {
         let reverberationPanelDelayTicks = this.interactionConfig.reverberationPanelDelayTicks;
         let delayForPanelToStartTicks = panelReverberation.distanceFromTrigger * reverberationPanelDelayTicks;
         // Note: this.startTick is when the Reverberation starts, and this waits for a delay to start calculating values
-        let totalElapsedTicks = this.tick - this.startTick;
-        if (totalElapsedTicks >= delayForPanelToStartTicks) {
-          // waited long enough from the trigger tick, start keeping track of the duration
-          panelReverberation.update(this.tick)
+        if (this.clock.ticks >= delayForPanelToStartTicks) {
+          // waited long enough from the source panel trigger tick
+          panelReverberation.update();
         }
       });
-
       this._maybeRevivePanelReverberations();
     }
 
-    _maybeRevivePanelReverberations() {
+    calculateIsAtZeroPoint() {
       let last = this._findLastRemainingAliveSourcePanelReverberation();
-      if (last != null && last.currentValue === 0) {
-        // TODO: make probability a function in the interaction config
-        if (Math.random() > .65) {
-          this.startTick = null;
-          this.distance = this.interactionConfig.getReverberationDistance();
-          // TODO: works, but is kinda wasteful?
-          this._buildPanelReverberations();
-          this.panelReverberations.forEach(panelReverberation => {
-            if (!panelReverberation.isSourceInteraction()) {
-              panelReverberation.revive();
-            }
-          });
-        }
-      }
+      return last != null && last.currentValue === 0;
     }
 
     _findLastRemainingAliveSourcePanelReverberation() {
@@ -610,6 +701,21 @@ document.addEventListener("DOMContentLoaded", (event) => {
         return alive[0];
       } else {
         return null;
+      }
+    }
+
+    _maybeRevivePanelReverberations() {
+      if (this.isAtZeroPoint && this.sourcePanel.interactionActive && Math.random() > .65) {
+        // TODO: make probability a function in the interaction config
+        this.clock.restart();
+        this.distance = this.interactionConfig.getReverberationDistance();
+        // TODO: works, but is kinda wasteful? Can we re-use a PanelReverberation instance? Yes, just need to figure out new distance, then recalculate state of existing instances, create new ones for bigger distance,
+        this._buildPanelReverberations();
+        this.panelReverberations.forEach(panelReverberation => {
+          if (!panelReverberation.isSourceInteraction()) {
+            panelReverberation.revive();
+          }
+        });
       }
     }
 
@@ -631,11 +737,13 @@ document.addEventListener("DOMContentLoaded", (event) => {
                 maxReverberationDistance,
                 reverberationPanelDelayTicks,
                 minTriggerPanelAnimationLoopDurationTicks,
-                maxTriggerPanelAnimationLoopDurationTicks) {
+                maxTriggerPanelAnimationLoopDurationTicks,
+                maxInteractionThresholdPercent) {
       this.reverberationDistanceRange = new Range(minReverberationDistance, maxReverberationDistance);
       this.reverberationPanelDelayTicks = reverberationPanelDelayTicks;
       this.triggerPanelAnimationLoopDurationTicksRange = new Range(minTriggerPanelAnimationLoopDurationTicks, maxTriggerPanelAnimationLoopDurationTicks);
       this.initialTriggerPanelAnimationLoopDurationTicks = (maxTriggerPanelAnimationLoopDurationTicks + minTriggerPanelAnimationLoopDurationTicks) / 2;
+      this.maxInteractionThresholdPercent = maxInteractionThresholdPercent;
     }
 
     getReverberationDistance() {
@@ -703,11 +811,10 @@ document.addEventListener("DOMContentLoaded", (event) => {
     /**
      * Update this Panel at the given tick, taking into account its current
      * state - is it triggered? Reverberating? Etc.
-     * @param tick
-     * @param interactions
+     * @param panelValueSources
      */
-    update(tick, interactions) {
-      this.setColor(this.nextColor(tick, interactions));
+    update(panelValueSources) {
+      this.setColor(this.nextColor(panelValueSources));
     }
 
     setColor(color) {
@@ -716,14 +823,14 @@ document.addEventListener("DOMContentLoaded", (event) => {
       this.panelUIElement.style.backgroundColor = this.color.toHexString();
     }
 
-    nextColor(tick, interactions) {
+    nextColor(panelValueSources) {
+      // TODO: we could do this in PanelContext, where it would know which PanelSources are valid, and how to mix gradients. The Panel doesn't know what's going on.
       let valueSums = 0;
-      interactions.forEach(interaction => {
-        let reverberationPanelValue = interaction.getValueForPanel(this);
+      panelValueSources.forEach(panelValueSource => {
+        let reverberationPanelValue = panelValueSource.getValueForPanel(this);
         valueSums += reverberationPanelValue;
       });
 
-      // TODO: indicate toggle state with: this.panelInfoElement.innerText = valueSums.toString().substring(0, 4);
       return this.panelContext.idleGradient.getColorForValue(valueSums);
     }
   }
@@ -736,15 +843,25 @@ document.addEventListener("DOMContentLoaded", (event) => {
       this.interactionConfig = interactionConfig;
       this.interactionContext = new InteractionContext(interactionConfig, this);
       this.idleGradient = idleGradient;
+      this.maxInteractionAnimation = new MaxInteractionAnimation();
       this.panels = [];
-      this.allActiveInteractions = [];
-      this.tick = 0;
+      this.interactionsBySourcePanelIndex = {};
+      this._createPanels();
+      this._createInteractions();
     }
 
-    createPanels() {
+    _createPanels() {
       for (const index of Array(this.numberOfPanels).keys()) {
         this.panels.push(newPanel(index, this));
       }
+    }
+
+    _createInteractions() {
+      this.interactions = this.panels.map(panel => {
+        let interaction = this.interactionContext.createInteraction(panel);
+        this.interactionsBySourcePanelIndex[panel.index] = interaction;
+        return interaction;
+      });
     }
 
     getPanelAt(index) {
@@ -753,12 +870,14 @@ document.addEventListener("DOMContentLoaded", (event) => {
 
     _collectActivePanelInteractions() {
       let uniqueActivePanels = {} // gotta cleanup, tho
-      this.allActiveInteractions.forEach(interaction => {
-        interaction.panelReverberations.forEach(panelReverberation => {
-          let panel = panelReverberation.panel;
-          let interaction = panelReverberation.interaction;
-          this._addPanelToActiveInteractions(panel, interaction, uniqueActivePanels);
-        });
+      this.interactions.forEach(interaction => {
+        if (!interaction.isDead()) {
+          interaction.panelReverberations.forEach(panelReverberation => {
+            let panel = panelReverberation.panel;
+            let interaction = panelReverberation.interaction;
+            this._addPanelToActiveInteractions(panel, interaction, uniqueActivePanels);
+          });
+        }
       });
 
       return Object.values(uniqueActivePanels);
@@ -781,59 +900,90 @@ document.addEventListener("DOMContentLoaded", (event) => {
      * @param panel
      */
     triggerPanel(panel) {
-      panel.startInteraction(true);
-      this.allActiveInteractions[this.allActiveInteractions.length] = this.interactionContext.createInteraction(panel);
-
-      if (this.intervalId == null) {
-        this.start();
+      // debounce
+      if (!panel.interactionActive) {
+        panel.startInteraction(true);
+        this.interactionsBySourcePanelIndex[panel.index].start();
+        if (this.intervalId == null) {
+          this.start();
+        }
       }
     }
 
     start() {
       this.intervalId = setInterval(() => this.eventLoop(), 1);
+      EVENT_LOOP_INFO_ELEMENT.value = "running";
     }
 
     stop() {
       clearInterval(this.intervalId);
       this.intervalId = null;
-      this.tick = 0; // may as well reset the tick count so we're not summing to infinity
       EVENT_LOOP_INFO_ELEMENT.value = "stopped";
     }
 
     eventLoop() {
-      this.tick += 1;
-      EVENT_LOOP_INFO_ELEMENT.value = "Running: " + this.tick;
-      this.allActiveInteractions.forEach(interaction => interaction.update(this.tick));
-
-      this._collectActivePanelInteractions().forEach(activePanelInteraction => {
-        let panel = activePanelInteraction.panel;
-        panel.update(
-          this.tick,
-          activePanelInteraction.interactions
-        );
-      });
-
-      if (this._isAtMaxInteraction()) {
+      if (this._calculateAtMaxInteraction()) {
         // TODO: what? invert? so that _leaving_ causes an interaction? That'd be weird. intriguing.
         // TODO: or a dance party animation.
+        // tODO: iterate over Interactions, and each PanelReverberation, set a flag to reset ticks and animate clock? No, not reset ticks, but next reset/revive start new animation sequence (gradient, timing)
+        // TODO: oh snap, I don't have interactions to use to run through PanelReverberations. Can't use that method. I can use this event loop, but Interaction may not be the right "thing"
         console.log("We're at max, captain!");
-      }
+        this.maxInteractionAnimation.update();
+        // TODO: because PanelContext is already making decisions about what's "actively" creating the colors, it feels like Panel can't know what values to pull from already. So maybe
+        // TODO: PanelContext should decide what "value" and "gradient" to apply to a given Panel, and Panels are just dumb color sinks and trigger sources.
+        this.panels.forEach(panel => panel.update([this.maxInteractionAnimation]));
+      } else {
+        this.interactions.forEach(interaction => {
+          // let the interaction know if it's valid now? Or do I kill the interactions?
+          interaction.update()
+        });
 
-      this.reapDeadReverberations();
-      if (this.allActiveInteractions.length === 0) {
-        this.stop();
+        this._collectActivePanelInteractions().forEach(activePanelInteraction => {
+          let panel = activePanelInteraction.panel;
+          panel.update(
+            activePanelInteraction.interactions
+          );
+        });
+
+        let animatingInteractions = this.interactions.filter(interaction => !interaction.isDead());
+        if (animatingInteractions.length === 0) {
+          this.stop();
+        }
       }
     }
 
-    _isAtMaxInteraction() {
+    _calculateAtMaxInteraction() {
       let activePanels = this.panels.filter(panel => panel.interactionActive).length;
       let activePercent = activePanels / this.panels.length;
-      console.log(activePercent);
-      return activePercent > .4;
+      return activePercent >= this.interactionConfig.maxInteractionThresholdPercent;
+    }
+  }
+
+  class MaxInteractionAnimation {
+    constructor(panelContext) {
+      this.cycle = new Cycle(
+        500,
+        (value) => this.onUpCycle(value),
+        (value) => this.onDownCycle(value)
+      );
+      this.panelContext = panelContext;
+      this.currentValue = 0;
     }
 
-    reapDeadReverberations() {
-      this.allActiveInteractions = this.allActiveInteractions.filter(interaction => !interaction.isDead());
+    update() {
+      this.cycle.next();
+    }
+
+    onUpCycle(value) {
+      this.currentValue = value;
+    }
+
+    onDownCycle(value) {
+      this.currentValue = value;
+    }
+
+    getValueForPanel(panel) {
+      return 4 * this.currentValue;
     }
   }
 
@@ -844,13 +994,15 @@ document.addEventListener("DOMContentLoaded", (event) => {
   const REVERB_DELAY_TICKS = 20;
   const MIN_TRIGGER_PANEL_ANIMATION_LOOP_DURATION_TICKS = 200;
   const MAX_TRIGGER_PANEL_ANIMATION_LOOP_DURATION_TICKS = 500;
+  const MAX_INTERACTION_THRESHOLD_PERCENT = .5;
 
   let interactionConfig = new InteractionConfig(
     MIN_REVERBERATION_DISTANCE,
     MAX_REVERBERATION_DISTANCE,
     REVERB_DELAY_TICKS,
     MIN_TRIGGER_PANEL_ANIMATION_LOOP_DURATION_TICKS,
-    MAX_TRIGGER_PANEL_ANIMATION_LOOP_DURATION_TICKS
+    MAX_TRIGGER_PANEL_ANIMATION_LOOP_DURATION_TICKS,
+    MAX_INTERACTION_THRESHOLD_PERCENT
   );
 
   let panelContext = new PanelContext(
@@ -858,8 +1010,6 @@ document.addEventListener("DOMContentLoaded", (event) => {
     interactionConfig,
     getGradient()
   );
-
-  panelContext.createPanels();
 
   function runScript() {
     let triggers = TRIGGER_SCRIPT_TEXTAREA.value.split("\n");
@@ -881,6 +1031,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
   }
 
   TRIGGER_SCRIPT_BUTTON.addEventListener("click", () => runScript());
+
   TRIGGER_WALK_DOWN_BUTTON.addEventListener("click", () => {
     const WALK_DELAY_BETWEEN_PANELS = 1000;
     for (let i = 0; i < NUMBER_OF_PANELS; i++) {
@@ -895,7 +1046,17 @@ document.addEventListener("DOMContentLoaded", (event) => {
       }, time + (Math.random() * 6000));
     }
   });
+
+  TRIGGER_MAX_BUTTON.addEventListener("click", () => {
+    let numberOfPanels =
+      (panelContext.panels.length * panelContext.interactionConfig.maxInteractionThresholdPercent) + 1;
+    for (let i = 0; i < numberOfPanels; i++) {
+      let panel = panelContext.getPanelAt(i);
+      panelContext.triggerPanel(panel);
+    }
+  })
 });
+
 
 </script>
 </body>
