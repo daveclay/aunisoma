@@ -436,8 +436,9 @@ document.addEventListener("DOMContentLoaded", (event) => {
 
   class Clock {
     constructor() {
-      this.restart();
       this.running = false;
+      this.startTick = null;
+      this.ticks = null;
     }
 
     start() {
@@ -452,10 +453,15 @@ document.addEventListener("DOMContentLoaded", (event) => {
 
     next() {
       if (!this.running) {
-        this.running = true;
+        // Don't confuse people by automatically running; next() can only be called after start()
+        throw "Clock is not running";
       }
+
       if (this.startTick == null) {
         this.startTick = 0;
+      }
+
+      if (this.ticks == null) {
         this.ticks = 0;
       } else {
         this.ticks += 1;
@@ -464,8 +470,8 @@ document.addEventListener("DOMContentLoaded", (event) => {
 
     restart() {
       this.running = true;
-      this.startTick = 0;
-      this.ticks = -1;
+      this.startTick = null;
+      this.ticks = null;
     }
   }
 
@@ -480,9 +486,12 @@ document.addEventListener("DOMContentLoaded", (event) => {
       this.iterations = 0;
     }
 
+    start() {
+      this.clock.start();
+    }
+
     stop() {
       this.clock.stop();
-      this.iterations = 0;
     }
 
     next() {
@@ -525,7 +534,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
 
     isAtZeroPoint() {
-      return this.clock.ticks == null || this.clock.ticks === 0;
+      return this.clock.ticks == null || (this.durationTicks % this.clock.ticks === 0);
     }
   }
 
@@ -560,14 +569,13 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
 
     start() {
-      this.started = true;
       this.cycle.clock.start();
     }
 
     onUpCycle(value) {
       // on our way up
       this._setValue(value);
-      if (this.isSourceInteraction() && !this.panel.interactionActive) {
+      if (!this.interaction.sourcePanel.interactionActive && !this.cycle.isAtZeroPoint()) {
         this.cycle.jumpToDownCycle();
       }
     }
@@ -582,10 +590,6 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
 
     update() {
-      if (!this.started) {
-        return;
-      }
-
       if (this.isDone()) {
         // don't loop anymore; we might end up starting a new animation loop when we should actually stop.
         this.cycle.stop();
@@ -594,7 +598,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
 
       this.cycle.next();
 
-      if (this.isSourceInteraction() && this._isAnimationLoopDone()) {
+      if (this.isSourceInteraction() && this._isAnimationLoopDone() && this.panel.interactionActive) {
         this.cycle.restart(this.interactionConfig.getTriggerPanelAnimationLoopDurationTicks());
       }
     }
@@ -604,19 +608,18 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
 
     isDone() {
+      if  (this.isSourceInteraction() && this.panel.interactionActive) {
+        return false;
+      }
       if (!this.cycle.clock.running) {
         return true;
       }
-      if (this.isSourceInteraction()) {
-        return this._isAnimationLoopDone() && !this.panel.interactionActive;
-      } else {
-        return this._isAnimationLoopDone();
-      }
+
+      return this._isAnimationLoopDone();
     }
 
     revive() {
       this.cycle.restart();
-      this.started = true;
     }
   }
 
@@ -640,6 +643,9 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
 
     _buildPanelReverberations() {
+      // console.log(this.sourcePanel.index + " building " + this.distance + " reverberations.");
+      this.panelReverberationsByPanelIndex = {};
+      this.panelReverberationsByPanelIndex[this.sourcePanel.index] = new PanelReverberation(this.sourcePanel, this);
       this._collectReverberatingPanels().forEach(panel => {
         // TODO: we're just dropping the reference to the old one, not ensuring it's "done". It _should_ be, but that's implicit, and why we might have more bugs with panels reverberating when we don't want them to.
         this.panelReverberationsByPanelIndex[panel.index] = new PanelReverberation(panel, this)
@@ -720,6 +726,9 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
 
     isDead() {
+      if (this.sourcePanel.interactionActive) {
+        return false;
+      }
       return this.panelReverberations.filter(panelReverberation => !panelReverberation.isDone()).length === 0;
     }
 
@@ -987,6 +996,269 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
   }
 
+
+  /***
+   * Test infrastructure
+   ***/
+
+  const runTest = (name, fn) => {
+    try {
+      fn();
+      console.log("\t" + name + ": passed");
+    } catch (error) {
+      console.log("\t" + name + ": failed: " + error);
+    }
+  };
+
+  class Given {
+    constructor(name, testInitFn) {
+      this.name = name;
+      this.testInitFn = testInitFn;
+      this.testFns = [];
+    }
+
+    when(description, setupFn) {
+      return new When(this, "when " + description, setupFn);
+    }
+
+    then(testFn) {
+      return new When(this);
+    }
+
+    addTestFn(testFn) {
+      this.testFns[this.testFns.length] = testFn;
+    }
+
+    runTestFns() {
+      console.log("Given " + this.name);
+      this.testFns.forEach(testFn => testFn());
+    }
+  }
+
+  class When {
+    constructor(given,
+                description,
+                setupFn) {
+      this.given = given;
+      this.description = description;
+      this.setupFn = setupFn;
+    }
+
+    then(testFn) {
+      this.given.addTestFn(() => {
+        runTest(this.description, () => {
+          let context = {};
+          let subject = this.given.testInitFn(context);
+          if (this.setupFn) {
+            this.setupFn(subject, context);
+          }
+          testFn(subject, context);
+        });
+      });
+
+      return this;
+    }
+
+    when(description, setupFn) {
+      return new When(this.given, "when " + description, setupFn);
+    }
+
+    run() {
+      this.given.runTestFns();
+    }
+  }
+
+  const given = (name, setupFn) => {
+    return new Given(name, setupFn);
+  }
+
+  const assertFalse = (value) => {
+    if (value) {
+      throw "expected value to be false, but was " + value;
+    }
+  }
+
+  const assertTrue = (value) => {
+    if (!value) {
+      throw "expected value to be true, but was " + value;
+    }
+  }
+
+  class Assertion {
+    constructor(actualValue) {
+      this.actualValue = actualValue;
+    }
+
+    isTrue() {
+      assertTrue(this.actualValue);
+    }
+
+    isFalse() {
+      assertFalse(this.actualValue);
+    }
+
+    equals(expectedValue) {
+      assertEquals(this.actualValue, expectedValue);
+    }
+
+    isNull() {
+      assertNull(this.actualValue);
+    }
+  }
+
+  const assert = (actualValue) => {
+    return new Assertion(actualValue);
+  }
+
+  class Run {
+    constructor(fn) {
+      this.fn = fn;
+    }
+
+    times(count) {
+      for (let i = 0; i < count; i++) {
+        this.fn();
+      }
+    }
+  }
+
+  const run = (fn) => new Run(fn);
+
+  const assertEquals = (actualValue, expectedValue) => {
+    if (expectedValue !== actualValue) {
+      throw "Expected " + expectedValue + " but was " + actualValue;
+    }
+  }
+
+  const assertNull = (actualValue) => {
+    if (actualValue) {
+      throw "Expected null, but was " + actualValue;
+    }
+  }
+
+  const tests = [
+    /**
+     * Clock tests
+     */
+    given("Clock", () => new Clock())
+      .when("initialized")
+      .then((clock) => {
+        assert(clock.running).isFalse();
+        assert(clock.ticks).isNull();
+      })
+      .when("started", clock => { clock.start() })
+      .then((clock) => {
+        assert(clock.running).isTrue();
+        assert(clock.ticks).isNull();
+      })
+      .when("next", clock => {
+        clock.start();
+        clock.next();
+      })
+      .then((clock) => {
+        assert(clock.running).isTrue();
+        assert(clock.startTick).equals(0);
+        assert(clock.ticks).equals(0);
+      })
+      .when("clock has been running", clock => {
+        clock.start();
+        run(() => clock.next()).times(100);
+      })
+      .then(clock => {
+        assert(clock.running).isTrue();
+        assert(clock.startTick).equals(0);
+        assert(clock.ticks).equals(99);
+      })
+      .when("clock is stopped", clock => {
+        clock.start();
+        run(() => clock.next()).times(100);
+        clock.stop();
+      })
+      .then(clock => {
+        assert(clock.running).isFalse();
+        assert(clock.startTick).isNull();
+        assert(clock.ticks).isNull();
+      })
+      .when("clock is restarted", clock => {
+        clock.start();
+        run(() => clock.next()).times(100);
+        clock.restart();
+        clock.next();
+      })
+      .then(clock => {
+        assert(clock.running).isTrue();
+        assert(clock.startTick).equals(0);
+        assert(clock.ticks).equals(0);
+      }),
+    /**
+     * Cycle tests
+     */
+    given("Cycle", (context) => {
+      let onUpFn = (value) => {
+        context.onUpFnValue = value;
+      }
+      let onDownFn = (value) => {
+        context.onDownFnValue = value;
+      }
+      return new Cycle(100, onUpFn, onDownFn);
+    })
+      .when("initialized")
+      .then(cycle=> {
+        assert(cycle.iterations).equals(0);
+      })
+      .when("on first step of Cycle", (cycle) => {
+        cycle.start();
+        cycle.next();
+      })
+      .then((cycle, context) => {
+        assert(cycle.iterations).equals(0);
+        assert(cycle.clock.ticks).equals(0);
+        assert(context.onUpFnValue).equals(0);
+        assert(context.onDownFnValue).isNull();
+      })
+      .when("on second step of Cycle", (cycle) => {
+        cycle.start();
+        cycle.next();
+        cycle.next();
+      })
+      .then((cycle, context) => {
+        assert(cycle.iterations).equals(0);
+        assert(cycle.clock.ticks).equals(1);
+        assert(context.onUpFnValue).equals(0.02);
+        assert(context.onDownFnValue).isNull();
+      })
+      .when("one step before halfway point in cycle", (cycle, context) => {
+        cycle.start();
+        cycle.clock.ticks = 48
+        cycle.next();
+      })
+      .then((cycle, context) => {
+        assert(cycle.iterations).equals(0);
+        assert(cycle.clock.ticks).equals(49);
+        assert(context.onUpFnValue).equals(.98);
+        assert(context.onDownFnValue).isNull();
+      })
+      .when("halfway point in cycle", (cycle, context) => {
+        cycle.start();
+        cycle.clock.ticks = 49
+        cycle.next();
+      })
+      .then((cycle, context) => {
+        assert(cycle.iterations).equals(0);
+        assert(cycle.clock.ticks).equals(50);
+        assert(context.onUpFnValue).isNull();
+        assert(context.onDownFnValue).equals(1)
+      })
+  ];
+
+  tests.forEach(test => {
+    test.run();
+  })
+
+  /***
+   * Initialization
+   ***/
+
   EVENT_LOOP_INFO_ELEMENT.value = "stopped";
 
   const MIN_REVERBERATION_DISTANCE = 2;
@@ -1055,6 +1327,8 @@ document.addEventListener("DOMContentLoaded", (event) => {
       panelContext.triggerPanel(panel);
     }
   })
+
+
 });
 
 
