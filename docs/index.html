@@ -478,10 +478,12 @@ document.addEventListener("DOMContentLoaded", (event) => {
   class Cycle {
     constructor(durationTicks,
                 onUpFn,
-                onDownFn) {
+                onDownFn,
+                isOneShot) {
       this.durationTicks = durationTicks;
       this.onUpFn = onUpFn;
       this.onDownFn = onDownFn;
+      this.isOneShot = isOneShot;
       this.clock = new Clock();
       this.iterations = 0;
     }
@@ -494,11 +496,20 @@ document.addEventListener("DOMContentLoaded", (event) => {
       this.clock.stop();
     }
 
+    isDone() {
+      return this.isOneShot && this.iterations > 0;
+    }
+
     next() {
-      if (this.clock.ticks >= this.durationTicks) {
-        // we're cycling; once this goes over the duration, we may as well reset back to 0
+      if (this.clock.ticks > this.durationTicks) {
         this.iterations += 1;
-        this.clock.restart();
+        if (this.isOneShot) {
+          this.stop();
+          return;
+        } else {
+          // we're cycling; once this goes over the duration, we may as well reset back to 0
+          this.clock.restart();
+        }
       }
 
       this.clock.next();
@@ -529,10 +540,6 @@ document.addEventListener("DOMContentLoaded", (event) => {
       this.clock.restart();
     }
 
-    isCycled() {
-      return this.iterations > 0;
-    }
-
     isAtZeroPoint() {
       return this.clock.ticks == null || (this.durationTicks % this.clock.ticks === 0);
     }
@@ -544,10 +551,12 @@ document.addEventListener("DOMContentLoaded", (event) => {
       this.panel = panel;
       this.interaction = interaction;
       this.interactionConfig = this.panel.panelContext.interactionConfig;
+      let oneShot = !this.isSourceInteraction();
       this.cycle = new Cycle(
         this.interactionConfig.initialTriggerPanelAnimationLoopDurationTicks,
         (value) => this.onUpCycle(value),
-        (value) => this.onDownCycle(value)
+        (value) => this.onDownCycle(value),
+        oneShot
       );
       this.currentValue = 0;
       // TODO: if we recalc the interaction reverberation distance, then did this PanelReverberation change?
@@ -569,7 +578,11 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
 
     start() {
-      this.cycle.clock.start();
+      this.cycle.start();
+    }
+
+    stop() {
+      this.cycle.stop();
     }
 
     onUpCycle(value) {
@@ -591,35 +604,34 @@ document.addEventListener("DOMContentLoaded", (event) => {
 
     update() {
       if (this.isDone()) {
+        // TODO: PanelReverberations that aren't source should be one-shots. Otherwise, the animation loop doesn't hit zero with the interaction panel.
         // don't loop anymore; we might end up starting a new animation loop when we should actually stop.
         this.cycle.stop();
         return;
       }
 
       this.cycle.next();
-
+      // TODO: cycle.oneShot = true?
       if (this.isSourceInteraction() && this._isAnimationLoopDone() && this.panel.interactionActive) {
         this.cycle.restart(this.interactionConfig.getTriggerPanelAnimationLoopDurationTicks());
       }
     }
 
     _isAnimationLoopDone() {
-      return this.cycle.isCycled() && this.cycle.isAtZeroPoint() && this.currentValue === 0;
+      // TODO: isn't this.currentValue === 0 redundant if the cycle is complete?
+      return this.cycle.isDone() && this.currentValue === 0;
     }
 
     isDone() {
       if  (this.isSourceInteraction() && this.panel.interactionActive) {
         return false;
       }
+
       if (!this.cycle.clock.running) {
         return true;
       }
 
       return this._isAnimationLoopDone();
-    }
-
-    revive() {
-      this.cycle.restart();
     }
   }
 
@@ -632,25 +644,32 @@ document.addEventListener("DOMContentLoaded", (event) => {
       this.panelContext = panelContext;
 
       this.clock = new Clock();
-
-      this.panelReverberationsByPanelIndex = {};
-      this.panelReverberationsByPanelIndex[this.sourcePanel.index] = new PanelReverberation(this.sourcePanel, this);
-
-      // TODO: this is only used to create the PanelReverberations, so it can't be recalculated... easily at least.
-      // TODO: also, we may already have PanelReverberation instances running if this panel was recently active!
-      this.distance = this.interactionConfig.getReverberationDistance();
+      this.sourcePanelReverberation = new PanelReverberation(this.sourcePanel, this);
       this._buildPanelReverberations();
     }
 
     _buildPanelReverberations() {
-      // console.log(this.sourcePanel.index + " building " + this.distance + " reverberations.");
+      // TODO: this is only used to create the PanelReverberations, so it can't be recalculated... easily at least.
+      // TODO: also, we may already have PanelReverberation instances running if this panel was recently active!
+      this._stopExistingPanelReverberations();
+      this.distance = this.interactionConfig.getReverberationDistance();
       this.panelReverberationsByPanelIndex = {};
-      this.panelReverberationsByPanelIndex[this.sourcePanel.index] = new PanelReverberation(this.sourcePanel, this);
+      this.panelReverberationsByPanelIndex[this.sourcePanel.index] = this.sourcePanelReverberation;
       this._collectReverberatingPanels().forEach(panel => {
-        // TODO: we're just dropping the reference to the old one, not ensuring it's "done". It _should_ be, but that's implicit, and why we might have more bugs with panels reverberating when we don't want them to.
         this.panelReverberationsByPanelIndex[panel.index] = new PanelReverberation(panel, this)
       });
       this.panelReverberations = Object.values(this.panelReverberationsByPanelIndex);
+    }
+
+    _stopExistingPanelReverberations() {
+      if (this.panelReverberations) {
+        this.panelReverberations.forEach(panelReverberation => {
+          if (panelReverberation !== this.sourcePanelReverberation) {
+            // Are we killing them? Or reviving them?
+            panelReverberation.stop();
+          }
+        });
+      }
     }
 
     _collectReverberatingPanels() {
@@ -675,12 +694,31 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
 
     start() {
+      if (this.clock.running) {
+        throw "Interaction is already started!";
+      }
+      this.clock.start();
       this.panelReverberations.forEach(panelReverberation => {
         panelReverberation.start();
       });
+      console.log(this, "started");
+    }
+
+    stop() {
+      if (!this.clock.running) {
+        return;
+      }
+      this.clock.stop();
+      this.panelReverberations.forEach(panelReverberation => {
+        panelReverberation.stop();
+      });
+      console.log(this, "stopped");
     }
 
     update() {
+      if (!this.clock.running) {
+        return;
+      }
       this.clock.next();
       this.isAtZeroPoint = this.calculateIsAtZeroPoint()
 
@@ -689,10 +727,10 @@ document.addEventListener("DOMContentLoaded", (event) => {
         let delayForPanelToStartTicks = panelReverberation.distanceFromTrigger * reverberationPanelDelayTicks;
         // Note: this.startTick is when the Reverberation starts, and this waits for a delay to start calculating values
         if (this.clock.ticks >= delayForPanelToStartTicks) {
-          // waited long enough from the source panel trigger tick
           panelReverberation.update();
         }
       });
+
       this._maybeRevivePanelReverberations();
     }
 
@@ -712,14 +750,17 @@ document.addEventListener("DOMContentLoaded", (event) => {
 
     _maybeRevivePanelReverberations() {
       if (this.isAtZeroPoint && this.sourcePanel.interactionActive && Math.random() > .65) {
-        // TODO: make probability a function in the interaction config
+        // Restart the clock: since this is at zero point, the clock can restart at 0 and continue running.
+        // Additionally, this means the revived new PanelReverberations will respect the delay from 0, not have
+        // to recalculate each panel in a continually running clock.
         this.clock.restart();
-        this.distance = this.interactionConfig.getReverberationDistance();
+        // TODO: make probability a function in the interaction config
         // TODO: works, but is kinda wasteful? Can we re-use a PanelReverberation instance? Yes, just need to figure out new distance, then recalculate state of existing instances, create new ones for bigger distance,
         this._buildPanelReverberations();
         this.panelReverberations.forEach(panelReverberation => {
           if (!panelReverberation.isSourceInteraction()) {
-            panelReverberation.revive();
+            // start them, as we've already started them. The source one is still active, we re-use that instance.
+            panelReverberation.start();
           }
         });
       }
@@ -880,7 +921,9 @@ document.addEventListener("DOMContentLoaded", (event) => {
     _collectActivePanelInteractions() {
       let uniqueActivePanels = {} // gotta cleanup, tho
       this.interactions.forEach(interaction => {
-        if (!interaction.isDead()) {
+        if (interaction.isDead()) {
+          interaction.stop();
+        } else {
           interaction.panelReverberations.forEach(panelReverberation => {
             let panel = panelReverberation.panel;
             let interaction = panelReverberation.interaction;
