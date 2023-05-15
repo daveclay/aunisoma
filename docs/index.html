@@ -501,7 +501,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
 
     next() {
-      if (this.clock.ticks > this.durationTicks) {
+      if (this.clock.ticks >= this.durationTicks) {
         this.iterations += 1;
         if (this.isOneShot) {
           this.stop();
@@ -529,9 +529,10 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
 
     jumpToDownCycle() {
-      if (this.durationTicks > this.clock.ticks) {
-        // Don't "underrun" the clock here: only jump down if it's meaningful to do so. This
+      if (this.durationTicks >= this.clock.ticks) {
+        // Don't "underun" the clock here: only jump down if it's meaningful to do so. This
         // shouldn't result in 0, otherwise we'll never hit a single iteration.
+        // TODO: the problem with this is that this never gets to a zero point.
         this.clock.ticks = Math.max(0, this.durationTicks - this.clock.ticks);
       }
     }
@@ -622,8 +623,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
 
     _isAnimationLoopDone() {
-      // TODO: isn't this.currentValue === 0 redundant if the cycle is complete?
-      return this.cycle.isDone() || (this.cycle.iterations > 0 && this.cycle.clock.ticks == 0);
+      return this.cycle.isDone() || (this.cycle.iterations > 0 && this.cycle.isAtZeroPoint());
     }
 
     isDone() {
