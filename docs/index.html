@@ -529,7 +529,11 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
 
     jumpToDownCycle() {
-      this.clock.ticks = this.durationTicks - this.clock.ticks;
+      if (this.durationTicks > this.clock.ticks) {
+        // Don't "underrun" the clock here: only jump down if it's meaningful to do so. This
+        // shouldn't result in 0, otherwise we'll never hit a single iteration.
+        this.clock.ticks = Math.max(0, this.durationTicks - this.clock.ticks);
+      }
     }
 
     restart(durationTicks) {
@@ -589,6 +593,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
       // on our way up
       this._setValue(value);
       if (!this.interaction.sourcePanel.interactionActive && !this.cycle.isAtZeroPoint()) {
+        // Fade out from where this animation loop is at by jumping the cycle to the down-side.
         this.cycle.jumpToDownCycle();
       }
     }
@@ -611,19 +616,18 @@ document.addEventListener("DOMContentLoaded", (event) => {
       }
 
       this.cycle.next();
-      // TODO: cycle.oneShot = true?
-      if (this.isSourceInteraction() && this._isAnimationLoopDone() && this.panel.interactionActive) {
+      if (this.isSourceInteraction() && this.panel.interactionActive && this._isAnimationLoopDone()) {
         this.cycle.restart(this.interactionConfig.getTriggerPanelAnimationLoopDurationTicks());
       }
     }
 
     _isAnimationLoopDone() {
       // TODO: isn't this.currentValue === 0 redundant if the cycle is complete?
-      return this.cycle.isDone() && this.currentValue === 0;
+      return this.cycle.isDone() || (this.cycle.iterations > 0 && this.cycle.clock.ticks == 0);
     }
 
     isDone() {
-      if  (this.isSourceInteraction() && this.panel.interactionActive) {
+      if (this.isSourceInteraction() && this.panel.interactionActive) {
         return false;
       }
 
@@ -631,6 +635,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
         return true;
       }
 
+      // Otherwise, this is waiting for the animation loop to be done.
       return this._isAnimationLoopDone();
     }
   }
@@ -665,7 +670,6 @@ document.addEventListener("DOMContentLoaded", (event) => {
       if (this.panelReverberations) {
         this.panelReverberations.forEach(panelReverberation => {
           if (panelReverberation !== this.sourcePanelReverberation) {
-            // Are we killing them? Or reviving them?
             panelReverberation.stop();
           }
         });
@@ -954,8 +958,11 @@ document.addEventListener("DOMContentLoaded", (event) => {
     triggerPanel(panel) {
       // debounce
       if (!panel.interactionActive) {
-        panel.startInteraction(true);
-        this.interactionsBySourcePanelIndex[panel.index].start();
+        panel.startInteraction();
+        let interaction = this.interactionsBySourcePanelIndex[panel.index];
+        if (!interaction.clock.running) {
+          interaction.start();
+        }
         if (this.intervalId == null) {
           this.start();
         }
@@ -979,7 +986,6 @@ document.addEventListener("DOMContentLoaded", (event) => {
         // TODO: or a dance party animation.
         // tODO: iterate over Interactions, and each PanelReverberation, set a flag to reset ticks and animate clock? No, not reset ticks, but next reset/revive start new animation sequence (gradient, timing)
         // TODO: oh snap, I don't have interactions to use to run through PanelReverberations. Can't use that method. I can use this event loop, but Interaction may not be the right "thing"
-        console.log("We're at max, captain!");
         this.maxInteractionAnimation.update();
         // TODO: because PanelContext is already making decisions about what's "actively" creating the colors, it feels like Panel can't know what values to pull from already. So maybe
         // TODO: PanelContext should decide what "value" and "gradient" to apply to a given Panel, and Panels are just dumb color sinks and trigger sources.
@@ -1023,6 +1029,9 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
 
     update() {
+      if (!this.cycle.clock.running) {
+        this.cycle.start();
+      }
       this.cycle.next();
     }
 
