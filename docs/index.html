@@ -320,8 +320,8 @@ document.addEventListener("DOMContentLoaded", (event) => {
     gradientValueMap.addRGBPoint(1,   255, 255,   0);
     gradientValueMap.addRGBPoint(1.2,   0, 255,   0);
     gradientValueMap.addRGBPoint(1.5,   0, 255, 255);
-    gradientValueMap.addRGBPoint(3.0,   0,   0, 255);
-    gradientValueMap.addRGBPoint(3.7, 255,   0, 255);
+    gradientValueMap.addRGBPoint(3.6,   0,   0, 255);
+    gradientValueMap.addRGBPoint(4.5, 255,   0, 255);
 
     return gradientValueMap;
   }
@@ -889,6 +889,32 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
   }
 
+  class PanelInteractionCollector {
+    constructor() {
+      this.panelAndValueSourcesByPanelIndex = {};
+    }
+
+    addPanelAndValueSource(panel, valueSource) {
+      let valueSourcesInvolvingPanel = this._getValueSourcesForPanel(panel);
+      valueSourcesInvolvingPanel.push(valueSource);
+    }
+
+    forEachPanelAndValueSources(fn) {
+      Object.values(this.panelAndValueSourcesByPanelIndex).forEach(fn);
+    }
+
+    _getValueSourcesForPanel(panel) {
+      if (!this.panelAndValueSourcesByPanelIndex[panel.index]) {
+        this.panelAndValueSourcesByPanelIndex[panel.index] = {
+          panel: panel,
+          panelValueSources: []
+        };
+      }
+
+      return this.panelAndValueSourcesByPanelIndex[panel.index].panelValueSources;
+    }
+  }
+
   class PanelContext {
     constructor(numberOfPanels,
                 interactionConfig,
@@ -897,11 +923,11 @@ document.addEventListener("DOMContentLoaded", (event) => {
       this.interactionConfig = interactionConfig;
       this.interactionContext = new InteractionContext(interactionConfig, this);
       this.idleGradient = idleGradient;
-      this.maxInteractionAnimation = new MaxInteractionAnimation();
       this.panels = [];
       this.interactionsBySourcePanelIndex = {};
       this._createPanels();
       this._createInteractions();
+      this.maxInteractionAnimation = new MaxInteractionAnimation(this);
     }
 
     _createPanels() {
@@ -920,35 +946,6 @@ document.addEventListener("DOMContentLoaded", (event) => {
 
     getPanelAt(index) {
       return this.panels[index];
-    }
-
-    _collectActivePanelInteractions() {
-      let uniqueActivePanels = {} // gotta cleanup, tho
-      this.interactions.forEach(interaction => {
-        if (interaction.isDead()) {
-          interaction.stop();
-        } else {
-          interaction.panelReverberations.forEach(panelReverberation => {
-            let panel = panelReverberation.panel;
-            let interaction = panelReverberation.interaction;
-            this._addPanelToActiveInteractions(panel, interaction, uniqueActivePanels);
-          });
-        }
-      });
-
-      return Object.values(uniqueActivePanels);
-    }
-
-    _addPanelToActiveInteractions(panel, interaction, uniqueActivePanels) {
-      if (!uniqueActivePanels[panel.index]) {
-        uniqueActivePanels[panel.index] = {
-          panel: panel,
-          interactions: []
-        };
-      }
-
-      let interactionsInvolvingPanel = uniqueActivePanels[panel.index].interactions
-      interactionsInvolvingPanel[interactionsInvolvingPanel.length] = interaction
     }
 
     /**
@@ -981,32 +978,51 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
 
     eventLoop() {
-      if (this._calculateAtMaxInteraction()) {
-        // TODO: what? invert? so that _leaving_ causes an interaction? That'd be weird. intriguing.
-        // TODO: or a dance party animation.
-        // tODO: iterate over Interactions, and each PanelReverberation, set a flag to reset ticks and animate clock? No, not reset ticks, but next reset/revive start new animation sequence (gradient, timing)
-        // TODO: oh snap, I don't have interactions to use to run through PanelReverberations. Can't use that method. I can use this event loop, but Interaction may not be the right "thing"
-        this.maxInteractionAnimation.update();
-        // TODO: because PanelContext is already making decisions about what's "actively" creating the colors, it feels like Panel can't know what values to pull from already. So maybe
-        // TODO: PanelContext should decide what "value" and "gradient" to apply to a given Panel, and Panels are just dumb color sinks and trigger sources.
-        this.panels.forEach(panel => panel.update([this.maxInteractionAnimation]));
-      } else {
-        this.interactions.forEach(interaction => {
-          // let the interaction know if it's valid now? Or do I kill the interactions?
-          interaction.update()
-        });
+      let isAtMax = this._calculateAtMaxInteraction();
 
-        this._collectActivePanelInteractions().forEach(activePanelInteraction => {
-          let panel = activePanelInteraction.panel;
-          panel.update(
-            activePanelInteraction.interactions
-          );
-        });
+      // TODO: just re-use this and clear it out instead of waste memory?
+      let panelInteractionCollector = new PanelInteractionCollector();
+      // This must be first - the Interactions' state must be updated to determine whether it is _dead_ or not.
+      this.interactions.forEach(interaction => {
+        // update the internal state of the Interaction
+        interaction.update()
+        // now that the internal state has been updated, determine whether it is dead and stop it if necessary.
+        if (interaction.isDead()) {
+          // TODO: Should Interaction call stop() itself after update() is called, and then this can just ask?
+          interaction.stop();
+        } else {
+          interaction.panelReverberations.forEach(panelReverberation => {
+            let panel = panelReverberation.panel;
+            let interaction = panelReverberation.interaction;
 
-        let animatingInteractions = this.interactions.filter(interaction => !interaction.isDead());
-        if (animatingInteractions.length === 0) {
-          this.stop();
+            if (isAtMax) {
+              // TODO: filterValueSource? only max does this?
+              interaction = this.maxInteractionAnimation.filterInteraction(interaction);
+            }
+            panelInteractionCollector.addPanelAndValueSource(panel, interaction);
+          });
         }
+      });
+
+      if (isAtMax) {
+        this.maxInteractionAnimation.update();
+        // all Panels, both active and inactive, participate in the max animation
+        this.panels.forEach(panel => {
+          panelInteractionCollector.addPanelAndValueSource(panel, this.maxInteractionAnimation);
+        })
+      }
+
+      panelInteractionCollector.forEachPanelAndValueSources(panelAndValueSources => {
+        let panel = panelAndValueSources.panel;
+        panel.update(
+          panelAndValueSources.panelValueSources
+        );
+      });
+
+      // TODO: asking isDead twice this loop
+      let animatingInteractions = this.interactions.filter(interaction => !interaction.isDead());
+      if (animatingInteractions.length === 0) {
+        this.stop();
       }
     }
 
@@ -1017,22 +1033,42 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
   }
 
+  class InteractionFilter {
+    constructor(interaction) {
+      this.interaction = interaction;
+    }
+
+    getValueForPanel(panel) {
+      let originalValue = this.interaction.getValueForPanel(panel);
+      return originalValue * .4;
+    }
+  }
+
   class MaxInteractionAnimation {
+
     constructor(panelContext) {
+      // TODO: move duration to config
       this.cycle = new Cycle(
         500,
         (value) => this.onUpCycle(value),
         (value) => this.onDownCycle(value)
       );
+      this.clock = new Clock();
       this.panelContext = panelContext;
       this.currentValue = 0;
+    }
+
+    filterInteraction(interaction) {
+      return new InteractionFilter(interaction);
     }
 
     update() {
       if (!this.cycle.clock.running) {
         this.cycle.start();
+        this.clock.start();
       }
       this.cycle.next();
+      this.clock.next();
     }
 
     onUpCycle(value) {
@@ -1044,7 +1080,22 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
 
     getValueForPanel(panel) {
-      return 4 * this.currentValue;
+      // but then it's also... looping somehow....
+      // the value for the panel is like a value mod... hrm
+      // 0,  1,  2,  3, ..., 20
+      // 0, .1, .2,     ...,  1
+      //
+      // so, I have a value from 0...1
+      // I want that spread out over all panels, but "loop" around
+      // currentValue = .5
+      // index = 2;
+      // distance ratio = 2 / 20, .1
+      // currentValue - distance ratio = .4
+      let clockValue = (this.clock.ticks % 500) / 500;
+      let distanceRatio = (panel.index + .02) / this.panelContext.panels.length;
+      let wrappedValue = Math.abs(this.currentValue - distanceRatio);
+      // console.log(wrappedValue);
+      return 4 * (wrappedValue + .05);
     }
   }
 
