@@ -928,6 +928,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
       this._createPanels();
       this._createInteractions();
       this.maxInteractionAnimation = new MaxInteractionAnimation(this);
+      this.isAtMaxInteractions = false;
     }
 
     _createPanels() {
@@ -978,7 +979,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
 
     eventLoop() {
-      let isAtMax = this._calculateAtMaxInteraction();
+      this.isAtMaxInteractions = this._calculateAtMaxInteraction();
 
       // TODO: just re-use this and clear it out instead of waste memory?
       let panelInteractionCollector = new PanelInteractionCollector();
@@ -995,7 +996,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
             let panel = panelReverberation.panel;
             let interaction = panelReverberation.interaction;
 
-            if (isAtMax) {
+            if (this.isAtMaxInteractions) {
               // TODO: filterValueSource? only max does this?
               interaction = this.maxInteractionAnimation.filterInteraction(interaction);
             }
@@ -1004,8 +1005,9 @@ document.addEventListener("DOMContentLoaded", (event) => {
         }
       });
 
-      if (isAtMax) {
-        this.maxInteractionAnimation.update();
+      this.maxInteractionAnimation.update();
+
+      if (this.maxInteractionAnimation.isRunning()) {
         // all Panels, both active and inactive, participate in the max animation
         this.panels.forEach(panel => {
           panelInteractionCollector.addPanelAndValueSource(panel, this.maxInteractionAnimation);
@@ -1047,28 +1049,39 @@ document.addEventListener("DOMContentLoaded", (event) => {
   class MaxInteractionAnimation {
 
     constructor(panelContext) {
-      // TODO: move duration to config
+      this.panelContext = panelContext;
       this.cycle = new Cycle(
+        // TODO: move duration to config
         500,
         (value) => this.onUpCycle(value),
         (value) => this.onDownCycle(value)
       );
-      this.clock = new Clock();
-      this.panelContext = panelContext;
       this.currentValue = 0;
+      this.panelValuesByPanelIndex = {};
     }
 
     filterInteraction(interaction) {
       return new InteractionFilter(interaction);
     }
 
+    isRunning() {
+      if (this.panelContext.isAtMaxInteractions) {
+        return true;
+      } else {
+        let nonZeroPanelIndexes = Object.keys(this.panelValuesByPanelIndex).filter(panelIndex => {
+          return this.panelValuesByPanelIndex[panelIndex] > 0;
+        });
+
+        return nonZeroPanelIndexes.length > 0;
+      }
+    }
+
     update() {
       if (!this.cycle.clock.running) {
         this.cycle.start();
-        this.clock.start();
       }
+
       this.cycle.next();
-      this.clock.next();
     }
 
     onUpCycle(value) {
@@ -1080,6 +1093,15 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
 
     getValueForPanel(panel) {
+      if (!this.panelContext.isAtMaxInteractions) {
+        let previousPanelValue = this.panelValuesByPanelIndex[panel.index];
+        if (previousPanelValue <= 0.02) {
+          // Due to the math below, some panels never actually hit 0 value. This forces a 0 value if it's close,
+          // which ensures the panels reset to 0 if they're inactive.
+          this.panelValuesByPanelIndex[panel.index] = 0;
+          return 0;
+        }
+      }
       // but then it's also... looping somehow....
       // the value for the panel is like a value mod... hrm
       // 0,  1,  2,  3, ..., 20
@@ -1091,11 +1113,12 @@ document.addEventListener("DOMContentLoaded", (event) => {
       // index = 2;
       // distance ratio = 2 / 20, .1
       // currentValue - distance ratio = .4
-      let clockValue = (this.clock.ticks % 500) / 500;
-      let distanceRatio = (panel.index + .02) / this.panelContext.panels.length;
+      let distanceRatio = panel.index / this.panelContext.panels.length;
       let wrappedValue = Math.abs(this.currentValue - distanceRatio);
       // console.log(wrappedValue);
-      return 4 * (wrappedValue + .05);
+      let value = 4 * wrappedValue;
+      this.panelValuesByPanelIndex[panel.index] = value;
+      return value;
     }
   }
 
