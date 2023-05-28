@@ -85,6 +85,14 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
         <td>
             Event Loop: <input type="text" id="eventLoopInfo"/>
         </td>
+        <td>
+            <p>
+                Current Power Draw: <input type="text" id="currentPowerDraw">
+            </p>
+            <p>
+                Max Power Draw: <input type="text" id="maxPowerDraw">
+            </p>
+        </td>
     </tr>
 </table>
 <script>
@@ -98,14 +106,25 @@ document.addEventListener("DOMContentLoaded", (event) => {
   const TRIGGER_MAX_BUTTON = document.getElementById("triggerMaxInteractionsButton");
   const EVENT_LOOP_INFO_ELEMENT = document.getElementById("eventLoopInfo");
 
+
+  const CURRENT_POWER_DRAW_ELEMENT = document.getElementById("currentPowerDraw");
+  const MAX_POWER_DRAW_ELEMENT = document.getElementById("maxPowerDraw");
+
   // TODO: show which panels have someone interacting
   const REVERBERATIONS_INFO_ELEMENT = document.getElementById("reverberationsInfo");
   const REVERBERATION_INFO_TEMPLATE_ELEMENT = document.getElementById("reverberationInfoTemplate");
   const PANEL_REVERBERATION_INFO_TEMPLATE_ELEMENT = document.getElementById("panelReverberationInfoTemplate");
 
+  // TODO: measure more accurately, whether this is linear
+  const DRAW_PER_COLOR_PER_PANEL_AMPS = 0.8046715655;
+
 
   function randomIntBetween(min, max) {
     return min + Math.round(Math.random() * (max - min));
+  }
+
+  function calculatePowerDrawForColorAmps(color) {
+    return (color / 255) * DRAW_PER_COLOR_PER_PANEL_AMPS;
   }
 
   function dimValueBy(value, amount, minLimit) {
@@ -173,6 +192,12 @@ document.addEventListener("DOMContentLoaded", (event) => {
       let green = (this.green + color.green) / 2;
       let blue = (this.blue + color.blue) / 2;
       return new Color(red, green, blue);
+    }
+
+    getPowerDrawAmps() {
+      return calculatePowerDrawForColorAmps(this.red)
+        + calculatePowerDrawForColorAmps(this.green)
+        + calculatePowerDrawForColorAmps(this.blue);
     }
 
     toHexString() {
@@ -875,6 +900,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
       this.color = color;
       // TODO: Separate UI from logic?
       this.panelUIElement.style.backgroundColor = this.color.toHexString();
+      this.panelContext.addPowerDrawAmps(color.getPowerDrawAmps());
     }
 
     nextColor(panelValueSources) {
@@ -929,6 +955,8 @@ document.addEventListener("DOMContentLoaded", (event) => {
       this._createInteractions();
       this.maxInteractionAnimation = new MaxInteractionAnimation(this);
       this.isAtMaxInteractions = false;
+      this.amps = 0;
+      this.maxAmps = -1;
     }
 
     _createPanels() {
@@ -976,6 +1004,10 @@ document.addEventListener("DOMContentLoaded", (event) => {
       clearInterval(this.intervalId);
       this.intervalId = null;
       EVENT_LOOP_INFO_ELEMENT.value = "stopped";
+    }
+
+    addPowerDrawAmps(amps) {
+      this.amps += amps;
     }
 
     eventLoop() {
@@ -1026,6 +1058,13 @@ document.addEventListener("DOMContentLoaded", (event) => {
       if (animatingInteractions.length === 0) {
         this.stop();
       }
+
+      CURRENT_POWER_DRAW_ELEMENT.value = this.amps + "";
+      if (this.maxAmps < this.amps) {
+        this.maxAmps = this.amps;
+        MAX_POWER_DRAW_ELEMENT.value = this.maxAmps + "";
+      }
+      this.amps = 0;
     }
 
     _calculateAtMaxInteraction() {
