@@ -635,13 +635,6 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
 
     update() {
-      if (this.isDone()) {
-        // TODO: PanelReverberations that aren't source should be one-shots. Otherwise, the animation loop doesn't hit zero with the interaction panel.
-        // don't loop anymore; we might end up starting a new animation loop when we should actually stop.
-        this.cycle.stop();
-        return;
-      }
-
       this.cycle.next();
       if (this.isSourceInteraction() && this.panel.interactionActive && this._isAnimationLoopDone()) {
         this.cycle.restart(this.interactionConfig.getTriggerPanelAnimationLoopDurationTicks());
@@ -657,7 +650,6 @@ document.addEventListener("DOMContentLoaded", (event) => {
         return false;
       }
 
-      // TODO: If this hasn't _started_ yet, it is considered _done_. That means we can't ask whether it's done to collect "active" ones that haven't started, unless we call _start_ first.
       if (!this.cycle.clock.running) {
         return true;
       }
@@ -709,8 +701,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
       return reverberatingPanels;
     }
 
-    getActivePanelReverberations() {
-      // TODO: cache this, we're doing multiple times every loop
+    _calculateActivePanelReverberations() {
       return this.eligiblePanelReverberations.filter(panelReverberation => !panelReverberation.isDone());
     }
 
@@ -725,6 +716,12 @@ document.addEventListener("DOMContentLoaded", (event) => {
       console.log("Started interaction", this);
     }
 
+    /**
+     * This gets called to trigger new _reverberations_, either initially when an interaction starts, or reviving
+     * after a reverberation animation is done.
+     * @param options
+     * @private
+     */
     _triggerNewReverberation(options) {
       this.currentReverberatingDistance = this.interactionConfig.getReverberationDistance();
       this.eligiblePanelReverberations = this.panelReverberations.filter(panelReverberation =>
@@ -732,12 +729,11 @@ document.addEventListener("DOMContentLoaded", (event) => {
       );
 
       console.log("triggering " + this.currentReverberatingDistance + " reverberating panels");
-      // TODO: can't get active, they're not active yet!
       this.eligiblePanelReverberations.forEach(panelReverberation => {
         if (options.triggerSourcePanel || !panelReverberation.isSourceInteraction()) {
           panelReverberation.start();
         }
-      })
+      });
     }
 
     stop() {
@@ -745,7 +741,8 @@ document.addEventListener("DOMContentLoaded", (event) => {
         return;
       }
       this.clock.stop();
-      this.getActivePanelReverberations().forEach(panelReverberation => {
+      this.activePanelReverberations.forEach(panelReverberation => {
+        // TODO: hrm, are any _not_ stopped?
         panelReverberation.stop();
       });
       console.log("Stopped Interaction", this);
@@ -758,12 +755,19 @@ document.addEventListener("DOMContentLoaded", (event) => {
       this.clock.next();
       this.isAtZeroPoint = this.calculateIsAtZeroPoint()
 
-      this.getActivePanelReverberations().forEach(panelReverberation => {
+      this.activePanelReverberations = this._calculateActivePanelReverberations();
+      this.activePanelReverberations.forEach(panelReverberation => {
         let reverberationPanelDelayTicks = this.interactionConfig.reverberationPanelDelayTicks;
         let delayForPanelToStartTicks = panelReverberation.distanceFromTrigger * reverberationPanelDelayTicks;
         // Note: this.startTick is when the Reverberation starts, and this waits for a delay to start calculating values
         if (this.clock.ticks >= delayForPanelToStartTicks) {
           panelReverberation.update();
+        }
+      });
+
+      this.activePanelReverberations.forEach(panelReverberation => {
+        if (panelReverberation.isDone()) {
+          panelReverberation.stop();
         }
       });
 
@@ -1037,7 +1041,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
           interaction.stop();
         } else {
           activeInteractions.push(interaction);
-          interaction.getActivePanelReverberations().forEach(panelReverberation => {
+          interaction.activePanelReverberations.forEach(panelReverberation => {
             let panel = panelReverberation.panel;
             let interaction = panelReverberation.interaction;
 
