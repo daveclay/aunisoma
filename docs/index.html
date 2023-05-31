@@ -589,16 +589,14 @@ document.addEventListener("DOMContentLoaded", (event) => {
         oneShot
       );
       this.currentValue = 0;
-      // TODO: if we recalc the interaction reverberation distance, then did this PanelReverberation change?
       this.distanceFromTrigger = this.interaction.getDistanceFromTriggerToPanel(this.panel);
-      this.scale = this._calculateScale();
     }
 
     _calculateScale() {
       if (this.panel === this.interaction.sourcePanel) {
         return 1;
       } else {
-        let maxDistance = this.interaction.distance;
+        let maxDistance = this.interaction.currentReverberatingDistance;
         return (maxDistance - this.distanceFromTrigger) / maxDistance;
       }
     }
@@ -608,11 +606,14 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
 
     start() {
-      this.cycle.start();
+      this.scale = this._calculateScale();
+      this.cycle.restart();
+      console.log("Started PanelReverberation", this);
     }
 
     stop() {
       this.cycle.stop();
+      console.log("Stopped PanelReverberation", this);
     }
 
     onUpCycle(value) {
@@ -656,6 +657,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
         return false;
       }
 
+      // TODO: If this hasn't _started_ yet, it is considered _done_. That means we can't ask whether it's done to collect "active" ones that haven't started, unless we call _start_ first.
       if (!this.cycle.clock.running) {
         return true;
       }
@@ -674,39 +676,24 @@ document.addEventListener("DOMContentLoaded", (event) => {
       this.panelContext = panelContext;
 
       this.clock = new Clock();
-      this.sourcePanelReverberation = new PanelReverberation(this.sourcePanel, this);
       this._buildPanelReverberations();
     }
 
     _buildPanelReverberations() {
-      // TODO: this is only used to create the PanelReverberations, so it can't be recalculated... easily at least.
-      // TODO: also, we may already have PanelReverberation instances running if this panel was recently active!
-      this._stopExistingPanelReverberations();
-      this.distance = this.interactionConfig.getReverberationDistance();
+      this.sourcePanelReverberation = new PanelReverberation(this.sourcePanel, this);
       this.panelReverberationsByPanelIndex = {};
       this.panelReverberationsByPanelIndex[this.sourcePanel.index] = this.sourcePanelReverberation;
-      this._collectReverberatingPanels().forEach(panel => {
+      this._collectAllNeighborPanels().forEach(panel => {
         this.panelReverberationsByPanelIndex[panel.index] = new PanelReverberation(panel, this)
       });
+
       this.panelReverberations = Object.values(this.panelReverberationsByPanelIndex);
     }
 
-    _stopExistingPanelReverberations() {
-      if (this.panelReverberations) {
-        this.panelReverberations.forEach(panelReverberation => {
-          if (panelReverberation !== this.sourcePanelReverberation) {
-            panelReverberation.stop();
-          }
-        });
-      }
-    }
-
-    _collectReverberatingPanels() {
+    _collectAllNeighborPanels() {
       let fromIndex = this.sourcePanel.index;
       let reverberatingPanels = [];
-      // TODO: to vary the number of panels, we could just have several ready to go, and turn some off, but that's wasteful.
-      // or add, then remove?
-      for (let i = 0; i < this.distance - 1; i++) {
+      for (let i = 0; i < this.interactionConfig.maxReverberationDistance- 1; i++) {
         let distanceFromIndex = i + 1;
         let leftPanelIndex = fromIndex - distanceFromIndex;
         let rightPanelIndex = fromIndex + distanceFromIndex;
@@ -722,15 +709,31 @@ document.addEventListener("DOMContentLoaded", (event) => {
       return reverberatingPanels;
     }
 
+    _collectActivePanelReverberations() {
+      return this.panelReverberations.filter(panelReverberation =>
+        this.currentReverberatingDistance >= panelReverberation.distanceFromTrigger
+      );
+    }
+
     start() {
       if (this.clock.running) {
         throw "Interaction is already started!";
       }
       this.clock.start();
-      this.panelReverberations.forEach(panelReverberation => {
-        panelReverberation.start();
+      this._triggerNewReverberation({
+        triggerSourcePanel: true
       });
-      console.log(this, "started");
+      console.log("Started interaction", this);
+    }
+
+    _triggerNewReverberation(options) {
+      this.currentReverberatingDistance = this.interactionConfig.getReverberationDistance();
+      console.log("triggering " + this.currentReverberatingDistance + " reverberating panels");
+      this._collectActivePanelReverberations().forEach(panelReverberation => {
+        if (options.triggerSourcePanel || !panelReverberation.isSourceInteraction()) {
+          panelReverberation.start();
+        }
+      })
     }
 
     stop() {
@@ -738,10 +741,10 @@ document.addEventListener("DOMContentLoaded", (event) => {
         return;
       }
       this.clock.stop();
-      this.panelReverberations.forEach(panelReverberation => {
+      this._collectActivePanelReverberations().forEach(panelReverberation => {
         panelReverberation.stop();
       });
-      console.log(this, "stopped");
+      console.log("Stopped Interaction", this);
     }
 
     update() {
@@ -751,12 +754,14 @@ document.addEventListener("DOMContentLoaded", (event) => {
       this.clock.next();
       this.isAtZeroPoint = this.calculateIsAtZeroPoint()
 
-      this.panelReverberations.forEach(panelReverberation => {
+      this._collectActivePanelReverberations().forEach(panelReverberation => {
         let reverberationPanelDelayTicks = this.interactionConfig.reverberationPanelDelayTicks;
         let delayForPanelToStartTicks = panelReverberation.distanceFromTrigger * reverberationPanelDelayTicks;
         // Note: this.startTick is when the Reverberation starts, and this waits for a delay to start calculating values
         if (this.clock.ticks >= delayForPanelToStartTicks) {
           panelReverberation.update();
+          // TODO: tell it to stop? Maybe? Or will we lose its value before we render?
+          // TODO: do we need a setup, calculate, render, teardown lifecycle steps? It's confusing to know when update is called vs when the color is set.
         }
       });
 
@@ -779,18 +784,13 @@ document.addEventListener("DOMContentLoaded", (event) => {
 
     _maybeRevivePanelReverberations() {
       if (this.isAtZeroPoint && this.sourcePanel.interactionActive && Math.random() > .65) {
+        // TODO: make probability a function in the interaction config
         // Restart the clock: since this is at zero point, the clock can restart at 0 and continue running.
         // Additionally, this means the revived new PanelReverberations will respect the delay from 0, not have
         // to recalculate each panel in a continually running clock.
         this.clock.restart();
-        // TODO: make probability a function in the interaction config
-        // TODO: works, but is kinda wasteful? Can we re-use a PanelReverberation instance? Yes, just need to figure out new distance, then recalculate state of existing instances, create new ones for bigger distance,
-        this._buildPanelReverberations();
-        this.panelReverberations.forEach(panelReverberation => {
-          if (!panelReverberation.isSourceInteraction()) {
-            // start them, as we've already started them. The source one is still active, we re-use that instance.
-            panelReverberation.start();
-          }
+        this._triggerNewReverberation({
+          triggerSourcePanel: false
         });
       }
     }
@@ -818,6 +818,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
                 minTriggerPanelAnimationLoopDurationTicks,
                 maxTriggerPanelAnimationLoopDurationTicks,
                 maxInteractionThresholdPercent) {
+      this.maxReverberationDistance = maxReverberationDistance;
       this.reverberationDistanceRange = new Range(minReverberationDistance, maxReverberationDistance);
       this.reverberationPanelDelayTicks = reverberationPanelDelayTicks;
       this.triggerPanelAnimationLoopDurationTicksRange = new Range(minTriggerPanelAnimationLoopDurationTicks, maxTriggerPanelAnimationLoopDurationTicks);
@@ -1016,6 +1017,9 @@ document.addEventListener("DOMContentLoaded", (event) => {
       // TODO: just re-use this and clear it out instead of waste memory?
       let panelInteractionCollector = new PanelInteractionCollector();
       // This must be first - the Interactions' state must be updated to determine whether it is _dead_ or not.
+
+      let animatingInteractions = [];
+
       this.interactions.forEach(interaction => {
         // update the internal state of the Interaction
         interaction.update()
@@ -1024,6 +1028,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
           // TODO: Should Interaction call stop() itself after update() is called, and then this can just ask?
           interaction.stop();
         } else {
+          animatingInteractions.push(interaction);
           interaction.panelReverberations.forEach(panelReverberation => {
             let panel = panelReverberation.panel;
             let interaction = panelReverberation.interaction;
@@ -1053,12 +1058,14 @@ document.addEventListener("DOMContentLoaded", (event) => {
         );
       });
 
-      // TODO: asking isDead twice this loop
-      let animatingInteractions = this.interactions.filter(interaction => !interaction.isDead());
       if (animatingInteractions.length === 0) {
         this.stop();
       }
 
+      this._updatePowerDraw();
+    }
+
+    _updatePowerDraw() {
       CURRENT_POWER_DRAW_ELEMENT.value = this.amps + "";
       if (this.maxAmps < this.amps) {
         this.maxAmps = this.amps;
