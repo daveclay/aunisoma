@@ -710,10 +710,8 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
 
     getActivePanelReverberations() {
-      // TODO: cache this, we're calling it a lot per loop
-      return this.panelReverberations.filter(panelReverberation =>
-        this.currentReverberatingDistance >= panelReverberation.distanceFromTrigger
-      );
+      // TODO: cache this, we're doing multiple times every loop
+      return this.eligiblePanelReverberations.filter(panelReverberation => !panelReverberation.isDone());
     }
 
     start() {
@@ -729,8 +727,13 @@ document.addEventListener("DOMContentLoaded", (event) => {
 
     _triggerNewReverberation(options) {
       this.currentReverberatingDistance = this.interactionConfig.getReverberationDistance();
+      this.eligiblePanelReverberations = this.panelReverberations.filter(panelReverberation =>
+        this.currentReverberatingDistance >= panelReverberation.distanceFromTrigger
+      );
+
       console.log("triggering " + this.currentReverberatingDistance + " reverberating panels");
-      this.getActivePanelReverberations().forEach(panelReverberation => {
+      // TODO: can't get active, they're not active yet!
+      this.eligiblePanelReverberations.forEach(panelReverberation => {
         if (options.triggerSourcePanel || !panelReverberation.isSourceInteraction()) {
           panelReverberation.start();
         }
