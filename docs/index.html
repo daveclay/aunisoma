@@ -742,19 +742,28 @@ document.addEventListener("DOMContentLoaded", (event) => {
       }
       this.clock.stop();
       this.activePanelReverberations.forEach(panelReverberation => {
-        // TODO: hrm, are any _not_ stopped?
+        // These are marked as done, but haven't been reaped because this happens after the update() method is called.
+        // So at the last clock step, everything is done, this is called, and the final PanelReverberations are stopped.
+        // We can't reap them within the update() method because they need to hold the value for the panels that is
+        // set _after_ the update() method is called.
         panelReverberation.stop();
       });
       console.log("Stopped Interaction", this);
     }
 
+    /**
+     * Calculate this Interaction's values that will be used to set the Panels color.
+     */
     update() {
       if (!this.clock.running) {
         return;
       }
       this.clock.next();
-      this.isAtZeroPoint = this.calculateIsAtZeroPoint()
+      // pretty sure this has to be calculated _before_ we call PanelReverberation.update()
+      this.isAtZeroPoint = this._calculateIsAtZeroPoint()
 
+      // Goes through the eligible PanelReverberations and figures out which ones are still "active" (where
+      // isDone() returns false).
       this.activePanelReverberations = this._calculateActivePanelReverberations();
       this.activePanelReverberations.forEach(panelReverberation => {
         let reverberationPanelDelayTicks = this.interactionConfig.reverberationPanelDelayTicks;
@@ -765,29 +774,45 @@ document.addEventListener("DOMContentLoaded", (event) => {
         }
       });
 
+      // TODO: calling PanelReverberation stop() here happens _before_ we figure out the value XXX
       this.activePanelReverberations.forEach(panelReverberation => {
         if (panelReverberation.isDone()) {
           panelReverberation.stop();
         }
       });
 
+      // TODO: interestingly, this might revive some PanelReverberations before we set the Panel value.
       this._maybeRevivePanelReverberations();
     }
 
-    calculateIsAtZeroPoint() {
+    /**
+     * Calculates whether the PanelReverberations are at a "zero point" - meaning the animations are at 0.
+     * @returns {boolean}
+     * @private
+     */
+    _calculateIsAtZeroPoint() {
       let last = this._findLastRemainingAliveSourcePanelReverberation();
       return last != null && last.currentValue === 0;
     }
 
+    /**
+     * Returns the last PanelReverberation if only one last active one exists. Otherwise, null.
+     * @returns {unknown|null}
+     * @private
+     */
     _findLastRemainingAliveSourcePanelReverberation() {
       let alive = this.panelReverberations.filter(panelReverberation => !panelReverberation.isDone());
-      if (alive.length === 1 && alive[0].isSourceInteraction()) {
+      if (alive.length === 1) {
         return alive[0];
       } else {
         return null;
       }
     }
 
+    /**
+     * Maybe trigger new reverberation animations
+     * @private
+     */
     _maybeRevivePanelReverberations() {
       if (this.isAtZeroPoint && this.sourcePanel.interactionActive && Math.random() > .65) {
         // TODO: make probability a function in the interaction config
@@ -801,18 +826,36 @@ document.addEventListener("DOMContentLoaded", (event) => {
       }
     }
 
+    /**
+     * Called after update(), this checks whether the Interaction is dead. This means not only the panel is no longer
+     * active, but that the reverberation animation is done.
+     * @returns {boolean}
+     */
     isDead() {
       if (this.sourcePanel.interactionActive) {
         return false;
       }
-      return this.panelReverberations.filter(panelReverberation => !panelReverberation.isDone()).length === 0;
+      // after update() is called, the final active PanelReverberations may be "done".
+      if (!this.activePanelReverberations) {
+        return true;
+      }
+      return this.activePanelReverberations.filter(panelReverberation => !panelReverberation.isDone()).length === 0;
     }
 
     getDistanceFromTriggerToPanel(panel) {
       return Math.abs(this.sourcePanel.index - panel.index);
     }
 
+    /**
+     * Return this Interactoin's value for the given Panel. It basis this value on the PanelReverberation for
+     * the given Panel.
+     * @param panel
+     * @returns {number|*}
+     */
     getValueForPanel(panel) {
+      // TODO: this is called after update() is called, and doesn't reference the _active_ PanelReverberations, and
+      // even if it did, if we reap or recalculate PanelReverberation this logic would be incorrect... It just
+      // happens to work out that the other non-active or "done" PanelReverbation return 0 for this value.
       return this.panelReverberationsByPanelIndex[panel.index].currentValue;
     }
   }
