@@ -13,6 +13,18 @@ class Interaction:
 
         self.clock = Clock()
         self._build_panel_reverberations()
+        self.is_at_zero_point = False
+        self.active_panel_reverberations = []
+
+    def to_dict(self):
+        return {
+            "sourcePanel": self.source_panel.to_dict(),
+            "clock": self.clock.to_dict(),
+            "activePanelReverberations": map(
+                lambda panel_reverberation: panel_reverberation.to_dict(),
+                self.active_panel_reverberations
+            )
+        }
 
     def _build_panel_reverberations(self):
         self.source_panel_reverberation = PanelReverberation(self.source_panel, self, self.interaction_config)
@@ -40,6 +52,7 @@ class Interaction:
         return reverberating_panels
 
     def _calculate_active_panel_reverberations(self):
+        # TODO: race condition: eligible_panel_reverberations may not be set :-/
         return [panel_reverberation for panel_reverberation
                 in self.eligible_panel_reverberations
                 if not panel_reverberation.is_done()]
@@ -49,10 +62,11 @@ class Interaction:
             raise Exception("Interaction is already started!")
 
         self.clock.start()
-        self._trigger_new_reverberation({"triggerSourcePanel": True})
-        print("Started interaction", self)
+        # print("Starting interaction", self.to_dict())
+        self._trigger_new_reverberation(True)
+        print("Started interaction", self.to_dict())
 
-    def _trigger_new_reverberation(self, options):
+    def _trigger_new_reverberation(self, trigger_source_panel):
         self.current_reverberating_distance = self.interaction_config.get_reverberation_distance()
         self.eligible_panel_reverberations = [panel_reverberation for panel_reverberation in self.panel_reverberations
                                               if
@@ -60,7 +74,7 @@ class Interaction:
 
         print("triggering", self.current_reverberating_distance, "reverberating panels")
         for panel_reverberation in self.eligible_panel_reverberations:
-            if options["triggerSourcePanel"] or not panel_reverberation.is_source_interaction():
+            if trigger_source_panel or not panel_reverberation.is_source_interaction():
                 panel_reverberation.start()
 
     def stop(self):
@@ -70,7 +84,7 @@ class Interaction:
         self.clock.stop()
         for panel_reverberation in self.active_panel_reverberations:
             panel_reverberation.stop()
-        print("Stopped Interaction", self)
+        print("Stopped Interaction", self.to_dict())
 
     def update(self):
         if not self.clock.running:
@@ -78,13 +92,15 @@ class Interaction:
 
         self.clock.next()
         self.is_at_zero_point = self._calculate_is_at_zero_point()
-        self.active_panel_reverberations = self._calculate_active_panel_reverberations()
+        self.active_panel_reverberations[:] = self._calculate_active_panel_reverberations()
 
         for panel_reverberation in self.active_panel_reverberations:
             reverberation_panel_delay_ticks = self.interaction_config.reverberation_panel_delay_ticks
             delay_for_panel_to_start_ticks = panel_reverberation.distance_from_trigger * reverberation_panel_delay_ticks
             if self.clock.ticks >= delay_for_panel_to_start_ticks:
-                panel_reverberation.update()
+                if not panel_reverberation.cycle.clock.running:
+                    print(panel_reverberation.to_dict)
+                panel_reverberation.update() # TODO: somteimes the PanelReverberation has not had start() called
 
         for panel_reverberation in self.active_panel_reverberations:
             if panel_reverberation.is_done():
@@ -107,7 +123,7 @@ class Interaction:
     def _maybe_revive_panel_reverberations(self):
         if self.is_at_zero_point and self.source_panel.interaction_active and random.random() > 0.65:
             self.clock.restart()
-            self._trigger_new_reverberation({"triggerSourcePanel": False})
+            self._trigger_new_reverberation(False)
 
     def is_dead(self):
         if self.source_panel.interaction_active:
@@ -157,3 +173,10 @@ class InteractionConfig:
 
     def get_trigger_panel_animation_loop_duration_ticks(self):
         return self.trigger_panel_animation_loop_duration_ticks_range.random_int_between()
+
+    def to_dict(self):
+        return {
+            'maxReverberationDistance': self.max_reverberation_distance,
+            'reverberationPanelDelayTicks': self.reverberation_panel_delay_ticks,
+            'maxInteractionThresholdPercent': self.max_interaction_threshold_percent
+        }

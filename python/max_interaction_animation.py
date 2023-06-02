@@ -12,7 +12,7 @@ class MaxInteractionAnimation:
             False
         )
         self.current_value = 0
-        self.panel_values_by_panel_index = []
+        self.panel_values_by_panel_index = {}
 
     def filter_interaction(self, interaction):
         return InteractionFilter(interaction)
@@ -45,7 +45,7 @@ class MaxInteractionAnimation:
                 self.panel_values_by_panel_index[panel.index] = 0
                 return 0
 
-        distance_ratio = panel.index / self.panel_context.panels.length
+        distance_ratio = panel.index / len(self.panel_context.panels)
         wrapped_value = abs(self.current_value - distance_ratio)
         value = 4 * wrapped_value
         self.panel_values_by_panel_index[panel.index] = value

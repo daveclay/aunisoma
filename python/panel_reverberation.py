@@ -6,7 +6,7 @@ class PanelReverberation:
         self.panel = panel
         self.interaction = interaction
         self.interaction_config = interaction_config
-        self.scale = 0
+        self.scale = 0.0
         oneShot = not self.is_source_interaction()
         self.cycle = Cycle(
             self.interaction_config.initial_trigger_panel_animation_loop_duration_ticks,
@@ -14,14 +14,23 @@ class PanelReverberation:
             lambda value: self.on_down_cycle(value),
             oneShot
         )
-        self.current_value = 0
+        self.current_value = 0.0
         self.distance_from_trigger = self.interaction.get_distance_from_trigger_to_panel(self.panel)
+
+    def to_dict(self):
+        return {
+            "panel": self.panel.to_dict(),
+            "interactionSourcePanel": self.interaction.source_panel.to_dict(),
+            "distanceFromTrigger": self.distance_from_trigger,
+            "scale": self.scale,
+            "currentValue": self.current_value
+        }
 
     def _calculate_scale(self):
         if self.panel == self.interaction.source_panel:
             return 1
         else:
-            maxDistance = self.interaction.currentReverberatingDistance
+            maxDistance = self.interaction.current_reverberating_distance
             return (maxDistance - self.distance_from_trigger) / maxDistance
 
     def is_source_interaction(self):

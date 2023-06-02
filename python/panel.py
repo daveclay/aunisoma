@@ -16,11 +16,8 @@ class Panel:
             'color': self.color.to_dict()
         }
 
-    def start_interaction(self):
-        self.interaction_active = True
-
-    def stop_interaction(self):
-        self.interaction_active = False
+    def set_active(self, active):
+        self.interaction_active = active
 
     def reset(self):
         self.set_color(self.idle_color)
@@ -35,9 +32,8 @@ class Panel:
         # self.panel_context.add_power_draw_amps(color.get_power_draw_amps())
 
     def next_color(self, panel_value_sources):
-        value_sums = 0
+        value_sums = 0.0
         for panel_value_source in panel_value_sources:
-            panel_value = panel_value_source.get_value_for_panel(self)
-            value_sums += panel_value
+            value_sums += panel_value_source.get_value_for_panel(self)
 
         return self.panel_context.gradient.get_color_for_value(value_sums)

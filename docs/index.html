@@ -1051,7 +1051,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
 
     start() {
-      this.intervalId = setInterval(() => this.eventLoop(), 1);
+      this.intervalId = setInterval(() => this.eventLoop(), 20);
       EVENT_LOOP_INFO_ELEMENT.value = "running";
     }
 

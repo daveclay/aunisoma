@@ -4,6 +4,13 @@ class Clock:
         self.start_tick = None
         self.ticks = None
 
+    def to_dict(self):
+        return {
+            "running": self.running,
+            "start_tick": self.start_tick,
+            "ticks": self.ticks
+        }
+
     def start(self):
         self.running = True
 
@@ -15,7 +22,7 @@ class Clock:
     def next(self):
         if not self.running:
             # Don't confuse people by automatically running; next() can only be called after start()
-            raise "Clock is not running"
+            return # race condition
 
         if self.start_tick is None:
             self.start_tick = 0

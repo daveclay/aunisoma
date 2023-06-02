@@ -27,13 +27,15 @@ class Color:
         blue = (self.blue + color.blue) / 2
         return Color(red, green, blue)
 
+    def to_hex(self):
+        return "#" + hex(self.red)[2:].rjust(2, '0') \
+            + hex(self.green)[2:].rjust(2, '0') \
+            + hex(self.blue)[2:].rjust(2, '0')
+
     def to_dict(self):
         return {
             "red": self.red,
             "green": self.green,
             "blue": self.blue,
-            "hex": "#"
-                   + hex(self.red)[2:].ljust(2, '0')
-                   + hex(self.green)[2:].ljust(2, '0')
-                   + hex(self.blue)[2:].ljust(2, '0')
+            "hex": self.to_hex()
         }

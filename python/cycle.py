@@ -52,7 +52,7 @@ class Cycle:
         if self.duration_ticks >= self.clock.ticks:
             # Don't "underun" the clock here: only jump down if it's meaningful to do so. This
             # shouldn't result in 0, otherwise we'll never hit a single iteration.
-            # TODO: the problem with self is that self never gets to a zero point.
+            # TODO: the problem with this logic is that it may never hit actual 0 value - just get close.
             self.clock.ticks = max(0, self.duration_ticks - self.clock.ticks)
 
     def restart(self, duration_ticks=None):

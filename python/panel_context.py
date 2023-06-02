@@ -7,56 +7,60 @@ class PanelContext:
     def __init__(self,
                  number_of_panels,
                  interaction_config,
-                 gradient):
+                 gradient,
+                 sensors):
         self.number_of_panels = number_of_panels
         self.interaction_config = interaction_config
         self.interaction_context = InteractionContext(interaction_config, self)
         self.gradient = gradient
+        self.sensors = sensors
         self.panels = []
-        self.interactions_by_source_panelIndex = {}
+        self.interactions_by_source_panel_index = {}
         self._create_panels()
         self._create_interactions()
         self.max_interaction_animation = MaxInteractionAnimation(self)
         self.is_at_max_interactions = False
         self.amps = 0
         self.panel_interaction_collector = PanelInteractionCollector()
+        self.running = False
 
     def _create_panels(self):
         for index in range(self.number_of_panels):
             self.panels.append(Panel(index, self))
 
+    def _create_interactions(self):
+        self.interactions = list(map(
+            self._create_interaction,
+            self.panels
+        ))
+
     def _create_interaction(self, panel):
         interaction = self.interaction_context.create_interaction(panel)
-        self.interactions_by_source_panelIndex[panel.index] = interaction
+        self.interactions_by_source_panel_index[panel.index] = interaction
         return interaction
-
-    def _create_interactions(self):
-        self.interactions = map(
-            lambda panel: self._create_interaction(panel),
-            self.panels
-        )
 
     def get_panel_at(self, index):
         return self.panels[index]
 
-    def trigger_panel(self, panel):
-        if not panel.interaction_active:
-            panel.start_interaction()
-            interaction = self.interactions_by_source_panelIndex[panel.index]
-            if not interaction.clock.running:
-                interaction.start()
+    def read_sensors(self):
+        for panel_index in self.sensors:
+            is_panel_active = self.sensors[panel_index]
+            self._handle_panel_sensor(panel_index, is_panel_active)
 
-            if self.intervalId is None:
-                self.start()
+    def _handle_panel_sensor(self, panel_index, is_panel_active):
+        panel = self.panels[panel_index]
+        if is_panel_active != panel.interaction_active:
+            panel.set_active(is_panel_active)
+            if is_panel_active:
+                interaction = self.interactions_by_source_panel_index[panel.index]
+                if not interaction.clock.running:
+                    interaction.start()
 
-    def start(self):
-        pass
-        # TODO: main loop trigger, if we're doing that
-
-    def stop(self):
-        pass
+                    self.running = True # TODO: Not strictly necessary unless we're breaking the loop to save power
 
     def event_loop(self):
+        self.read_sensors()
+
         self.is_at_max_interactions = self._calculate_at_max_interaction()
 
         # TODO: tell it to stop? Maybe? Or will we lose its value before we render?
@@ -92,29 +96,29 @@ class PanelContext:
             for panel in self.panels:
                 self.panel_interaction_collector.add_panel_and_value_source(panel, self.max_interaction_animation)
 
-        for panelAndValueSource in self.panel_interaction_collector.panel_and_value_sources_by_panel_index:
+        for panelAndValueSource in self.panel_interaction_collector.panel_and_value_sources_by_panel_index.values():
             panel = panelAndValueSource['panel']
             panel.update(panelAndValueSource['panelValueSources'])
 
         if len(activeInteractions) == 0:
-            self.stop()
+            self.running = False
 
     def _calculate_at_max_interaction(self):
         activePanels = list(filter(lambda panel: panel.interaction_active, self.panels))
         activePercent = len(activePanels) / len(self.panels)
-        return activePercent >= self.interaction_config.maxInteractionThresholdPercent
+        return activePercent >= self.interaction_config.max_interaction_threshold_percent
 
 
 class PanelInteractionCollector:
     def __init__(self):
-        self.panel_and_value_sources_by_panel_index = []
+        self.panel_and_value_sources_by_panel_index = {}
 
     def add_panel_and_value_source(self, panel, value_source):
         value_sources_involving_panel = self._get_value_sources_for_panel(panel)
         value_sources_involving_panel.append(value_source)
 
     def _get_value_sources_for_panel(self, panel):
-        if not self.panel_and_value_sources_by_panel_index[panel.index]:
+        if not self.panel_and_value_sources_by_panel_index.get(panel.index):
             self.panel_and_value_sources_by_panel_index[panel.index] = {
                 'panel': panel,
                 'panelValueSources': []
@@ -123,5 +127,5 @@ class PanelInteractionCollector:
         return self.panel_and_value_sources_by_panel_index[panel.index]['panelValueSources']
 
     def reset(self):
-        self.panel_and_value_sources_by_panel_index[:] = []
+        self.panel_and_value_sources_by_panel_index.clear()
 

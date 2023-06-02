@@ -18,7 +18,7 @@ class SingleGradientValueMap:
         # ratio = val - min / max - min
         min_value = points[0].value
         max_value = points[1].value
-        ratio = (value - min_value) / (max_value - min_value)
+        ratio = (value - float(min_value)) / (max_value - min_value)
 
         # ints
         min_color = points[0].color_value

@@ -145,71 +145,121 @@ document.addEventListener("DOMContentLoaded", (event) => {
    ***/
   EVENT_LOOP_INFO_ELEMENT.value = "stopped";
 
-  let panels = [];
+  class EventManager {
+    constructor(socket) {
+      this.socket = socket;
+      this.panelUIs = [];
+
+      this.handlers = {
+        "init": (initMessage) => {
+          console.log(initMessage)
+          this.interactionConfig = initMessage.interactionConfig;
+          this.panelUIs = initMessage.panels.map(panelData => {
+            let panelElement = newPanelElement(panelData.index);
+            return new PanelUI(panelData, panelElement, this);
+          });
+        },
+        "updatePanels": (updatePanelsMessage) => {
+          updatePanelsMessage.panels.forEach(panel => {
+            let panelUI = this.panelUIs[panel.index]
+            panelUI.setColor(panel.color.hex);
+          })
+        },
+        "onPanelActive": (startMessage) => {
+        }
+      }
+
+      socket.addEventListener("open", (event) => {
+        socket.send(JSON.stringify({
+          type: "init",
+          payload: null
+        }));
+      });
+
+      socket.addEventListener("message", (event) => {
+        //console.log("Message from server ", event.data);
+        let message = JSON.parse(event.data)
+        if (message.type) {
+          let handler = this.handlers[message.type];
+          if (handler) {
+            handler(message.payload)
+          } else {
+            console.error("No handler found for " + message.type, message);
+          }
+        }
+      });
+    }
+
+    numberOfPanels() {
+      return this.panelUIs.length;
+    }
+
+    send(type, data) {
+      this.socket.send(JSON.stringify({
+        type: type,
+        payload: data
+      }));
+    }
+
+    panelActive(panelIndex) {
+      this.send("panelActive", {
+        panelIndex: panelIndex
+      })
+    }
+
+    panelInactive(panelIndex) {
+      this.send("panelInactive", {
+        panelIndex: panelIndex
+      })
+    }
+  }
 
   class PanelUI {
-    constructor(panel, panelElement) {
+    constructor(panel, panelContainerElement, eventManager) {
       this.panel = panel;
-      this.panelElement = panelElement;
-      panelElement.addEventListener("click", () => {
+      this.panelContainerElement = panelContainerElement;
+      this.panelInfoElement = this.panelContainerElement.getElementsByClassName("panelInfo")[0];
+      this.panelElement = this.panelContainerElement.getElementsByClassName("panel")[0];
+      panelContainerElement.addEventListener("click", () => {
         this.panelClicked();
       });
+      this.eventManager = eventManager;
+      this.active = false;
     }
 
     panelClicked() {
       console.log(this.panel.index + " clicked");
+      this.active = !this.active
+      if (this.active) {
+        this.eventManager.panelActive(this.panel.index);
+        this.panelInfoElement.innerText = "active";
+      } else {
+        this.eventManager.panelInactive(this.panel.index);
+        this.panelInfoElement.innerHTML = "&nbsp;";
+      }
     }
-  }
 
-  const handlers = {
-    'panelList': (panelListMessage) => {
-      console.log(panelListMessage)
-      this.panels = panelListMessage.panels.map(panelData => {
-        let panelElement = newPanelElement(panelData.index);
-        return new PanelUI(panelData, panelElement);
-      });
+    setColor(color) {
+      this.panelElement.style.backgroundColor = color;
     }
   }
 
   const socket = new WebSocket("ws://localhost:9001");
-
-  socket.addEventListener("open", (event) => {
-    socket.send(JSON.stringify({
-      type: 'init',
-      payload: null
-    }));
-  });
-
-  socket.addEventListener("message", (event) => {
-    //console.log("Message from server ", event.data);
-    message = JSON.parse(event.data)
-    if (message.type) {
-      let handler = handlers[message.type];
-      if (handler) {
-        handler(message)
-      } else {
-        console.error("No handler found for " + message.type, message);
-      }
-    }
-  });
-
+  const eventManager = new EventManager(socket);
 
   function runScript() {
     let triggers = TRIGGER_SCRIPT_TEXTAREA.value.split("\n");
     triggers.forEach(trigger => {
       let triggerCmd = trigger.split(" ");
       let panelIndex = parseInt(triggerCmd[0]);
-      let panel = panelContext.getPanelAt(panelIndex);
-      if (panel) {
-        setTimeout(
-          () => panelContext.triggerPanel(panel),
-          parseInt(triggerCmd[2])
-        );
-        setTimeout(
-          () => panel.stopInteraction(),
-          parseInt(triggerCmd[4])
-        )
-      }
+    setTimeout(
+      () => eventManager.panelActive(panelIndex),
+      parseInt(triggerCmd[2])
+    );
+    setTimeout(
+      () => eventManager.panelInactive(panelIndex),
+      parseInt(triggerCmd[4])
+    )
     });
   }
 
@@ -217,25 +267,22 @@ document.addEventListener("DOMContentLoaded", (event) => {
 
   TRIGGER_WALK_DOWN_BUTTON.addEventListener("click", () => {
     const WALK_DELAY_BETWEEN_PANELS = 1000;
-    for (let i = 0; i < NUMBER_OF_PANELS; i++) {
+    for (let i = 0; i < eventManager.numberOfPanels(); i++) {
       let time = i * WALK_DELAY_BETWEEN_PANELS
       setTimeout(() => {
-        let panel = panelContext.getPanelAt(i);
-        panelContext.triggerPanel(panel);
+        eventManager.panelActive(i);
       }, time);
       setTimeout(() => {
-        let panel = panelContext.getPanelAt(i);
-        panel.stopInteraction();
+        eventManager.panelInactive(i);
       }, time + (Math.random() * 6000));
     }
   });
 
   TRIGGER_MAX_BUTTON.addEventListener("click", () => {
     let numberOfPanels =
-      (panelContext.panels.length * panelContext.interactionConfig.maxInteractionThresholdPercent) + 1;
+      (eventManager.numberOfPanels() * eventManager.interactionConfig.maxInteractionThresholdPercent) + 1;
     for (let i = 0; i < numberOfPanels; i++) {
-      let panel = panelContext.getPanelAt(i);
-      panelContext.triggerPanel(panel);
+      eventManager.panelActive(i);
     }
   })
 });
