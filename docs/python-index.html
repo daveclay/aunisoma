@@ -1,0 +1,246 @@
+<html>
+<body>
+<style>
+    body {
+        background-color: black;
+        font-family: monospace;
+        color: gray;
+    }
+    #stage {
+    }
+    .panelContainer {
+        display: inline-block;
+        min-height: 1px;
+    }
+    .panel {
+        display: block;
+        width: 50px; /* 24" */
+        height: 100px; /* 48" */
+        background-color: rgb(60, 0, 0);
+        border: 1px solid #222222;
+        margin: 5px;
+    }
+    .panelInfo {
+        display: block;
+        width: 50px; /* 24" */
+        height: 50px;
+        overflow-x: clip;
+        text-align: center;
+        padding-left: 6px; /* align it center, for some reason */
+    }
+    .panelReverberationInfo {
+        display: inline-block;
+        width: 50px;
+        height: 20px;
+        margin: 5px;
+        border: 1px solid #222222;
+    }
+    #panelTemplate {
+        display: none;
+    }
+    .controlTable tr td {
+        border: 1px solid #333333;
+        vertical-align: top;
+        padding: 5px;
+    }
+</style>
+<div id="stage"></div>
+<div id="panelTemplate" class="panelContainer">
+    <div class="panel"></div>
+    <div class="panelInfo">&nbsp;</div>
+</div>
+Click on a panel to simulate a person interacting with a panel. Click on the panel again to simulate a person walking away from the panel.
+<hr/>
+<table class="controlTable">
+    <tr>
+        <td>
+            <p>
+                <label for="triggerScript">Panel interaction script</label>
+            </p>
+            <textarea id="triggerScript" rows="10" cols="30">
+3 at 0ms for 1500ms
+8 at 200ms for 2000ms
+6 at 500ms for 3000ms
+7 at 600ms for 3000ms
+9 at 1000ms for 5000ms
+10 at 1500ms for 2000ms
+11 at 2000ms for 2000ms
+12 at 3000ms for 3000ms
+</textarea>
+            <p>
+                <button id="triggerScriptButton" value="run">Run</button>
+            </p>
+        </td>
+        <td>
+            <p>
+                Preset Scripts
+            </p>
+            <p>
+                <button id="triggerWalkDownButton" value="run">Walk Left to Right</button>
+            </p>
+            <p>
+                <button id="triggerMaxInteractionsButton" value="run">Max Interactions</button>
+            </p>
+        </td>
+        <td>
+            Event Loop: <input type="text" id="eventLoopInfo"/>
+        </td>
+        <td>
+            <p>
+                Current Power Draw: <input type="text" id="currentPowerDraw">
+            </p>
+            <p>
+                Max Power Draw: <input type="text" id="maxPowerDraw">
+            </p>
+        </td>
+    </tr>
+</table>
+<script>
+document.addEventListener("DOMContentLoaded", (event) => {
+  const PANEL_TEMPLATE_ELEMENT = document.getElementById("panelTemplate");
+  const STAGE = document.getElementById("stage");
+  const TRIGGER_SCRIPT_TEXTAREA = document.getElementById("triggerScript");
+  const TRIGGER_SCRIPT_BUTTON = document.getElementById("triggerScriptButton");
+  const TRIGGER_WALK_DOWN_BUTTON = document.getElementById("triggerWalkDownButton");
+  const TRIGGER_MAX_BUTTON = document.getElementById("triggerMaxInteractionsButton");
+  const EVENT_LOOP_INFO_ELEMENT = document.getElementById("eventLoopInfo");
+
+
+  const CURRENT_POWER_DRAW_ELEMENT = document.getElementById("currentPowerDraw");
+  const MAX_POWER_DRAW_ELEMENT = document.getElementById("maxPowerDraw");
+
+  // TODO: show which panels have someone interacting
+  const REVERBERATIONS_INFO_ELEMENT = document.getElementById("reverberationsInfo");
+  const REVERBERATION_INFO_TEMPLATE_ELEMENT = document.getElementById("reverberationInfoTemplate");
+  const PANEL_REVERBERATION_INFO_TEMPLATE_ELEMENT = document.getElementById("panelReverberationInfoTemplate");
+
+  // TODO: measure more accurately, whether this is linear
+  const DRAW_PER_COLOR_PER_PANEL_AMPS = 0.8046715655;
+
+  function calculatePowerDrawForColorAmps(color) {
+    return (color / 255) * DRAW_PER_COLOR_PER_PANEL_AMPS;
+  }
+
+  function clone(templateElement) {
+    let clone = templateElement.cloneNode(true);
+    clone.attributes.removeNamedItem("id");
+    return clone;
+  }
+
+  function removeChildren(element) {
+    while (element.firstChild) {
+      element.removeChild(element.firstChild);
+    }
+  }
+
+  function newPanelElement(index) {
+    let panelElement = clone(PANEL_TEMPLATE_ELEMENT);
+    panelElement.classList.add("panel-" + index);
+    STAGE.appendChild(panelElement);
+    return panelElement;
+  }
+
+  /***
+   * Initialization
+   ***/
+  EVENT_LOOP_INFO_ELEMENT.value = "stopped";
+
+  let panels = [];
+
+  class PanelUI {
+    constructor(panel, panelElement) {
+      this.panel = panel;
+      this.panelElement = panelElement;
+      panelElement.addEventListener("click", () => {
+        this.panelClicked();
+      });
+    }
+
+    panelClicked() {
+      console.log(this.panel.index + " clicked");
+    }
+  }
+
+  const handlers = {
+    'panelList': (panelListMessage) => {
+      console.log(panelListMessage)
+      this.panels = panelListMessage.panels.map(panelData => {
+        let panelElement = newPanelElement(panelData.index);
+        return new PanelUI(panelData, panelElement);
+      });
+    }
+  }
+
+  const socket = new WebSocket("ws://localhost:9001");
+
+  socket.addEventListener("open", (event) => {
+    socket.send(JSON.stringify({
+      type: 'init',
+      payload: null
+    }));
+  });
+
+  socket.addEventListener("message", (event) => {
+    //console.log("Message from server ", event.data);
+    message = JSON.parse(event.data)
+    if (message.type) {
+      let handler = handlers[message.type];
+      if (handler) {
+        handler(message)
+      } else {
+        console.error("No handler found for " + message.type, message);
+      }
+    }
+  });
+
+
+  function runScript() {
+    let triggers = TRIGGER_SCRIPT_TEXTAREA.value.split("\n");
+    triggers.forEach(trigger => {
+      let triggerCmd = trigger.split(" ");
+      let panelIndex = parseInt(triggerCmd[0]);
+      let panel = panelContext.getPanelAt(panelIndex);
+      if (panel) {
+        setTimeout(
+          () => panelContext.triggerPanel(panel),
+          parseInt(triggerCmd[2])
+        );
+        setTimeout(
+          () => panel.stopInteraction(),
+          parseInt(triggerCmd[4])
+        )
+      }
+    });
+  }
+
+  TRIGGER_SCRIPT_BUTTON.addEventListener("click", () => runScript());
+
+  TRIGGER_WALK_DOWN_BUTTON.addEventListener("click", () => {
+    const WALK_DELAY_BETWEEN_PANELS = 1000;
+    for (let i = 0; i < NUMBER_OF_PANELS; i++) {
+      let time = i * WALK_DELAY_BETWEEN_PANELS
+      setTimeout(() => {
+        let panel = panelContext.getPanelAt(i);
+        panelContext.triggerPanel(panel);
+      }, time);
+      setTimeout(() => {
+        let panel = panelContext.getPanelAt(i);
+        panel.stopInteraction();
+      }, time + (Math.random() * 6000));
+    }
+  });
+
+  TRIGGER_MAX_BUTTON.addEventListener("click", () => {
+    let numberOfPanels =
+      (panelContext.panels.length * panelContext.interactionConfig.maxInteractionThresholdPercent) + 1;
+    for (let i = 0; i < numberOfPanels; i++) {
+      let panel = panelContext.getPanelAt(i);
+      panelContext.triggerPanel(panel);
+    }
+  })
+});
+
+
+</script>
+</body>
+</html>

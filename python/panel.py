@@ -8,6 +8,14 @@ class Panel:
 
         self.set_color(self.idle_color)
 
+    def to_dict(self):
+        return {
+            'index': self.index,
+            'interactionActive': self.interaction_active,
+            'idle_color': self.idle_color.to_dict(),
+            'color': self.color.to_dict()
+        }
+
     def start_interaction(self):
         self.interaction_active = True
 
