@@ -571,7 +571,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
 
     isAtZeroPoint() {
-      return this.clock.ticks == null || (this.durationTicks % this.clock.ticks === 0);
+      return this.clock.ticks == null || (this.clock.ticks % this.durationTicks === 0);
     }
   }
 
