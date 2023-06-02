@@ -45,21 +45,46 @@ class TestPanelReverberation(unittest.TestCase):
         self.another_panel_reverberation.start()
         self.assertEqual(.5, self.another_panel_reverberation.scale)
 
-    def test_on_up_cycle_value_before_halfway(self):
+    def test_update_before_halfway(self):
         self.another_panel_reverberation.start()
-        self.another_panel_reverberation.cycle.clock.next()
         self.source_panel.interaction_active = False
-        self.another_panel_reverberation.cycle.clock.ticks = 30
-        self.another_panel_reverberation.on_up_cycle(.2)
-        self.assertEqual(.1, self.another_panel_reverberation.current_value)
+        self.another_panel_reverberation.cycle.clock.ticks = 29
+
+        self.another_panel_reverberation.update()
+
+        self.assertEqual(.3, self.another_panel_reverberation.current_value)
         self.assertEqual(70, self.another_panel_reverberation.cycle.clock.ticks)
+        self.assertFalse(self.another_panel_reverberation.is_done())
 
-    def test_on_up_cycle_value_at_halfway(self):
+    def test_update_at_halfway(self):
         self.another_panel_reverberation.start()
         self.another_panel_reverberation.cycle.clock.next()
         self.source_panel.interaction_active = False
-        self.another_panel_reverberation.cycle.clock.ticks = 50
-        self.another_panel_reverberation.on_up_cycle(.2)
-        self.assertEqual(.1, self.another_panel_reverberation.current_value)
-        self.assertEqual(50, self.another_panel_reverberation.cycle.clock.ticks)
+        self.another_panel_reverberation.cycle.clock.ticks = 49
 
+        self.another_panel_reverberation.update()
+
+        self.assertEqual(.5, self.another_panel_reverberation.current_value)
+        self.assertEqual(50, self.another_panel_reverberation.cycle.clock.ticks)
+        self.assertFalse(self.another_panel_reverberation.is_done())
+
+    def test_when_animation_loop_is_done(self):
+        self.another_panel_reverberation.start()
+        self.another_panel_reverberation.cycle.clock.next()
+        self.source_panel.interaction_active = False
+        self.another_panel_reverberation.cycle.clock.ticks = 100
+
+        self.another_panel_reverberation.update()
+        self.assertEqual(0, self.another_panel_reverberation.current_value)
+        self.assertEqual(None, self.another_panel_reverberation.cycle.clock.ticks)
+        self.assertTrue(self.another_panel_reverberation._is_animation_loop_done())
+
+    def test_is_done(self):
+        self.another_panel_reverberation.start()
+        self.another_panel_reverberation.cycle.clock.next()
+        self.source_panel.interaction_active = False
+        self.another_panel_reverberation.cycle.clock.ticks = 100
+
+        self.another_panel_reverberation.update()
+        self.assertFalse(self.another_panel_reverberation.cycle.clock.running)
+        self.assertTrue(self.another_panel_reverberation.is_done())
