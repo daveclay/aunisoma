@@ -2,11 +2,14 @@ from python.cycle import Cycle
 
 
 class MaxInteractionAnimation:
-    def __init__(self, panel_context):
+    def __init__(self,
+                 panel_context,
+                 interaction_config):
         self.panel_context = panel_context
+        self.interaction_config = interaction_config
         # TODO: move duration to config
         self.cycle = Cycle(
-            500,
+            self.interaction_config.max_interaction_duration_ticks,
             lambda value: self.on_up_cycle(value),
             lambda value: self.on_down_cycle(value),
             False
@@ -15,7 +18,7 @@ class MaxInteractionAnimation:
         self.panel_values_by_panel_index = {}
 
     def filter_interaction(self, interaction):
-        return InteractionFilter(interaction)
+        return InteractionFilter(interaction, self.interaction_config)
 
     def is_running(self):
         if self.panel_context.is_at_max_interactions:
@@ -53,9 +56,12 @@ class MaxInteractionAnimation:
 
 
 class InteractionFilter:
-    def __init__(self, interaction):
+    def __init__(self,
+                 interaction,
+                 interaction_config):
         self.interaction = interaction
+        self.interaction_config = interaction_config
 
     def get_value_for_panel(self, panel):
         originalValue = self.interaction.get_value_for_panel(panel)
-        return originalValue * .4
+        return originalValue * self.interaction_config.max_interaction_gradient_value_multiplier

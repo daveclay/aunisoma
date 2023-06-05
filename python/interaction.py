@@ -157,7 +157,10 @@ class InteractionConfig:
                  reverberation_panel_delay_ticks,
                  min_trigger_panel_animation_loop_duration_ticks,
                  max_trigger_panel_animation_loop_duration_ticks,
-                 max_interaction_threshold_percent):
+                 max_interaction_threshold_percent,
+                 max_interaction_duration_ticks,
+                 max_interaction_gradient_value_multiplier,
+                 ):
         self.max_reverberation_distance = max_reverberation_distance
         self.reverberation_distance_range = Range(min_reverberation_distance, max_reverberation_distance)
         self.reverberation_panel_delay_ticks = reverberation_panel_delay_ticks
@@ -167,6 +170,9 @@ class InteractionConfig:
         self.initial_trigger_panel_animation_loop_duration_ticks = \
             (max_trigger_panel_animation_loop_duration_ticks + min_trigger_panel_animation_loop_duration_ticks) / 2
         self.max_interaction_threshold_percent = max_interaction_threshold_percent
+        self.max_interaction_duration_ticks = max_interaction_duration_ticks
+        self.max_interaction_gradient_value_multiplier = max_interaction_gradient_value_multiplier
+
 
     def get_reverberation_distance(self):
         return self.reverberation_distance_range.random_int_between()

@@ -145,10 +145,17 @@ document.addEventListener("DOMContentLoaded", (event) => {
    ***/
   EVENT_LOOP_INFO_ELEMENT.value = "stopped";
 
+  function getPowerDrawAmps(color) {
+    return calculatePowerDrawForColorAmps(color.red)
+      + calculatePowerDrawForColorAmps(color.green)
+      + calculatePowerDrawForColorAmps(color.blue);
+  }
+
   class EventManager {
     constructor(socket) {
       this.socket = socket;
       this.panelUIs = [];
+      this.maxAmps = 0;
 
       this.handlers = {
         "init": (initMessage) => {
@@ -160,12 +167,16 @@ document.addEventListener("DOMContentLoaded", (event) => {
           });
         },
         "updatePanels": (updatePanelsMessage) => {
+          let totalAmps = 0;
           updatePanelsMessage.panels.forEach(panel => {
             let panelUI = this.panelUIs[panel.index]
-            panelUI.setColor(panel.color.hex);
+            panelUI.setColor(panel.color);
+            totalAmps += panelUI.amps;
           })
-        },
-        "onPanelActive": (startMessage) => {
+
+          CURRENT_POWER_DRAW_ELEMENT.value = totalAmps;
+          this.maxAmps = Math.max(this.maxAmps, totalAmps);
+          MAX_POWER_DRAW_ELEMENT.value = this.maxAmps;
         }
       }
 
@@ -225,6 +236,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
       });
       this.eventManager = eventManager;
       this.active = false;
+      this.amps = 0;
     }
 
     panelClicked() {
@@ -240,7 +252,8 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
 
     setColor(color) {
-      this.panelElement.style.backgroundColor = color;
+      this.panelElement.style.backgroundColor = color.hex;
+      this.amps = getPowerDrawAmps(color)
     }
   }
 

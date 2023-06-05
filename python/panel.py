@@ -27,9 +27,6 @@ class Panel:
 
     def set_color(self, color):
         self.color = color
-        # TODO: Separate UI from logic?
-        # self.panel_ui_element.style.backgroundColor = self.color.to_hex_string()
-        # self.panel_context.add_power_draw_amps(color.get_power_draw_amps())
 
     def next_color(self, panel_value_sources):
         value_sums = 0.0

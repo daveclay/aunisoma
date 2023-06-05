@@ -18,7 +18,7 @@ class PanelContext:
         self.interactions_by_source_panel_index = {}
         self._create_panels()
         self._create_interactions()
-        self.max_interaction_animation = MaxInteractionAnimation(self)
+        self.max_interaction_animation = MaxInteractionAnimation(self, self.interaction_config)
         self.is_at_max_interactions = False
         self.amps = 0
         self.panel_interaction_collector = PanelInteractionCollector()
