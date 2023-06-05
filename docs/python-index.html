@@ -171,6 +171,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
           updatePanelsMessage.panels.forEach(panel => {
             let panelUI = this.panelUIs[panel.index]
             panelUI.setColor(panel.color);
+            panelUI.setValue(panel.currentValue);
             totalAmps += panelUI.amps;
           })
 
@@ -249,6 +250,10 @@ document.addEventListener("DOMContentLoaded", (event) => {
         this.eventManager.panelInactive(this.panel.index);
         this.panelInfoElement.innerHTML = "&nbsp;";
       }
+    }
+
+    setValue(currentValue) {
+      this.panelInfoElement.innerText = currentValue;
     }
 
     setColor(color) {
