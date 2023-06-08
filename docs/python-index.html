@@ -170,6 +170,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
           let totalAmps = 0;
           updatePanelsMessage.panels.forEach(panel => {
             let panelUI = this.panelUIs[panel.index]
+            panelUI.active = panel.interactionActive;
             panelUI.setColor(panel.color);
             panelUI.setValue(panel.currentValue);
             totalAmps += panelUI.amps;
@@ -245,15 +246,13 @@ document.addEventListener("DOMContentLoaded", (event) => {
       this.active = !this.active
       if (this.active) {
         this.eventManager.panelActive(this.panel.index);
-        this.panelInfoElement.innerText = "active";
       } else {
         this.eventManager.panelInactive(this.panel.index);
-        this.panelInfoElement.innerHTML = "&nbsp;";
       }
     }
 
     setValue(currentValue) {
-      this.panelInfoElement.innerText = currentValue;
+      this.panelInfoElement.innerHTML = (this.active ? "active" : "&nbsp;") + "<br/>" + currentValue;
     }
 
     setColor(color) {

@@ -132,8 +132,11 @@ class Interaction:
         if not self.active_panel_reverberations:
             return True
 
-        return len([panel_reverberation for panel_reverberation in self.active_panel_reverberations if
-                    not panel_reverberation.is_done()]) == 0
+        active_panel_reverberations = [
+            panel_reverberation for panel_reverberation in self.active_panel_reverberations if not panel_reverberation.is_done()
+        ]
+
+        return len(active_panel_reverberations) == 0
 
     def get_distance_from_trigger_to_panel(self, panel):
         return abs(self.source_panel.index - panel.index)
@@ -152,15 +155,16 @@ class InteractionContext:
 
 
 class InteractionConfig:
-    def __init__(self, min_reverberation_distance,
+    def __init__(self,
+                 min_reverberation_distance,
                  max_reverberation_distance,
                  reverberation_panel_delay_ticks,
                  min_trigger_panel_animation_loop_duration_ticks,
                  max_trigger_panel_animation_loop_duration_ticks,
                  max_interaction_threshold_percent,
                  max_interaction_duration_ticks,
-                 max_interaction_gradient_value_multiplier,
-                 ):
+                 max_interaction_amount_of_reverberation,
+                 max_interaction_value_multiplier):
         self.max_reverberation_distance = max_reverberation_distance
         self.reverberation_distance_range = Range(min_reverberation_distance, max_reverberation_distance)
         self.reverberation_panel_delay_ticks = reverberation_panel_delay_ticks
@@ -171,8 +175,8 @@ class InteractionConfig:
             (max_trigger_panel_animation_loop_duration_ticks + min_trigger_panel_animation_loop_duration_ticks) / 2
         self.max_interaction_threshold_percent = max_interaction_threshold_percent
         self.max_interaction_duration_ticks = max_interaction_duration_ticks
-        self.max_interaction_gradient_value_multiplier = max_interaction_gradient_value_multiplier
-
+        self.max_interaction_amount_of_reverberation = max_interaction_amount_of_reverberation
+        self.max_interaction_value_multiplier = max_interaction_value_multiplier
 
     def get_reverberation_distance(self):
         return self.reverberation_distance_range.random_int_between()

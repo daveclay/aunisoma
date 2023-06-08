@@ -3,6 +3,7 @@ class Panel:
         self.panel_context = panel_context
         self.interaction_active = False
         self.index = index
+        self.gradient = panel_context.gradient
         self.idle_color = panel_context.gradient.get_color_for_value(0)
         self.current_value = 0
         self.color = self.idle_color
@@ -27,7 +28,7 @@ class Panel:
     def update(self, panel_value_sources):
         value = self._get_value(panel_value_sources)
         self.current_value = value
-        color = self.panel_context.gradient.get_color_for_value(value)
+        color = self.gradient.get_color_for_value(value)
         self.set_color(color)
 
     def set_color(self, color):

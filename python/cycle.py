@@ -36,17 +36,21 @@ class Cycle:
         # TODO: on the last step of the cycle, this will end up at a 0 point but _not_ rollover the next iteration
         self.clock.next()
 
-        half_animation_loop_duration_ticks = self.duration_ticks / 2  # for up and down
         looping_elapsed_duration = self.clock.ticks % self.duration_ticks
 
-        if looping_elapsed_duration < half_animation_loop_duration_ticks:
-            # on our way up
-            current_value = looping_elapsed_duration / half_animation_loop_duration_ticks
+        if self.on_down_fn is None:
+            current_value = looping_elapsed_duration / self.duration_ticks
             self.on_up_fn(current_value)
         else:
-            # on our way down
-            current_value = (self.duration_ticks - looping_elapsed_duration) / half_animation_loop_duration_ticks
-            self.on_down_fn(current_value)
+            half_animation_loop_duration_ticks = self.duration_ticks / 2  # for up and down
+            if looping_elapsed_duration < half_animation_loop_duration_ticks:
+                # on our way up
+                current_value = looping_elapsed_duration / half_animation_loop_duration_ticks
+                self.on_up_fn(current_value)
+            else:
+                # on our way down
+                current_value = (self.duration_ticks - looping_elapsed_duration) / half_animation_loop_duration_ticks
+                self.on_down_fn(current_value)
 
     def jumpToDownCycle(self):
         if self.duration_ticks >= self.clock.ticks:

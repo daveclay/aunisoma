@@ -8,12 +8,8 @@ class PanelReverberation:
         self.interaction_config = interaction_config
         self.scale = 0.0
         oneShot = not self.is_source_interaction()
-        self.cycle = Cycle(
-            self.interaction_config.initial_trigger_panel_animation_loop_duration_ticks,
-            lambda value: self.on_up_cycle(value),
-            lambda value: self.on_down_cycle(value),
-            oneShot
-        )
+        self.cycle = Cycle(self.interaction_config.initial_trigger_panel_animation_loop_duration_ticks,
+                           lambda value: self.on_up_cycle(value), lambda value: self.on_down_cycle(value), oneShot)
         self.current_value = 0.0
         self.distance_from_trigger = self.interaction.get_distance_from_trigger_to_panel(self.panel)
 

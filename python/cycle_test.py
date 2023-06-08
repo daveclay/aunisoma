@@ -14,12 +14,8 @@ class TestCycle(unittest.TestCase):
         self.on_up_fn_value = None
         self.on_down_fn_value = None
         oneShot = False
-        self.cycle = cycle.Cycle(
-            100,
-            lambda value: self.set_on_up_fn_value(value),
-            lambda value: self.set_on_dnw_fn_value(value),
-            oneShot
-        )
+        self.cycle = cycle.Cycle(100, lambda value: self.set_on_up_fn_value(value),
+                                 lambda value: self.set_on_dnw_fn_value(value), oneShot)
 
     def test_cycle_initialized(self):
         self.assertEqual(0, self.cycle.iterations)

@@ -71,6 +71,9 @@ class GradientValueMap:
         self.green_map = SingleGradientValueMap()
         self.blue_map = SingleGradientValueMap()
 
+    def add_color_point(self, value, color):
+        self.add_rgb_point(value, color.red, color.green, color.blue)
+
     def add_rgb_point(self, value, red, green, blue):
         self.add_red_point(value, red)
         self.add_green_point(value, green)

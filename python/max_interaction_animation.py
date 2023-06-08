@@ -1,6 +1,5 @@
 from python.cycle import Cycle
 
-
 class MaxInteractionAnimation:
     def __init__(self,
                  panel_context,
@@ -8,12 +7,10 @@ class MaxInteractionAnimation:
         self.panel_context = panel_context
         self.interaction_config = interaction_config
         # TODO: move duration to config
-        self.cycle = Cycle(
-            self.interaction_config.max_interaction_duration_ticks,
-            lambda value: self.on_up_cycle(value),
-            lambda value: self.on_down_cycle(value),
-            False
-        )
+        self.cycle = Cycle(self.interaction_config.max_interaction_duration_ticks,
+                           lambda value: self.on_up_cycle(value),
+                           None,
+                           False)
         self.current_value = 0
         self.panel_values_by_panel_index = {}
 
@@ -36,9 +33,6 @@ class MaxInteractionAnimation:
     def on_up_cycle(self, value):
         self.current_value = value
 
-    def on_down_cycle(self, value):
-        self.current_value = value
-
     def get_value_for_panel(self, panel):
         if not self.panel_context.is_at_max_interactions:
             previous_panel_value = self.panel_values_by_panel_index[panel.index]
@@ -50,7 +44,7 @@ class MaxInteractionAnimation:
 
         distance_ratio = panel.index / len(self.panel_context.panels)
         wrapped_value = abs(self.current_value - distance_ratio)
-        value = 4 * wrapped_value
+        value = self.interaction_config.max_interaction_value_multiplier * wrapped_value
         self.panel_values_by_panel_index[panel.index] = value
         return value
 
@@ -64,4 +58,4 @@ class InteractionFilter:
 
     def get_value_for_panel(self, panel):
         originalValue = self.interaction.get_value_for_panel(panel)
-        return originalValue * self.interaction_config.max_interaction_gradient_value_multiplier
+        return originalValue * self.interaction_config.max_interaction_amount_of_reverberation
