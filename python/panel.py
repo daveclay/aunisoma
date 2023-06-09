@@ -1,10 +1,11 @@
 class Panel:
-    def __init__(self, index, panel_context):
-        self.panel_context = panel_context
+    def __init__(self,
+                 index,
+                 gradient):
         self.interaction_active = False
         self.index = index
-        self.gradient = panel_context.gradient
-        self.idle_color = panel_context.gradient.get_color_for_value(0)
+        self.gradient = gradient
+        self.idle_color = self.gradient.get_color_for_value(0)
         self.current_value = 0
         self.color = self.idle_color
         self.reset()
@@ -25,17 +26,12 @@ class Panel:
         self.current_value = 0
         self.set_color(self.idle_color)
 
-    def update(self, panel_value_sources):
-        value = self._get_value(panel_value_sources)
+    def update(self, value):
         self.current_value = value
+        if value is None:
+            print("oh no.")
         color = self.gradient.get_color_for_value(value)
         self.set_color(color)
 
     def set_color(self, color):
         self.color = color
-
-    def _get_value(self, panel_value_sources):
-        value_sums = 0.0
-        for panel_value_source in panel_value_sources:
-            value_sums += panel_value_source.get_value_for_panel(self)
-        return value_sums

@@ -99,7 +99,7 @@ def loop():
     for client in clients.values():
         client.send_update_panels()
 
-    threading.Timer(.001, loop).start()
+    threading.Timer(.002, loop).start()
 
 
 loop()

@@ -25,12 +25,6 @@ interaction_config = InteractionConfig(
     max_interaction_value_multiplier
 )
 
-alt_gradient = GradientValueMap()
-alt_gradient.add_rgb_point(0.0,   0,   0,  60)
-alt_gradient.add_rgb_point(.4,    0,   0, 255)
-alt_gradient.add_rgb_point(1.0, 255,   0, 255)
-alt_gradient.add_rgb_point(2.0, 255,   0, 255)
-
 gradient = GradientValueMap()
 gradient.add_rgb_point(0.0,  60,   0,   0)
 gradient.add_rgb_point(.4,  255,   0,   0)
@@ -41,6 +35,16 @@ gradient.add_rgb_point(2.6, 255,   0,   0)
 gradient.add_rgb_point(3,    60,   0,   0)
 gradient.add_rgb_point(5,    60,   0,   0)
 
+alt_gradient = GradientValueMap()
+alt_gradient.red_map = gradient.green_map.clone()
+alt_gradient.blue_map = gradient.red_map.clone()
+alt_gradient.green_map = gradient.blue_map.clone()
+
+gradients = [
+    gradient,
+    alt_gradient
+]
+
 sensors = {}
 for i in range(number_of_panels):
     sensors[i] = False
@@ -48,6 +52,6 @@ for i in range(number_of_panels):
 panel_context = PanelContext(
     number_of_panels,
     interaction_config,
-    gradient,
+    gradients,
     sensors
 )

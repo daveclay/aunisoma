@@ -21,11 +21,14 @@ class Color:
         self.set_min_green(color.green)
         self.set_min_blue(color.blue)
 
-    def interpolate(self, color):
-        red = (self.red + color.red) / 2
-        green = (self.green + color.green) / 2
-        blue = (self.blue + color.blue) / 2
+    def interpolate(self, color, amount):
+        red = self._interpolate_value(self.red, color.red, amount)
+        green = self._interpolate_value(self.green, color.green, amount)
+        blue = self._interpolate_value(self.blue, color.blue, amount)
         return Color(red, green, blue)
+
+    def _interpolate_value(self, value_a, value_b, amount):
+        return int((value_a * (1 - amount)) + (value_b * amount))
 
     def to_hex(self):
         return "#" + hex(self.red)[2:].rjust(2, '0') \

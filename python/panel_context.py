@@ -1,24 +1,27 @@
 from python.interaction import InteractionContext
 from python.max_interaction_animation import MaxInteractionAnimation
 from python.panel import Panel
+from python.transition_animation import TransitionAnimation
 
 
 class PanelContext:
     def __init__(self,
                  number_of_panels,
                  interaction_config,
-                 gradient,
+                 gradients,
                  sensors):
         self.number_of_panels = number_of_panels
         self.interaction_config = interaction_config
         self.interaction_context = InteractionContext(interaction_config, self)
-        self.gradient = gradient
+        self.gradients = gradients
+        self.current_gradient_index = 0
         self.sensors = sensors
         self.panels = []
         self.interactions_by_source_panel_index = {}
         self._create_panels()
         self._create_interactions()
         self.max_interaction_animation = MaxInteractionAnimation(self, self.interaction_config)
+        self.transition_animation = TransitionAnimation(500)
         self.is_at_max_interactions = False
         self.amps = 0
         self.panel_interaction_collector = PanelInteractionCollector()
@@ -26,7 +29,8 @@ class PanelContext:
 
     def _create_panels(self):
         for index in range(self.number_of_panels):
-            self.panels.append(Panel(index, self))
+            panel = Panel(index, self.gradients[self.current_gradient_index])
+            self.panels.append(panel)
 
     def _create_interactions(self):
         self.interactions = list(map(
@@ -56,7 +60,7 @@ class PanelContext:
                 if not interaction.clock.running:
                     interaction.start()
 
-                    self.running = True # TODO: Not strictly necessary unless we're breaking the loop to save power
+                    self.running = True  # TODO: Not strictly necessary unless we're breaking the loop to save power
 
     def event_loop(self):
         self.read_sensors()
@@ -83,25 +87,41 @@ class PanelContext:
                     panel = panelReverberation.panel
                     interaction = panelReverberation.interaction
 
-                    if self.is_at_max_interactions:
-                        # TODO: filterValueSource? only max does self?
-                        interaction = self.max_interaction_animation.filter_interaction(interaction)
+                    #if self.is_at_max_interactions:
+                    #   interaction = self.max_interaction_animation.filter_interaction(interaction)
 
                     self.panel_interaction_collector.add_panel_and_value_source(panel, interaction)
 
         self.max_interaction_animation.update()
 
-        if self.max_interaction_animation.is_running():
-            # all Panels, both active and inactive, participate in the max animation
-            for panel in self.panels:
-                self.panel_interaction_collector.add_panel_and_value_source(panel, self.max_interaction_animation)
+        if self.is_at_max_interactions:
+            self.transition_animation.start(self.gradients[1])
+
+        self.transition_animation.update()
+
+        # if self.max_interaction_animation.is_running():
+        # all Panels, both active and inactive, participate in the max animation
+        #    for panel in self.panels:
+        #        self.panel_interaction_collector.add_panel_and_value_source(panel, self.max_interaction_animation)
 
         for panelAndValueSource in self.panel_interaction_collector.panel_and_value_sources_by_panel_index.values():
             panel = panelAndValueSource['panel']
-            panel.update(panelAndValueSource['panelValueSources'])
+            panel_value_sources = panelAndValueSource['panelValueSources']
+            self._update_panel(panel, panel_value_sources)
 
         if len(activeInteractions) == 0:
             self.running = False
+
+    def _update_panel(self, panel, panel_value_sources):
+        total_panel_value = 0.0
+        for panel_value_source in panel_value_sources:
+            total_panel_value += panel_value_source.get_value_for_panel(panel)
+
+        if self.transition_animation.active:
+            self.transition_animation.set_color_for_panel(panel, total_panel_value)
+        else:
+            # TODO: set color, not update
+            panel.update(total_panel_value)
 
     def _calculate_at_max_interaction(self):
         activePanels = list(filter(lambda panel: panel.interaction_active, self.panels))
@@ -128,4 +148,3 @@ class PanelInteractionCollector:
 
     def reset(self):
         self.panel_and_value_sources_by_panel_index.clear()
-

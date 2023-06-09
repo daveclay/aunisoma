@@ -11,6 +11,11 @@ class SingleGradientValueMap:
     def __init__(self):
         self.gradient_value_points = []
 
+    def clone(self):
+        map = SingleGradientValueMap()
+        map.gradient_value_points = self.gradient_value_points.copy()
+        return map
+
     def get_color_at_value(self, value):
         points = self.get_gradient_value_points_for_value(value)
 
