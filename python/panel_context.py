@@ -15,21 +15,31 @@ class PanelContext:
         self.interaction_context = InteractionContext(interaction_config, self)
         self.gradients = gradients
         self.current_gradient_index = 0
+        self.current_gradient = gradients[self.current_gradient_index]
+        self.max_gradient_index = len(self.gradients) - 1
+        self._calculate_next_gradient_index()
         self.sensors = sensors
         self.panels = []
         self.interactions_by_source_panel_index = {}
         self._create_panels()
         self._create_interactions()
         self.max_interaction_animation = MaxInteractionAnimation(self, self.interaction_config)
-        self.transition_animation = TransitionAnimation(500)
+        self.transition_animation = TransitionAnimation(500, self)
         self.is_at_max_interactions = False
         self.amps = 0
         self.panel_interaction_collector = PanelInteractionCollector()
         self.running = False
 
+    def _calculate_next_gradient_index(self):
+        if self.current_gradient_index == self.max_gradient_index:
+            self.next_gradient_index = 0
+        else:
+            self.next_gradient_index = self.current_gradient_index + 1
+
     def _create_panels(self):
         for index in range(self.number_of_panels):
-            panel = Panel(index, self.gradients[self.current_gradient_index])
+            idle_color = self.current_gradient.get_color_for_value(0)
+            panel = Panel(index, idle_color)
             self.panels.append(panel)
 
     def _create_interactions(self):
@@ -94,8 +104,8 @@ class PanelContext:
 
         self.max_interaction_animation.update()
 
-        if self.is_at_max_interactions:
-            self.transition_animation.start(self.gradients[1])
+        if self.is_at_max_interactions and not self.transition_animation.cycle.clock.running:
+            self.transition_animation.start(self.gradients[self.next_gradient_index])
 
         self.transition_animation.update()
 
@@ -112,16 +122,23 @@ class PanelContext:
         if len(activeInteractions) == 0:
             self.running = False
 
+    def switch_to_next_gradient(self):
+        self.current_gradient_index = self.next_gradient_index
+        self._calculate_next_gradient_index()
+        self.current_gradient = self.gradients[self.current_gradient_index]
+
     def _update_panel(self, panel, panel_value_sources):
         total_panel_value = 0.0
         for panel_value_source in panel_value_sources:
             total_panel_value += panel_value_source.get_value_for_panel(panel)
 
+        panel.current_value = total_panel_value
         if self.transition_animation.active:
-            self.transition_animation.set_color_for_panel(panel, total_panel_value)
+            # Transitioning to new gradient
+            panel.color = self.transition_animation.get_color(total_panel_value)
         else:
-            # TODO: set color, not update
-            panel.update(total_panel_value)
+            # regular animation
+            panel.color = self.current_gradient.get_color_for_value(total_panel_value)
 
     def _calculate_at_max_interaction(self):
         activePanels = list(filter(lambda panel: panel.interaction_active, self.panels))

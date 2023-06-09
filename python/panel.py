@@ -1,11 +1,10 @@
 class Panel:
     def __init__(self,
                  index,
-                 gradient):
+                 idle_color):
         self.interaction_active = False
         self.index = index
-        self.gradient = gradient
-        self.idle_color = self.gradient.get_color_for_value(0)
+        self.idle_color = idle_color
         self.current_value = 0
         self.color = self.idle_color
         self.reset()
@@ -24,14 +23,4 @@ class Panel:
 
     def reset(self):
         self.current_value = 0
-        self.set_color(self.idle_color)
-
-    def update(self, value):
-        self.current_value = value
-        if value is None:
-            print("oh no.")
-        color = self.gradient.get_color_for_value(value)
-        self.set_color(color)
-
-    def set_color(self, color):
-        self.color = color
+        self.color = self.idle_color

@@ -25,24 +25,30 @@ interaction_config = InteractionConfig(
     max_interaction_value_multiplier
 )
 
-gradient = GradientValueMap()
-gradient.add_rgb_point(0.0,  60,   0,   0)
-gradient.add_rgb_point(.4,  255,   0,   0)
-gradient.add_rgb_point(1.0, 255, 255,   0)
-gradient.add_rgb_point(1.6,   0, 255, 255)
-gradient.add_rgb_point(2.0, 255, 255,   0)
-gradient.add_rgb_point(2.6, 255,   0,   0)
-gradient.add_rgb_point(3,    60,   0,   0)
-gradient.add_rgb_point(5,    60,   0,   0)
+initial_gradient = GradientValueMap()
+initial_gradient.add_rgb_point(0.0, 60, 0, 0)
+initial_gradient.add_rgb_point(.4, 255, 0, 0)
+initial_gradient.add_rgb_point(1.0, 255, 255, 0)
+initial_gradient.add_rgb_point(1.6, 0, 255, 255)
+initial_gradient.add_rgb_point(2.0, 255, 255, 0)
+initial_gradient.add_rgb_point(2.6, 255, 0, 0)
+initial_gradient.add_rgb_point(3, 60, 0, 0)
+initial_gradient.add_rgb_point(5, 60, 0, 0)
 
-alt_gradient = GradientValueMap()
-alt_gradient.red_map = gradient.green_map.clone()
-alt_gradient.blue_map = gradient.red_map.clone()
-alt_gradient.green_map = gradient.blue_map.clone()
+blue_gradient = GradientValueMap()
+blue_gradient.red_map = initial_gradient.green_map.clone()
+blue_gradient.blue_map = initial_gradient.red_map.clone()
+blue_gradient.green_map = initial_gradient.blue_map.clone()
+
+green_gradient = GradientValueMap()
+green_gradient.red_map = initial_gradient.blue_map.clone()
+green_gradient.blue_map = initial_gradient.green_map.clone()
+green_gradient.green_map = initial_gradient.red_map.clone()
 
 gradients = [
-    gradient,
-    alt_gradient
+    initial_gradient,
+    blue_gradient,
+    green_gradient
 ]
 
 sensors = {}
