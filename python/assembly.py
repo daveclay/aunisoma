@@ -1,6 +1,6 @@
-from python.gradient import GradientValueMap
-from python.interaction import InteractionConfig
-from python.panel_context import PanelContext
+from gradient import GradientValueMap
+from interaction import InteractionConfig
+from panel_context import PanelContext
 
 number_of_panels = 20
 min_reverberation_distance = 2

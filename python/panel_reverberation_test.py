@@ -2,7 +2,7 @@ import unittest
 import gradient
 import panel
 import panel_reverberation
-from python.mock_test_utils import MockPanelContext, MockInteraction, MockInteractionConfig
+from mock_test_utils import MockPanelContext, MockInteraction, MockInteractionConfig
 
 
 class TestPanelReverberation(unittest.TestCase):

@@ -1,4 +1,4 @@
-from python.cycle import Cycle
+from cycle import Cycle
 
 
 class TransitionAnimation:

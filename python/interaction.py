@@ -1,8 +1,8 @@
 import random
 
-from python.clock import Clock
-from python.panel_reverberation import PanelReverberation
-from python.range import Range
+from clock import Clock
+from panel_reverberation import PanelReverberation
+from range import Range
 
 
 class Interaction:

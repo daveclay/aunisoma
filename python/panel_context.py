@@ -1,9 +1,9 @@
 import random
 
-from python.interaction import InteractionContext
-from python.max_interaction_animation import MaxInteractionAnimation
-from python.panel import Panel
-from python.transition_animation import TransitionAnimation
+from interaction import InteractionContext
+from max_interaction_animation import MaxInteractionAnimation
+from panel import Panel
+from transition_animation import TransitionAnimation
 
 
 class PanelContext:

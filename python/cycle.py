@@ -1,4 +1,4 @@
-from python.clock import Clock
+from clock import Clock
 
 
 class Cycle:

@@ -1,7 +1,7 @@
 import unittest
 import gradient
 import panel
-from python.mock_test_utils import MockPanelValueSource, MockPanelContext
+from mock_test_utils import MockPanelValueSource, MockPanelContext
 
 
 class TestPanel(unittest.TestCase):
