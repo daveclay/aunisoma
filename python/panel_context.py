@@ -126,7 +126,7 @@ class PanelContext:
             # reset state for max tracking
             self.transitioned_during_this_max = False
             self.ticks_since_last_transition = 0
-            if self.current_gradient_index != 0 and not self.transition_animation.active and random.random() > .9996:
+            if self.current_gradient_index != 0 and not self.transition_animation.active and random.random() > .9993:
                 # reset back to orginal gradient.
                 self.next_gradient_index = 0
                 self._start_transition()

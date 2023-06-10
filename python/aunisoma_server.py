@@ -1,6 +1,6 @@
 from websocket_server import WebsocketServer
 import json
-import main
+import assembly
 import threading
 import logging
 
