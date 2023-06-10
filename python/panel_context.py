@@ -117,15 +117,19 @@ class PanelContext:
                     # If we transitioned once already and we're _still_ at max - need some state to know if
                     # TODO: also, restart this after some delay if we're still at max interactions
                     if self.ticks_since_last_transition > 5000 and random.random() > .999:
-                        self.transition_animation.start(self.gradients[self.next_gradient_index])
+                        self._start_transition()
                         self.ticks_since_last_transition = 0
                 else:
-                    self.transition_animation.start(self.gradients[self.next_gradient_index])
-                    self.transitioned_during_this_max = True # now, or after we stopped? Doesn't matter
+                    self._start_transition()
+                    self.transitioned_during_this_max = True
         else:
             # reset state for max tracking
             self.transitioned_during_this_max = False
             self.ticks_since_last_transition = 0
+            if self.current_gradient_index != 0 and not self.transition_animation.active and random.random() > .9996:
+                # reset back to orginal gradient.
+                self.next_gradient_index = 0
+                self._start_transition()
 
         if self.transition_animation.active:
             self.transition_animation.update()
@@ -143,11 +147,13 @@ class PanelContext:
         if len(activeInteractions) == 0:
             self.running = False
 
+    def _start_transition(self):
+        self.transition_animation.start(self.gradients[self.next_gradient_index])
+
     def switch_to_next_gradient(self):
         self.current_gradient_index = self.next_gradient_index
         self._calculate_next_gradient_index()
         self.current_gradient = self.gradients[self.current_gradient_index]
-        self.transitioned_during_this_max = True
         self.ticks_since_last_transition = 1
 
     # Updates _all_ panels, not just ones with interactions and reverberations
