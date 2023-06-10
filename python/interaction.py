@@ -99,8 +99,9 @@ class Interaction:
             delay_for_panel_to_start_ticks = panel_reverberation.distance_from_trigger * reverberation_panel_delay_ticks
             if self.clock.ticks >= delay_for_panel_to_start_ticks:
                 if not panel_reverberation.cycle.clock.running:
-                    print(panel_reverberation.to_dict)
-                panel_reverberation.update() # TODO: somteimes the PanelReverberation has not had start() called
+                    # TODO: somteimes the PanelReverberation has not had start() called
+                    panel_reverberation.start()
+                panel_reverberation.update()
 
         for panel_reverberation in self.active_panel_reverberations:
             if panel_reverberation.is_done():
