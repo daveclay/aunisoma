@@ -1,3 +1,5 @@
+import random
+
 from python.interaction import InteractionContext
 from python.max_interaction_animation import MaxInteractionAnimation
 from python.panel import Panel
@@ -26,6 +28,8 @@ class PanelContext:
         self.max_interaction_animation = MaxInteractionAnimation(self, self.interaction_config)
         self.transition_animation = TransitionAnimation(500, self)
         self.is_at_max_interactions = False
+        self.transitioned_during_this_max = False
+        self.ticks_since_last_transition = 0
         self.amps = 0
         self.panel_interaction_collector = PanelInteractionCollector()
         self.running = False
@@ -83,6 +87,8 @@ class PanelContext:
         self.panel_interaction_collector.reset()
         activeInteractions = []
 
+        # TODO: if this has been at zero for a while and not at gradient index 0, go back to initial gradient.
+
         for interaction in self.interactions:
             # update the internal state of the Interaction
             # This must be first - the Interactions' state must be updated to determine whether it is _dead_ or not.
@@ -104,20 +110,35 @@ class PanelContext:
 
         self.max_interaction_animation.update()
 
-        if self.is_at_max_interactions and not self.transition_animation.cycle.clock.running:
-            self.transition_animation.start(self.gradients[self.next_gradient_index])
+        if self.is_at_max_interactions:
+            if not self.transition_animation.cycle.clock.running:
+                if self.transitioned_during_this_max:
+                    self.ticks_since_last_transition += 1
+                    # If we transitioned once already and we're _still_ at max - need some state to know if
+                    # TODO: also, restart this after some delay if we're still at max interactions
+                    if self.ticks_since_last_transition > 5000 and random.random() > .999:
+                        self.transition_animation.start(self.gradients[self.next_gradient_index])
+                        self.ticks_since_last_transition = 0
+                else:
+                    self.transition_animation.start(self.gradients[self.next_gradient_index])
+                    self.transitioned_during_this_max = True # now, or after we stopped? Doesn't matter
+        else:
+            # reset state for max tracking
+            self.transitioned_during_this_max = False
+            self.ticks_since_last_transition = 0
 
-        self.transition_animation.update()
+        if self.transition_animation.active:
+            self.transition_animation.update()
 
         # if self.max_interaction_animation.is_running():
         # all Panels, both active and inactive, participate in the max animation
         #    for panel in self.panels:
         #        self.panel_interaction_collector.add_panel_and_value_source(panel, self.max_interaction_animation)
 
-        for panelAndValueSource in self.panel_interaction_collector.panel_and_value_sources_by_panel_index.values():
-            panel = panelAndValueSource['panel']
-            panel_value_sources = panelAndValueSource['panelValueSources']
-            self._update_panel(panel, panel_value_sources)
+        if self.transition_animation.active:
+            self._update_panels_for_transition()
+        else:
+            self._update_panels_for_interactions()
 
         if len(activeInteractions) == 0:
             self.running = False
@@ -126,6 +147,23 @@ class PanelContext:
         self.current_gradient_index = self.next_gradient_index
         self._calculate_next_gradient_index()
         self.current_gradient = self.gradients[self.current_gradient_index]
+        self.transitioned_during_this_max = True
+        self.ticks_since_last_transition = 1
+
+    # Updates _all_ panels, not just ones with interactions and reverberations
+    def _update_panels_for_transition(self):
+        for panel in self.panels:
+            panel_value_sources = self.panel_interaction_collector.panel_value_sources_for_panel(panel)
+            if panel_value_sources is None:
+                panel_value_sources = []
+            self._update_panel(panel, panel_value_sources)
+
+    # Updates panels involved in interactions and reverberations
+    def _update_panels_for_interactions(self):
+        for panel_and_value_sources in self.panel_interaction_collector.all_panel_and_value_sources():
+            panel = panel_and_value_sources['panel']
+            panel_value_sources = panel_and_value_sources['panelValueSources']
+            self._update_panel(panel, panel_value_sources)
 
     def _update_panel(self, panel, panel_value_sources):
         total_panel_value = 0.0
@@ -162,6 +200,16 @@ class PanelInteractionCollector:
             }
 
         return self.panel_and_value_sources_by_panel_index[panel.index]['panelValueSources']
+
+    def panel_value_sources_for_panel(self, panel):
+        panel_and_value_source = self.panel_and_value_sources_by_panel_index.get(panel.index)
+        if not panel_and_value_source is None:
+            return panel_and_value_source['panelValueSources']
+        else:
+            return None
+
+    def all_panel_and_value_sources(self):
+        return self.panel_and_value_sources_by_panel_index.values()
 
     def reset(self):
         self.panel_and_value_sources_by_panel_index.clear()
