@@ -15,6 +15,7 @@ class Interaction:
         self._build_panel_reverberations()
         self.is_at_zero_point = False
         self.active_panel_reverberations = []
+        self.panel_reverberations_still_active = False
 
     def to_dict(self):
         return {
@@ -89,18 +90,21 @@ class Interaction:
         self.is_at_zero_point = self._calculate_is_at_zero_point()
         self.active_panel_reverberations[:] = self._calculate_active_panel_reverberations()
 
+        self.panel_reverberations_still_active = False
+
         for panel_reverberation in self.active_panel_reverberations:
             reverberation_panel_delay_ticks = self.interaction_config.reverberation_panel_delay_ticks
             delay_for_panel_to_start_ticks = panel_reverberation.distance_from_trigger * reverberation_panel_delay_ticks
             if self.clock.ticks >= delay_for_panel_to_start_ticks:
                 if not panel_reverberation.cycle.clock.running:
-                    # TODO: somteimes the PanelReverberation has not had start() called
+                    # TODO: sometimes the PanelReverberation has not had start() called
                     panel_reverberation.start()
                 panel_reverberation.update()
 
-        for panel_reverberation in self.active_panel_reverberations:
             if panel_reverberation.is_done():
                 panel_reverberation.stop()
+            else:
+                self.panel_reverberations_still_active = True
 
         self._maybe_revive_panel_reverberations()
 
@@ -133,12 +137,7 @@ class Interaction:
         if not self.active_panel_reverberations:
             return True
 
-        # TODO: calculate this in update()
-        active_panel_reverberations = [
-            panel_reverberation for panel_reverberation in self.active_panel_reverberations if not panel_reverberation.is_done()
-        ]
-
-        return len(active_panel_reverberations) == 0
+        return not self.panel_reverberations_still_active
 
     def get_distance_from_trigger_to_panel(self, panel):
         return abs(self.source_panel.index - panel.index)
