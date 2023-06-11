@@ -108,7 +108,7 @@ class PanelContext:
 
                     self.panel_interaction_collector.add_panel_and_value_source(panel, interaction)
 
-        self.max_interaction_animation.update()
+        # self.max_interaction_animation.update()
 
         if self.is_at_max_interactions:
             if not self.transition_animation.cycle.clock.running:
@@ -126,7 +126,7 @@ class PanelContext:
             # reset state for max tracking
             self.transitioned_during_this_max = False
             self.ticks_since_last_transition = 0
-            if self.current_gradient_index != 0 and not self.transition_animation.active and random.random() > .9993:
+            if self.current_gradient_index != 0 and not self.transition_animation.active and random.random() > .999:
                 # reset back to orginal gradient.
                 self.next_gradient_index = 0
                 self._start_transition()

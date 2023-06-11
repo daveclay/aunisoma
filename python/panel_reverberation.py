@@ -39,8 +39,8 @@ class PanelReverberation:
 
     def stop(self):
         self.cycle.stop()
-        print("Stopped PanelReverberation")
-        print(self.to_dict())
+        # print("Stopped PanelReverberation")
+        # print(self.to_dict())
 
     def on_up_cycle(self, value):
         # on our way up

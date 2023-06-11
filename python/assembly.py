@@ -6,10 +6,10 @@ number_of_panels = 20
 min_reverberation_distance = 2
 max_reverberation_distance = 6
 reverb_delay_ticks = 20
-min_trigger_panel_animation_loop_duration_ticks = 200
-max_trigger_panel_animation_loop_duration_ticks = 500
+min_trigger_panel_animation_loop_duration_ticks = 50
+max_trigger_panel_animation_loop_duration_ticks = 90
 max_interaction_threshold_percent = .5
-max_interaction_duration_ticks = 1000
+max_interaction_duration_ticks = 100
 max_interaction_amount_of_reverberation = 0 # this tends to flicker the max animation if set > 0
 max_interaction_value_multiplier = 3
 
@@ -26,21 +26,21 @@ interaction_config = InteractionConfig(
 )
 
 initial_gradient = GradientValueMap()
-initial_gradient.add_rgb_point(0.0,  60,   0,   0)
+initial_gradient.add_rgb_point(0.0,  10,   0,   0)
 initial_gradient.add_rgb_point(.4,  255,   0,   0)
 initial_gradient.add_rgb_point(1.0, 255, 255,   0)
 initial_gradient.add_rgb_point(1.6,   0, 255, 255)
 initial_gradient.add_rgb_point(3,     0, 255, 255)
 
 blue_gradient = GradientValueMap()
-blue_gradient.add_rgb_point(0.0,   0,   0,  60)
+blue_gradient.add_rgb_point(0.0,   0,   0,  10)
 blue_gradient.add_rgb_point(.4,    0,   0, 255)
 blue_gradient.add_rgb_point(1.0, 255,   0, 255)
 blue_gradient.add_rgb_point(2,   255, 255,   0)
 blue_gradient.add_rgb_point(3,   255, 255,   0)
 
 green_gradient = GradientValueMap()
-green_gradient.add_rgb_point(0.0,   0,  60,   0)
+green_gradient.add_rgb_point(0.0,   0,  10,   0)
 green_gradient.add_rgb_point(.4,    0, 255,   0)
 green_gradient.add_rgb_point(1.0, 255, 255,   0)
 green_gradient.add_rgb_point(2,   255,   0, 255)

@@ -64,7 +64,7 @@ class Interaction:
         self.clock.start()
         # print("Starting interaction", self.to_dict())
         self._trigger_new_reverberation(True)
-        print("Started interaction", self.to_dict())
+        # print("Started interaction", self.to_dict())
 
     def _trigger_new_reverberation(self, trigger_source_panel):
         self.current_reverberating_distance = self.interaction_config.get_reverberation_distance()
@@ -72,7 +72,7 @@ class Interaction:
                                               if
                                               self.current_reverberating_distance >= panel_reverberation.distance_from_trigger]
 
-        print("triggering", self.current_reverberating_distance, "reverberating panels")
+        # print("triggering", self.current_reverberating_distance, "reverberating panels")
         for panel_reverberation in self.eligible_panel_reverberations:
             if trigger_source_panel or not panel_reverberation.is_source_interaction():
                 panel_reverberation.start()
@@ -84,7 +84,7 @@ class Interaction:
         self.clock.stop()
         for panel_reverberation in self.active_panel_reverberations:
             panel_reverberation.stop()
-        print("Stopped Interaction", self.to_dict())
+        # print("Stopped Interaction", self.to_dict())
 
     def update(self):
         if not self.clock.running:
