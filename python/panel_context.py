@@ -22,6 +22,7 @@ class PanelContext:
         self._calculate_next_gradient_index()
         self.sensors = sensors
         self.panels = []
+        self.number_of_panels = number_of_panels
         self.interactions_by_source_panel_index = {}
         self._create_panels()
         self._create_interactions()
@@ -31,8 +32,7 @@ class PanelContext:
         self.transitioned_during_this_max = False
         self.ticks_since_last_transition = 0
         self.amps = 0
-        self.panel_interaction_collector = PanelInteractionCollector()
-        self.running = False
+        self.panel_interaction_collector = PanelInteractionCollector(self.panels, self.interactions)
 
     def _calculate_next_gradient_index(self):
         if self.current_gradient_index == self.max_gradient_index:
@@ -74,18 +74,10 @@ class PanelContext:
                 if not interaction.clock.running:
                     interaction.start()
 
-                    self.running = True  # TODO: Not strictly necessary unless we're breaking the loop to save power
-
     def event_loop(self):
         self.read_sensors()
 
         self.is_at_max_interactions = self._calculate_at_max_interaction()
-
-        # TODO: tell it to stop? Maybe? Or will we lose its value before we render?
-        # TODO: do we need a setup, calculate, render, teardown lifecycle steps? It's confusing to know when update is called vs when the color is set.
-
-        self.panel_interaction_collector.reset()
-        activeInteractions = []
 
         # TODO: if this has been at zero for a while and not at gradient index 0, go back to initial gradient.
 
@@ -97,18 +89,6 @@ class PanelContext:
             if interaction.is_dead():
                 # TODO: Should Interaction call stop() itself after update() is called, and then self can just ask?
                 interaction.stop()
-            else:
-                activeInteractions.append(interaction)
-                for panelReverberation in interaction.active_panel_reverberations:
-                    panel = panelReverberation.panel
-                    interaction = panelReverberation.interaction
-
-                    #if self.is_at_max_interactions:
-                    #   interaction = self.max_interaction_animation.filter_interaction(interaction)
-
-                    self.panel_interaction_collector.add_panel_and_value_source(panel, interaction)
-
-        # self.max_interaction_animation.update()
 
         if self.is_at_max_interactions:
             if not self.transition_animation.cycle.clock.running:
@@ -127,25 +107,15 @@ class PanelContext:
             self.transitioned_during_this_max = False
             self.ticks_since_last_transition = 0
             if self.current_gradient_index != 0 and not self.transition_animation.active and random.random() > .999:
-                # reset back to orginal gradient.
+                # reset back to original gradient.
                 self.next_gradient_index = 0
                 self._start_transition()
 
         if self.transition_animation.active:
             self.transition_animation.update()
-
-        # if self.max_interaction_animation.is_running():
-        # all Panels, both active and inactive, participate in the max animation
-        #    for panel in self.panels:
-        #        self.panel_interaction_collector.add_panel_and_value_source(panel, self.max_interaction_animation)
-
-        if self.transition_animation.active:
             self._update_panels_for_transition()
         else:
             self._update_panels_for_interactions()
-
-        if len(activeInteractions) == 0:
-            self.running = False
 
     def _start_transition(self):
         self.transition_animation.start(self.gradients[self.next_gradient_index])
@@ -186,26 +156,22 @@ class PanelContext:
 
     def _calculate_at_max_interaction(self):
         activePanels = list(filter(lambda panel: panel.interaction_active, self.panels))
-        activePercent = len(activePanels) / len(self.panels)
+        activePercent = len(activePanels) / self.number_of_panels
         return activePercent >= self.interaction_config.max_interaction_threshold_percent
 
 
 class PanelInteractionCollector:
-    def __init__(self):
+    def __init__(self, panels, interactions):
         self.panel_and_value_sources_by_panel_index = {}
-
-    def add_panel_and_value_source(self, panel, value_source):
-        value_sources_involving_panel = self._get_value_sources_for_panel(panel)
-        value_sources_involving_panel.append(value_source)
-
-    def _get_value_sources_for_panel(self, panel):
-        if not self.panel_and_value_sources_by_panel_index.get(panel.index):
+        for panel in panels:
             self.panel_and_value_sources_by_panel_index[panel.index] = {
                 'panel': panel,
-                'panelValueSources': []
+                'panelValueSources': interactions
             }
 
-        return self.panel_and_value_sources_by_panel_index[panel.index]['panelValueSources']
+    def add_panel_and_value_source(self, panel, value_source):
+        value_sources = self.panel_and_value_sources_by_panel_index[panel.index]['panelValueSources']
+        value_sources.append(value_source)
 
     def panel_value_sources_for_panel(self, panel):
         panel_and_value_source = self.panel_and_value_sources_by_panel_index.get(panel.index)
@@ -216,6 +182,3 @@ class PanelInteractionCollector:
 
     def all_panel_and_value_sources(self):
         return self.panel_and_value_sources_by_panel_index.values()
-
-    def reset(self):
-        self.panel_and_value_sources_by_panel_index.clear()

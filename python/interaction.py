@@ -51,12 +51,6 @@ class Interaction:
 
         return reverberating_panels
 
-    def _calculate_active_panel_reverberations(self):
-        # TODO: race condition: eligible_panel_reverberations may not be set :-/
-        return [panel_reverberation for panel_reverberation
-                in self.eligible_panel_reverberations
-                if not panel_reverberation.is_done()]
-
     def start(self):
         if self.clock.running:
             raise Exception("Interaction is already started!")
@@ -68,6 +62,7 @@ class Interaction:
 
     def _trigger_new_reverberation(self, trigger_source_panel):
         self.current_reverberating_distance = self.interaction_config.get_reverberation_distance()
+        # TODO: hrm, slow - two loops, but only when interactions start?
         self.eligible_panel_reverberations = [panel_reverberation for panel_reverberation in self.panel_reverberations
                                               if
                                               self.current_reverberating_distance >= panel_reverberation.distance_from_trigger]
@@ -113,6 +108,11 @@ class Interaction:
         last = self._find_last_remaining_alive_source_panel_reverberation()
         return last is not None and last.current_value == 0
 
+    def _calculate_active_panel_reverberations(self):
+        return [panel_reverberation for panel_reverberation
+                in self.eligible_panel_reverberations
+                if not panel_reverberation.is_done()]
+
     def _find_last_remaining_alive_source_panel_reverberation(self):
         alive = [panel_reverberation for panel_reverberation in self.panel_reverberations if
                  not panel_reverberation.is_done()]
@@ -133,6 +133,7 @@ class Interaction:
         if not self.active_panel_reverberations:
             return True
 
+        # TODO: calculate this in update()
         active_panel_reverberations = [
             panel_reverberation for panel_reverberation in self.active_panel_reverberations if not panel_reverberation.is_done()
         ]
@@ -143,7 +144,11 @@ class Interaction:
         return abs(self.source_panel.index - panel.index)
 
     def get_value_for_panel(self, panel):
-        return self.panel_reverberations_by_panel_index[panel.index].current_value
+        panel_reverberation = self.panel_reverberations_by_panel_index.get(panel.index)
+        if panel_reverberation is None:
+            return 0
+        else:
+            return panel_reverberation.current_value
 
 
 class InteractionContext:
