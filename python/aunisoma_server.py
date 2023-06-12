@@ -97,9 +97,9 @@ def message_received(client, server, message):
 
 def loop():
     scripts.check_scripts()
-    start = time.monotonic_ns()
+    # start = time.monotonic_ns()
     assembly.panel_context.event_loop()
-    print((time.monotonic_ns() - start) / 1000000)
+    # print((time.monotonic_ns() - start) / 1000000)
 
     for client in clients.values():
         client.send_update_panels()

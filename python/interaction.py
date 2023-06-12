@@ -70,7 +70,7 @@ class Interaction:
 
         # print("triggering", self.current_reverberating_distance, "reverberating panels")
         for panel_reverberation in self.eligible_panel_reverberations:
-            if trigger_source_panel or not panel_reverberation.is_source_interaction():
+            if trigger_source_panel or not panel_reverberation.is_source_interaction:
                 panel_reverberation.start()
 
     def stop(self):
