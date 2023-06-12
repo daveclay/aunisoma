@@ -90,36 +90,43 @@ class Interaction:
         self.active_panel_reverberations.clear()
 
         self.panel_reverberations_still_active = False
+        last_panel_reverberation_alive = None
 
         for panel_reverberation in self.eligible_panel_reverberations:
             if panel_reverberation.is_done():
                 pass
             else:
                 self.active_panel_reverberations.append(panel_reverberation)
-                reverberation_panel_delay_ticks = self.interaction_config.reverberation_panel_delay_ticks
-                delay_for_panel_to_start_ticks = panel_reverberation.distance_from_trigger * reverberation_panel_delay_ticks
-                if self.clock.ticks >= delay_for_panel_to_start_ticks:
-                    if not panel_reverberation.cycle.clock.running:
-                        # TODO: sometimes the PanelReverberation has not had start() called
-                        panel_reverberation.start()
-                    panel_reverberation.update()
+                self._start_panel_reverberation(panel_reverberation)
 
                 # Maybe it's done _now_ after update() is called
                 if panel_reverberation.is_done():
                     panel_reverberation.stop()
                 else:
                     self.panel_reverberations_still_active = True
+                    if last_panel_reverberation_alive is None:
+                        last_panel_reverberation_alive = panel_reverberation
+                    elif last_panel_reverberation_alive is not None:
+                        last_panel_reverberation_alive = False
 
-        self.is_at_zero_point = self._calculate_is_at_zero_point()
+        self.is_at_zero_point = self._calculate_is_at_zero_point(last_panel_reverberation_alive)
 
         self._maybe_revive_panel_reverberations()
 
-    def _calculate_is_at_zero_point(self):
-        last = self._find_last_remaining_alive_source_panel_reverberation()
-        return last is not None and last.current_value == 0
+    def _start_panel_reverberation(self, panel_reverberation):
+        reverberation_panel_delay_ticks = self.interaction_config.reverberation_panel_delay_ticks
+        delay_for_panel_to_start_ticks = panel_reverberation.distance_from_trigger * reverberation_panel_delay_ticks
+        if self.clock.ticks >= delay_for_panel_to_start_ticks:
+            if not panel_reverberation.cycle.clock.running:
+                # TODO: sometimes the PanelReverberation has not had start() called
+                panel_reverberation.start()
+            panel_reverberation.update()
+
+    def _calculate_is_at_zero_point(self, last_calculated):
+        return last_calculated and last_calculated is not None and last_calculated.current_value == 0
 
     def _find_last_remaining_alive_source_panel_reverberation(self):
-        alive = [panel_reverberation for panel_reverberation in self.panel_reverberations if
+        alive = [panel_reverberation for panel_reverberation in self.eligible_panel_reverberations if
                  not panel_reverberation.is_done()]
         if len(alive) == 1:
             return alive[0]
