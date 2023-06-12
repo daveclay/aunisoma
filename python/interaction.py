@@ -87,7 +87,6 @@ class Interaction:
             return
 
         self.clock.next()
-        self.is_at_zero_point = self._calculate_is_at_zero_point()
         self.active_panel_reverberations[:] = self._calculate_active_panel_reverberations()
 
         self.panel_reverberations_still_active = False
@@ -105,6 +104,8 @@ class Interaction:
                 panel_reverberation.stop()
             else:
                 self.panel_reverberations_still_active = True
+
+        self.is_at_zero_point = self._calculate_is_at_zero_point()
 
         self._maybe_revive_panel_reverberations()
 

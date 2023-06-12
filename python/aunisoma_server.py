@@ -96,7 +96,7 @@ def message_received(client, server, message):
         logger.exception(error)
 
 def loop():
-    #scripts.check_scripts()
+    # scripts.check_scripts()
     # start = time.monotonic_ns()
     assembly.panel_context.event_loop()
     # print((time.monotonic_ns() - start) / 1000000)
