@@ -96,7 +96,7 @@ class PanelContext:
                     self.ticks_since_last_transition += 1
                     # If we transitioned once already and we're _still_ at max - need some state to know if
                     # TODO: also, restart this after some delay if we're still at max interactions
-                    if self.ticks_since_last_transition > 5000 and random.random() > .999:
+                    if self.ticks_since_last_transition > 5000 and random.random() > .99:
                         self._start_transition()
                         self.ticks_since_last_transition = 0
                 else:

@@ -7,13 +7,13 @@ def interact_with_panel(index):
 
 
 scripts = [
-    {'at': 2, 'panel': 0, 'for': 4},
-    {'at': 4, 'panel': 4, 'for': 5},
-    {'at': 5, 'panel': 8, 'for': 8},
-    {'at': 8, 'panel': 9, 'for': 2},
-    {'at': 12, 'panel': 3, 'for': 6},
-    {'at': 14, 'panel': 11, 'for': 7},
-    {'at': 19, 'panel': 12, 'for': 7},
+    {'at': 2, 'panel': 0, 'for': 14},
+    {'at': 4, 'panel': 4, 'for': 15},
+    {'at': 5, 'panel': 8, 'for': 18},
+    {'at': 8, 'panel': 9, 'for': 12},
+    {'at': 12, 'panel': 3, 'for': 16},
+    {'at': 14, 'panel': 11, 'for': 17},
+    {'at': 19, 'panel': 12, 'for': 17},
     {'at': 22, 'panel': 13, 'for': 8},
     {'at': 30, 'panel': 1, 'for': 19},
     {'at': 31, 'panel': 2, 'for': 18},
