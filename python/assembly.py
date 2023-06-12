@@ -6,10 +6,10 @@ number_of_panels = 20
 min_reverberation_distance = 2
 max_reverberation_distance = 6
 reverb_delay_ticks = 20
-min_trigger_panel_animation_loop_duration_ticks = 50
-max_trigger_panel_animation_loop_duration_ticks = 90
+min_trigger_panel_animation_loop_duration_ticks = 120
+max_trigger_panel_animation_loop_duration_ticks = 200
 max_interaction_threshold_percent = .5
-max_interaction_duration_ticks = 100
+max_interaction_duration_ticks = 300
 max_interaction_amount_of_reverberation = 0 # this tends to flicker the max animation if set > 0
 max_interaction_value_multiplier = 3
 

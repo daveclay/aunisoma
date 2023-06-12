@@ -96,7 +96,7 @@ def message_received(client, server, message):
         logger.exception(error)
 
 def loop():
-    scripts.check_scripts()
+    #scripts.check_scripts()
     # start = time.monotonic_ns()
     assembly.panel_context.event_loop()
     # print((time.monotonic_ns() - start) / 1000000)
@@ -104,7 +104,7 @@ def loop():
     for client in clients.values():
         client.send_update_panels()
 
-    threading.Timer(.002, loop).start()
+    threading.Timer(.005, loop).start()
 
 
 loop()
