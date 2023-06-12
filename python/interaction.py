@@ -87,23 +87,28 @@ class Interaction:
             return
 
         self.clock.next()
-        self.active_panel_reverberations[:] = self._calculate_active_panel_reverberations()
+        self.active_panel_reverberations.clear()
 
         self.panel_reverberations_still_active = False
 
-        for panel_reverberation in self.active_panel_reverberations:
-            reverberation_panel_delay_ticks = self.interaction_config.reverberation_panel_delay_ticks
-            delay_for_panel_to_start_ticks = panel_reverberation.distance_from_trigger * reverberation_panel_delay_ticks
-            if self.clock.ticks >= delay_for_panel_to_start_ticks:
-                if not panel_reverberation.cycle.clock.running:
-                    # TODO: sometimes the PanelReverberation has not had start() called
-                    panel_reverberation.start()
-                panel_reverberation.update()
-
+        for panel_reverberation in self.eligible_panel_reverberations:
             if panel_reverberation.is_done():
-                panel_reverberation.stop()
+                pass
             else:
-                self.panel_reverberations_still_active = True
+                self.active_panel_reverberations.append(panel_reverberation)
+                reverberation_panel_delay_ticks = self.interaction_config.reverberation_panel_delay_ticks
+                delay_for_panel_to_start_ticks = panel_reverberation.distance_from_trigger * reverberation_panel_delay_ticks
+                if self.clock.ticks >= delay_for_panel_to_start_ticks:
+                    if not panel_reverberation.cycle.clock.running:
+                        # TODO: sometimes the PanelReverberation has not had start() called
+                        panel_reverberation.start()
+                    panel_reverberation.update()
+
+                # Maybe it's done _now_ after update() is called
+                if panel_reverberation.is_done():
+                    panel_reverberation.stop()
+                else:
+                    self.panel_reverberations_still_active = True
 
         self.is_at_zero_point = self._calculate_is_at_zero_point()
 
@@ -112,11 +117,6 @@ class Interaction:
     def _calculate_is_at_zero_point(self):
         last = self._find_last_remaining_alive_source_panel_reverberation()
         return last is not None and last.current_value == 0
-
-    def _calculate_active_panel_reverberations(self):
-        return [panel_reverberation for panel_reverberation
-                in self.eligible_panel_reverberations
-                if not panel_reverberation.is_done()]
 
     def _find_last_remaining_alive_source_panel_reverberation(self):
         alive = [panel_reverberation for panel_reverberation in self.panel_reverberations if
