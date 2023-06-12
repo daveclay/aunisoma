@@ -14,9 +14,6 @@ class PanelReverberation:
         self.current_value = 0.0
         self.distance_from_trigger = self.interaction.get_distance_from_trigger_to_panel(self.panel)
 
-    def __str__(self):
-        return str(self.to_dict())
-
     def to_dict(self):
         return {
             "panel": self.panel.to_dict(),

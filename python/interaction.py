@@ -12,7 +12,13 @@ class Interaction:
         self.panel_context = panel_context
 
         self.clock = Clock()
-        self._build_panel_reverberations()
+
+        self.source_panel_reverberation = PanelReverberation(self.source_panel, self, self.interaction_config)
+        self.panel_reverberation_lookup = self._build_panel_reverberations()
+        self.panel_reverberations = list(filter(lambda panel_reverberation: panel_reverberation is not None, self.panel_reverberation_lookup))
+        self.number_panel_reverberations = len(self.panel_reverberations)
+        self.eligible_panel_reverberations = []
+
         self.active_panel_reverberations = []
         self.panel_reverberations_still_active = False
 
@@ -27,13 +33,12 @@ class Interaction:
         }
 
     def _build_panel_reverberations(self):
-        self.source_panel_reverberation = PanelReverberation(self.source_panel, self, self.interaction_config)
-        self.panel_reverberations_by_panel_index = {self.source_panel.index: self.source_panel_reverberation}
-        for panel in self._collect_all_neighbor_panels():
-            self.panel_reverberations_by_panel_index[panel.index] = \
-                PanelReverberation(panel, self, self.interaction_config)
-
-        self.panel_reverberations = list(self.panel_reverberations_by_panel_index.values())
+        panel_reverberations = [None] * self.panel_context.number_of_panels
+        panel_reverberations[self.source_panel.index] = self.source_panel_reverberation
+        neighbor_panels = self._collect_all_neighbor_panels()
+        for panel in neighbor_panels:
+            panel_reverberations[panel.index] = PanelReverberation(panel, self, self.interaction_config)
+        return panel_reverberations
 
     def _collect_all_neighbor_panels(self):
         from_index = self.source_panel.index
@@ -142,7 +147,7 @@ class Interaction:
         return abs(self.source_panel.index - panel.index)
 
     def get_value_for_panel(self, panel):
-        panel_reverberation = self.panel_reverberations_by_panel_index.get(panel.index)
+        panel_reverberation = self.panel_reverberation_lookup[panel.index]
         if panel_reverberation is None:
             return 0
         else:

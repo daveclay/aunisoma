@@ -1,4 +1,4 @@
-from gradient import GradientValueMap
+from gradient import GradientValueMapBuilder
 from interaction import InteractionConfig
 from panel_context import PanelContext
 
@@ -25,21 +25,21 @@ interaction_config = InteractionConfig(
     max_interaction_value_multiplier
 )
 
-initial_gradient = GradientValueMap()
+initial_gradient = GradientValueMapBuilder()
 initial_gradient.add_rgb_point(0.0,  10,   0,   0)
 initial_gradient.add_rgb_point(.4,  255,   0,   0)
 initial_gradient.add_rgb_point(1.0, 255, 255,   0)
 initial_gradient.add_rgb_point(1.6,   0, 255, 255)
 initial_gradient.add_rgb_point(3,     0, 255, 255)
 
-blue_gradient = GradientValueMap()
+blue_gradient = GradientValueMapBuilder()
 blue_gradient.add_rgb_point(0.0,   0,   0,  10)
 blue_gradient.add_rgb_point(.4,    0,   0, 255)
 blue_gradient.add_rgb_point(1.0, 255,   0, 255)
 blue_gradient.add_rgb_point(2,   255, 255,   0)
 blue_gradient.add_rgb_point(3,   255, 255,   0)
 
-green_gradient = GradientValueMap()
+green_gradient = GradientValueMapBuilder()
 green_gradient.add_rgb_point(0.0,   0,  10,   0)
 green_gradient.add_rgb_point(.4,    0, 255,   0)
 green_gradient.add_rgb_point(1.0, 255, 255,   0)
@@ -47,9 +47,9 @@ green_gradient.add_rgb_point(2,   255,   0, 255)
 green_gradient.add_rgb_point(3,   255,   0, 255)
 
 gradients = [
-    initial_gradient,
-    blue_gradient,
-    green_gradient
+    initial_gradient.build(),
+    blue_gradient.build(),
+    green_gradient.build()
 ]
 
 sensors = {}

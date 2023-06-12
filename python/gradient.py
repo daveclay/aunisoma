@@ -7,14 +7,60 @@ class GradientValuePoint:
         self.color_value = color_value
 
 
-class SingleGradientValueMap:
+class SingleGradientValueMapBuilder:
     def __init__(self):
         self.gradient_value_points = []
 
+    def addPoint(self, value, color):
+        point = GradientValuePoint(value, color)
+        self.gradient_value_points.append(point)
+
+    def setGradientValuePoints(self, points):
+        self.gradient_value_points[:] = points
+
+    def build(self):
+        return SingleGradientValueMap(self.gradient_value_points)
+
+
+class GradientValueMapBuilder:
+    def __init__(self):
+        self.red_map = SingleGradientValueMapBuilder()
+        self.green_map = SingleGradientValueMapBuilder()
+        self.blue_map = SingleGradientValueMapBuilder()
+
+    def add_color_point(self, value, color):
+        self.add_rgb_point(value, color.red, color.green, color.blue)
+
+    def add_rgb_point(self, value, red, green, blue):
+        self.add_red_point(value, red)
+        self.add_green_point(value, green)
+        self.add_blue_point(value, blue)
+
+    def add_red_point(self, value, color):
+        self.red_map.addPoint(value, color)
+
+    def add_green_point(self, value, color):
+        self.green_map.addPoint(value, color)
+
+    def add_blue_point(self, value, color):
+        self.blue_map.addPoint(value, color)
+
+    def build(self):
+        return GradientValueMap(
+            self.red_map.build(),
+            self.green_map.build(),
+            self.blue_map.build()
+        )
+
+
+class SingleGradientValueMap:
+    def __init__(self, gradient_value_points):
+        self.gradient_value_points = gradient_value_points
+        self.number_gradient_value_points = len(self.gradient_value_points)
+        self.gradient_value_points_range = range(self.number_gradient_value_points)
+
     def clone(self):
-        map = SingleGradientValueMap()
-        map.gradient_value_points = self.gradient_value_points.copy()
-        return map
+        return SingleGradientValueMap(self.gradient_value_points.copy())
 
     def get_color_at_value(self, value):
         points = self.get_gradient_value_points_for_value(value)
@@ -40,9 +86,10 @@ class SingleGradientValueMap:
         return min(255, max(0, color))
 
     def get_gradient_value_points_for_value(self, value):
+        # TODO: cache? There's not that many gradient value points though.
         matching_points_for_value = None
         lower_point = None
-        for i in range(len(self.gradient_value_points)):
+        for i in self.gradient_value_points_range:
             point = self.gradient_value_points[i]
             if value >= point.value:
                 lower_point = point
@@ -62,36 +109,12 @@ class SingleGradientValueMap:
             self.gradient_value_points[len(self.gradient_value_points) - 1]
         ]
 
-    def addPoint(self, value, color):
-        point = GradientValuePoint(value, color)
-        self.gradient_value_points.append(point)
-
-    def setGradientValuePoints(self, points):
-        self.gradient_value_points[:] = points
-
 
 class GradientValueMap:
-    def __init__(self):
-        self.red_map = SingleGradientValueMap()
-        self.green_map = SingleGradientValueMap()
-        self.blue_map = SingleGradientValueMap()
-
-    def add_color_point(self, value, color):
-        self.add_rgb_point(value, color.red, color.green, color.blue)
-
-    def add_rgb_point(self, value, red, green, blue):
-        self.add_red_point(value, red)
-        self.add_green_point(value, green)
-        self.add_blue_point(value, blue)
-
-    def add_red_point(self, value, color):
-        self.red_map.addPoint(value, color)
-
-    def add_green_point(self, value, color):
-        self.green_map.addPoint(value, color)
-
-    def add_blue_point(self, value, color):
-        self.blue_map.addPoint(value, color)
+    def __init__(self, red_map, green_map, blue_map):
+        self.red_map = red_map
+        self.green_map = green_map
+        self.blue_map = blue_map
 
     def get_color_for_value(self, value):
         red = self.red_map.get_color_at_value(value)

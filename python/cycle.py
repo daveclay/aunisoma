@@ -20,9 +20,6 @@ class Cycle:
     def stop(self):
         self.clock.stop()
 
-    def is_done(self):
-        return self.is_one_shot and self.iterations > 0
-
     def next(self):
         if not self.clock.ticks is None and self.clock.ticks >= self.duration_ticks:
             self.iterations += 1
@@ -67,3 +64,6 @@ class Cycle:
 
     def is_at_zero_point(self):
         return self.clock.ticks is None or (self.clock.ticks % self.duration_ticks == 0)
+
+    def is_done(self):
+        return self.is_one_shot and self.iterations > 0
