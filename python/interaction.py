@@ -19,7 +19,7 @@ class Interaction:
         self.number_panel_reverberations = len(self.panel_reverberations)
         self.eligible_panel_reverberations = []
 
-        self.active_panel_reverberations = []
+        self.active_reverberations = False
         self.panel_reverberations_still_active = False
 
     def to_dict(self):
@@ -28,7 +28,7 @@ class Interaction:
             "clock": self.clock.to_dict(),
             "activePanelReverberations": map(
                 lambda panel_reverberation: panel_reverberation.to_dict(),
-                self.active_panel_reverberations
+                self.eligible_panel_reverberations
             )
         }
 
@@ -82,16 +82,12 @@ class Interaction:
             return
 
         self.clock.stop()
-        for panel_reverberation in self.active_panel_reverberations:
-            panel_reverberation.stop()
-        # print("Stopped Interaction", self.to_dict())
 
     def update(self):
         if not self.clock.running:
             return
 
         self.clock.next()
-        self.active_panel_reverberations.clear()
 
         self.panel_reverberations_still_active = False
         last_panel_reverberation_alive = None
@@ -100,7 +96,6 @@ class Interaction:
             if panel_reverberation.is_done():
                 pass
             else:
-                self.active_panel_reverberations.append(panel_reverberation)
                 self._start_panel_reverberation(panel_reverberation)
 
                 # Maybe it's done _now_ after update() is called
@@ -137,9 +132,6 @@ class Interaction:
     def is_dead(self):
         if self.source_panel.interaction_active:
             return False
-
-        if not self.active_panel_reverberations:
-            return True
 
         return not self.panel_reverberations_still_active
 
