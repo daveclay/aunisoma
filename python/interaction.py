@@ -13,7 +13,6 @@ class Interaction:
 
         self.clock = Clock()
         self._build_panel_reverberations()
-        self.is_at_zero_point = False
         self.active_panel_reverberations = []
         self.panel_reverberations_still_active = False
 
@@ -109,9 +108,9 @@ class Interaction:
                     elif last_panel_reverberation_alive is not None:
                         last_panel_reverberation_alive = False
 
-        self.is_at_zero_point = self._calculate_is_at_zero_point(last_panel_reverberation_alive)
+        is_at_zero_point = self._calculate_is_at_zero_point(last_panel_reverberation_alive)
 
-        self._maybe_revive_panel_reverberations()
+        self._maybe_revive_panel_reverberations(is_at_zero_point)
 
     def _start_panel_reverberation(self, panel_reverberation):
         reverberation_panel_delay_ticks = self.interaction_config.reverberation_panel_delay_ticks
@@ -125,16 +124,8 @@ class Interaction:
     def _calculate_is_at_zero_point(self, last_calculated):
         return last_calculated and last_calculated is not None and last_calculated.current_value == 0
 
-    def _find_last_remaining_alive_source_panel_reverberation(self):
-        alive = [panel_reverberation for panel_reverberation in self.eligible_panel_reverberations if
-                 not panel_reverberation.is_done()]
-        if len(alive) == 1:
-            return alive[0]
-        else:
-            return None
-
-    def _maybe_revive_panel_reverberations(self):
-        if self.is_at_zero_point and self.source_panel.interaction_active and random.random() > 0.65:
+    def _maybe_revive_panel_reverberations(self, is_at_zero_point):
+        if is_at_zero_point and self.source_panel.interaction_active and random.random() > 0.65:
             self.clock.restart()
             self._trigger_new_reverberation(False)
 
