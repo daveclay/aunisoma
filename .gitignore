@@ -7,3 +7,6 @@ python/__pycache__/
 __pycache__
 python/adafruit_dotstar.py
 python/board.py
+*.swp
+arduino/src/cmake-build-debug/
+python/code.py-ignore
