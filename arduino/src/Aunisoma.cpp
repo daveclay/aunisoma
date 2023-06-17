@@ -136,8 +136,8 @@ void Aunisoma::event_loop() {
 
     if (this->transitionAnimation->active) {
         this->transitionAnimation->update();
-        this->_update_panels();
     }
+    this->_update_panels();
 }
 
 void Aunisoma::_start_transition() {

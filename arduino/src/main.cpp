@@ -138,10 +138,18 @@ int main() {
 
         aunisoma->event_loop();
 
-
         auto finish = std::chrono::high_resolution_clock::now();
         long long int count = std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count();
-        std::cout << i << "\t\t" << count << "ns\n";
+
+        std::cout << i << ": ";
+        for (int i = 0; i < aunisoma->numberOfPanels; i++) {
+            Panel* panel = aunisoma->get_panel_at(i);
+            Color color = panel->color;
+            if (color.red != 10) {
+                std::cout << "panel " << panel->index << ": " << color.red << "," << color.green << "," << color.blue << "|";
+            }
+        }
+        std::cout << " took " << count << "ns\n";
     }
 
     return 0;
