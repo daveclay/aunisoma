@@ -6,6 +6,7 @@
 #include "Gradient.h"
 #include "Sensor.h"
 #include "Aunisoma.h"
+#include <chrono>
 
 
 class Thing: public CycleHandler {
@@ -47,8 +48,10 @@ int main() {
 
     // Make const so we can assign arrays because screw c++
     int number_of_panels = 20;
+    // number of panels to the left and right
     int min_reverberation_distance = 2;
-    int max_reverberation_distance = 6;
+    int max_reverberation_distance = 5;
+    // how long to wait to trigger a neighbor Panel to reverberate
     int reverb_delay_ticks = 20;
     int min_trigger_panel_animation_loop_duration_ticks = 120;
     int max_trigger_panel_animation_loop_duration_ticks = 200;
@@ -103,13 +106,42 @@ int main() {
         sensors[i] = new Sensor();
     }
 
+    using namespace std::chrono;
     Aunisoma* aunisoma = new Aunisoma(config, gradients, 3, sensors);
     for (int i = 0; i < 100000; i++) {
-        if (i == 10) {
-            aunisoma->sensors[3]->active = true;
-            // TODO: etc etc
+        switch (i) {
+            case 10:
+                aunisoma->sensors[3]->active = true;
+                break;
+            case 1000:
+                aunisoma->sensors[3]->active = false;
+                break;
+            case 1010:
+                aunisoma->sensors[1]->active = true;
+                aunisoma->sensors[2]->active = true;
+                aunisoma->sensors[3]->active = true;
+                break;
+            case 5000:
+                aunisoma->sensors[4]->active = true;
+                aunisoma->sensors[5]->active = true;
+                aunisoma->sensors[6]->active = true;
+                aunisoma->sensors[7]->active = true;
+                aunisoma->sensors[8]->active = true;
+                aunisoma->sensors[9]->active = true;
+                aunisoma->sensors[10]->active = true;
+                aunisoma->sensors[11]->active = true;
+                aunisoma->sensors[12]->active = true;
+                break;
         }
+
+        auto start = std::chrono::high_resolution_clock::now();
+
         aunisoma->event_loop();
+
+
+        auto finish = std::chrono::high_resolution_clock::now();
+        long long int count = std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count();
+        std::cout << i << "\t\t" << count << "ns\n";
     }
 
     return 0;

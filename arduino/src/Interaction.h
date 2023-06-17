@@ -33,8 +33,6 @@ public:
     bool isDead();
 
 private:
-    // Total number that _could_ be reverberating at any given time
-    int number_of_panel_reverberations;
     // the _current_ number of Panels that are reverberating to one side
     int currentReverberatingDistance;
     // the index of the first Panel to the left that is reverberating

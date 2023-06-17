@@ -10,9 +10,9 @@ def loop():
     scripts.check_scripts()
     start = time.monotonic_ns()
     assembly.panel_context.event_loop()
-    s = (time.monotonic_ns() - start) / 1000000
+    duration = (time.monotonic_ns() - start)
     FuckPython.iterations += 1
-    print(str(FuckPython.iterations).ljust(8, ' ') + str(s))
+    print(str(FuckPython.iterations).ljust(8, ' ') + str(duration) + "ns")
 
-for i in range(10000):
+for i in range(100000):
     loop()

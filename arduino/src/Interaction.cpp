@@ -4,7 +4,7 @@
 
 #include "Interaction.h"
 #include "Maths.h"
-
+#include <algorithm>
 
 Interaction::Interaction(Panel* sourcePanel, Config* config, PanelContext* panelContext) {
     this->sourcePanel = sourcePanel;
@@ -42,16 +42,26 @@ void Interaction::start() {
 void Interaction::_trigger_new_reverberation(bool trigger_source_panel) {
     this->currentReverberatingDistance = this->config->get_reverberation_distance();
     this->numberOfEligiblePanelReverberations = 0;
-    // Selecting eligible PanelReverberations from _all_ the PanelReverberations.
-    for (int i = 0; i < this->number_of_panel_reverberations; i++) {
+    // Calculate which PanelReverberations to start. Because this is referencing them _by panel index_, the for
+    // loop doesn't start at 0, but rather where we want the new reverberation to start, and goes till
+    // source panel is 6, current distance is 2, start index = 6 - 2 = 4.
+    int start = std::max(0,
+                         this->sourcePanel->index - this->currentReverberatingDistance);
+    // source panel is 6, current distance is 2, start index = 6 + 2 = 8.
+    int end = std::min(this->config->number_of_panels - 1,
+                       this->sourcePanel->index + this->currentReverberatingDistance); // don't go beyond the end
+    // So panels reverberating would be 4, 5, 6, 7, 8. 2 panels on each side of Panel 6.
+    // Picking eligible PanelReverberations from _all_ the PanelReverberations.
+    for (int i = start; i < end; i++) {
         PanelReverberation* panelReverberation = this->panelReverberationsByPanelIndex[i];
-        if (this->currentReverberatingDistance >= panelReverberation->distanceFromTrigger) {
+        // TODO: we already calculated the distance based on the start and end indexes
+        //if (this->currentReverberatingDistance >= panelReverberation->distanceFromTrigger) {
             this->eligible_panel_reverberations[this->numberOfEligiblePanelReverberations] = panelReverberation;
             this->numberOfEligiblePanelReverberations++;
             if (trigger_source_panel || panelReverberation->isSourceInteraction) {
                 panelReverberation->start();
             }
-        }
+        //}
     }
 }
 
@@ -131,7 +141,7 @@ void Interaction::_build_panel_reverberations() {
     // iterate through _all_ potential possible Panels that may reverberate. This is potential more than will be
     // assigned to this Interaction, as the source Panel may be on the end and have none to the left (or right).
     int from_index = this->sourcePanel->index;
-    for (int i = 0; i < this->config->max_reverberation_distance - 1; i++) {
+    for (int i = 0; i < this->config->max_reverberation_distance; i++) {
         int distance_from_index = i + 1;
         int left_panel_index = from_index - distance_from_index;
         int right_panel_index = from_index + distance_from_index;
@@ -156,9 +166,6 @@ void Interaction::_build_panel_reverberations() {
 
 void Interaction::addPanelReverberation(PanelReverberation* panelReverberation) {
     int panelIndex = panelReverberation->panel->index;
-    // Keep track of the number
-    this->number_of_panel_reverberations += 1;
-
     // NOTE! The array isn't 0-based, but indexed by the Panel index (this makes lookups by Panel easier).
     this->panelReverberationsByPanelIndex[panelIndex] = panelReverberation;
 
