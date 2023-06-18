@@ -13,9 +13,9 @@ Aunisoma::Aunisoma(Config* config, GradientValueMap** gradients, int numberOfGra
     this->next_gradient_index = 0;
     this->currentGradient = this->gradients[this->current_gradient_index];
     this->maxGradientIndex = this->numberOfGradients - 1;
+    this->numberOfPanels = config->number_of_panels;
     this->sensors = sensors;
     this->_calculate_next_gradient_index();
-    this->numberOfPanels = config->number_of_panels;
     this->_create_panels();
     this->_create_interactions();
     this->transitionAnimation = new TransitionAnimation(500, this);

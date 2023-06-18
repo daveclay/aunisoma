@@ -1,7 +1,5 @@
 #include <iostream>
-#include "Cycle.h"
 #include "Color.h"
-#include "Range.h"
 #include "Config.h"
 #include "Gradient.h"
 #include "Sensor.h"
@@ -9,43 +7,7 @@
 #include <chrono>
 
 
-class Thing: public CycleHandler {
-public:
-    void value(float value, CycleDirection direction) {
-        std::cout << direction << " with value of " << value  << std::endl;
-    }
-};
-
 int main() {
-    std::cout << "Hello, World!" << std::endl;
-
-    Color first(60, 0, 0);
-    Color second(20, 255, 255);
-
-    Color interpolatedColor = first.interpolate(second, .25);
-
-    std::cout << interpolatedColor.red << ", " << interpolatedColor.green << ", " << interpolatedColor.blue << std::endl;
-
-    Thing* thing = new Thing();
-    Cycle* cycle = new Cycle(100, false, CYCLE_TYPE_UP_AND_DOWN, thing);
-
-    cycle->start();
-    for (int i = 0; i < 500; i++) {
-        cycle->next();
-        if (i == 325) {
-            std::cout << "Jumping to down cycle!" << std::endl;
-            cycle->jumpToDownCycle();
-        }
-    }
-
-    Range* range = new Range(10, 50);
-    for (int i = 0; i < 20000; i++) {
-        int val = range->random_int_between();
-        if (val < 0 || val > 50) {
-            std::cout << range->random_int_between() << std::endl;
-        }
-    }
-
     // Make const so we can assign arrays because screw c++
     int number_of_panels = 20;
     // number of panels to the left and right
@@ -107,8 +69,11 @@ int main() {
     }
 
     using namespace std::chrono;
+    std::cout << "[\n";
+
     Aunisoma* aunisoma = new Aunisoma(config, gradients, 3, sensors);
-    for (int i = 0; i < 100000; i++) {
+    int iterations = 100000;
+    for (int i = 0; i < iterations; i++) {
         switch (i) {
             case 10:
                 aunisoma->sensors[3]->active = true;
@@ -121,7 +86,7 @@ int main() {
                 aunisoma->sensors[2]->active = true;
                 aunisoma->sensors[3]->active = true;
                 break;
-            case 5000:
+            case 4000:
                 aunisoma->sensors[4]->active = true;
                 aunisoma->sensors[5]->active = true;
                 aunisoma->sensors[6]->active = true;
@@ -132,6 +97,17 @@ int main() {
                 aunisoma->sensors[11]->active = true;
                 aunisoma->sensors[12]->active = true;
                 break;
+            case 5000:
+                aunisoma->sensors[4]->active = false;
+                aunisoma->sensors[5]->active = false;
+                aunisoma->sensors[6]->active = false;
+                aunisoma->sensors[7]->active = false;
+                aunisoma->sensors[8]->active = false;
+                aunisoma->sensors[9]->active = false;
+                aunisoma->sensors[10]->active = false;
+                aunisoma->sensors[11]->active = false;
+            case 6000:
+                aunisoma->sensors[12]->active = false;
         }
 
         auto start = std::chrono::high_resolution_clock::now();
@@ -141,16 +117,28 @@ int main() {
         auto finish = std::chrono::high_resolution_clock::now();
         long long int count = std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count();
 
-        std::cout << i << ": ";
-        for (int i = 0; i < aunisoma->numberOfPanels; i++) {
-            Panel* panel = aunisoma->get_panel_at(i);
+        std::cout << "\t{ \"iteration\": " << i << ",";
+        std::cout << "\"panels\": [\n";
+        for (int j = 0; j < aunisoma->numberOfPanels; j++) {
+            Panel* panel = aunisoma->get_panel_at(j);
             Color color = panel->color;
-            if (color.red != 10) {
-                std::cout << "panel " << panel->index << ": " << color.red << "," << color.green << "," << color.blue << "|";
+            std::cout << "\t\t{ \"index\": " << panel->index << ", \"red\": " << color.red << ", \"green\": " << color.green << ", \"blue\": " << color.blue << "}";
+            if (j < aunisoma->numberOfPanels - 1) {
+                std::cout << ",";
             }
+            std::cout << "\n";
+
         }
-        std::cout << " took " << count << "ns\n";
+        std::cout << "],\n\t\"time\": " << count << "}";
+
+        if (i < iterations - 1) {
+            std::cout << ",";
+        }
+
+        std::cout << "\n";
     }
+
+    std::cout << "]";
 
     return 0;
 }

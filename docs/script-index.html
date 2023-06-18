@@ -1,0 +1,199 @@
+<html>
+<body>
+<style>
+    body {
+        background-color: black;
+        font-family: monospace;
+        color: gray;
+    }
+    #stage {
+    }
+    .panelContainer {
+        display: inline-block;
+        min-height: 1px;
+    }
+    .panel {
+        display: block;
+        width: 50px; /* 24" */
+        height: 100px; /* 48" */
+        background-color: rgb(60, 0, 0);
+        border: 1px solid #222222;
+        margin: 5px;
+    }
+    .panelInfo {
+        display: block;
+        width: 50px; /* 24" */
+        height: 50px;
+        overflow-x: clip;
+        text-align: center;
+        padding-left: 6px; /* align it center, for some reason */
+    }
+    .panelReverberationInfo {
+        display: inline-block;
+        width: 50px;
+        height: 20px;
+        margin: 5px;
+        border: 1px solid #222222;
+    }
+    #panelTemplate {
+        display: none;
+    }
+    .controlTable tr td {
+        border: 1px solid #333333;
+        vertical-align: top;
+        padding: 5px;
+    }
+</style>
+<div id="stage"></div>
+<div id="panelTemplate" class="panelContainer">
+    <div class="panel"></div>
+    <div class="panelInfo">&nbsp;</div>
+</div>
+Click on a panel to simulate a person interacting with a panel. Click on the panel again to simulate a person walking away from the panel.
+<hr/>
+<table class="controlTable">
+    <tr>
+        <td>
+            <p>
+                <label for="triggerScript">script</label>
+            </p>
+            <p>
+                <input type="file" id="triggerScript"/>
+            </p>
+        </td>
+        <td>
+            <p>
+                Current Power Draw: <input type="text" id="currentPowerDraw">
+            </p>
+            <p>
+                Max Power Draw: <input type="text" id="maxPowerDraw">
+            </p>
+        </td>
+    </tr>
+</table>
+<script>
+  document.addEventListener("DOMContentLoaded", (event) => {
+    const PANEL_TEMPLATE_ELEMENT = document.getElementById("panelTemplate");
+    const STAGE = document.getElementById("stage");
+    const TRIGGER_SCRIPT_FILE = document.getElementById("triggerScript");
+    const TRIGGER_SCRIPT_BUTTON = document.getElementById("triggerScriptButton");
+
+    const CURRENT_POWER_DRAW_ELEMENT = document.getElementById("currentPowerDraw");
+    const MAX_POWER_DRAW_ELEMENT = document.getElementById("maxPowerDraw");
+
+    // TODO: measure more accurately, whether this is linear
+    const DRAW_PER_COLOR_PER_PANEL_AMPS = 0.8046715655;
+
+    function calculatePowerDrawForColorAmps(color) {
+      return (color / 255) * DRAW_PER_COLOR_PER_PANEL_AMPS;
+    }
+
+    function clone(templateElement) {
+      let clone = templateElement.cloneNode(true);
+      clone.attributes.removeNamedItem("id");
+      return clone;
+    }
+
+    function newPanelElement(index) {
+      let panelElement = clone(PANEL_TEMPLATE_ELEMENT);
+      panelElement.classList.add("panel-" + index);
+      STAGE.appendChild(panelElement);
+      return panelElement;
+    }
+
+    function getPowerDrawAmps(color) {
+      return calculatePowerDrawForColorAmps(color.red)
+        + calculatePowerDrawForColorAmps(color.green)
+        + calculatePowerDrawForColorAmps(color.blue);
+    }
+
+    function colorToHexString(color) {
+      return "#"
+        + color.red.toString(16).padStart(2, "0")
+        + color.green.toString(16).padStart(2, "0")
+        + color.blue.toString(16).padStart(2, "0");
+    }
+
+    class ScriptRunner {
+      constructor() {
+        this.panelUIs = [];
+        this.maxAmps = 0;
+        this.iteration = -1;
+
+        for (let i = 0; i < 20; i++) {
+          const panelElement = newPanelElement(i);
+          this.panelUIs[i] = new PanelUI(panelElement);
+        }
+      }
+
+      loadAndRun(scriptFile) {
+        const reader = new FileReader();
+        reader.addEventListener('progress', (event) => {
+          if (event.loaded && event.total) {
+            const percent = (event.loaded / event.total) * 100;
+            console.log(`Progress: ${Math.round(percent)}`);
+          }
+        });
+        reader.addEventListener("load", (event) => {
+          const scriptText = reader.result;
+          const script = JSON.parse(scriptText);
+          this.run(script);
+        });
+        reader.readAsText(scriptFile);
+      }
+
+      run(script) {
+        this.script = script;
+        setInterval(() => this.runNextStep(), 1);
+      }
+
+      runNextStep() {
+        this.iteration += 1;
+        this.step = this.script[this.iteration];
+        this.update(this.step.panels);
+      }
+
+      update(panels) {
+        let totalAmps = 0;
+        panels.forEach(panel => {
+          let index = panel.index;
+          let panelUI = this.panelUIs[index]
+          panelUI.setColor(panel);
+          totalAmps += panelUI.amps;
+        });
+
+        CURRENT_POWER_DRAW_ELEMENT.value = totalAmps;
+        this.maxAmps = Math.max(this.maxAmps, totalAmps);
+        MAX_POWER_DRAW_ELEMENT.value = this.maxAmps;
+      }
+    }
+
+    class PanelUI {
+      constructor(panelContainerElement) {
+        this.panelContainerElement = panelContainerElement;
+        this.panelInfoElement = this.panelContainerElement.getElementsByClassName("panelInfo")[0];
+        this.panelElement = this.panelContainerElement.getElementsByClassName("panel")[0];
+        this.amps = 0;
+      }
+
+      setValue(currentValue) {
+        this.panelInfoElement.innerHTML = (this.active ? "active" : "&nbsp;") + "<br/>" + currentValue;
+      }
+
+      setColor(color) {
+        this.panelElement.style.backgroundColor = colorToHexString(color);
+        // this.amps = getPowerDrawAmps(color)
+      }
+    }
+
+    const scriptRunner = new ScriptRunner();
+
+    TRIGGER_SCRIPT_FILE.addEventListener("change", (event) => {
+      const file = event.target.files[0];
+      console.log(file);
+      scriptRunner.loadAndRun(file);
+    });
+  });
+</script>
+</body>
+</html>
