@@ -72,21 +72,21 @@ int main() {
     std::cout << "[\n";
 
     Aunisoma* aunisoma = new Aunisoma(config, gradients, 3, sensors);
-    int iterations = 100000;
+    int iterations = 6000;
     for (int i = 0; i < iterations; i++) {
         switch (i) {
-            case 10:
+            case 5:
                 aunisoma->sensors[3]->active = true;
                 break;
-            case 1000:
+            case 500:
                 aunisoma->sensors[3]->active = false;
                 break;
-            case 1010:
-                aunisoma->sensors[1]->active = true;
-                aunisoma->sensors[2]->active = true;
-                aunisoma->sensors[3]->active = true;
+            case 1000:
+                aunisoma->sensors[11]->active = true;
+                aunisoma->sensors[12]->active = true;
+                aunisoma->sensors[13]->active = true;
                 break;
-            case 4000:
+            case 2000:
                 aunisoma->sensors[4]->active = true;
                 aunisoma->sensors[5]->active = true;
                 aunisoma->sensors[6]->active = true;
@@ -94,8 +94,8 @@ int main() {
                 aunisoma->sensors[8]->active = true;
                 aunisoma->sensors[9]->active = true;
                 aunisoma->sensors[10]->active = true;
-                aunisoma->sensors[11]->active = true;
-                aunisoma->sensors[12]->active = true;
+                aunisoma->sensors[14]->active = true;
+                aunisoma->sensors[15]->active = true;
                 break;
             case 5000:
                 aunisoma->sensors[4]->active = false;
@@ -106,7 +106,7 @@ int main() {
                 aunisoma->sensors[9]->active = false;
                 aunisoma->sensors[10]->active = false;
                 aunisoma->sensors[11]->active = false;
-            case 6000:
+            case 5200:
                 aunisoma->sensors[12]->active = false;
         }
 

@@ -63,6 +63,14 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
         </td>
         <td>
             <p>
+                Step
+            </p>
+            <p>
+                <div id="step"></div>
+            </p>
+        </td>
+        <td>
+            <p>
                 Current Power Draw: <input type="text" id="currentPowerDraw">
             </p>
             <p>
@@ -76,7 +84,7 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
     const PANEL_TEMPLATE_ELEMENT = document.getElementById("panelTemplate");
     const STAGE = document.getElementById("stage");
     const TRIGGER_SCRIPT_FILE = document.getElementById("triggerScript");
-    const TRIGGER_SCRIPT_BUTTON = document.getElementById("triggerScriptButton");
+    const STEP_ELEMENT = document.getElementById("step");
 
     const CURRENT_POWER_DRAW_ELEMENT = document.getElementById("currentPowerDraw");
     const MAX_POWER_DRAW_ELEMENT = document.getElementById("maxPowerDraw");
@@ -144,12 +152,19 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
 
       run(script) {
         this.script = script;
-        setInterval(() => this.runNextStep(), 1);
+        this.interval = setInterval(() => this.runNextStep(), 1);
       }
 
       runNextStep() {
         this.iteration += 1;
+        if (this.iteration >= this.script.length) {
+          clearInterval(this.interval);
+          STEP_ELEMENT.innerText = "Finished " + this.script.length + " steps";
+          return;
+        }
+
         this.step = this.script[this.iteration];
+        STEP_ELEMENT.innerText = "running step " + this.iteration + " of " + this.script.length;
         this.update(this.step.panels);
       }
 
