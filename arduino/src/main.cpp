@@ -6,6 +6,32 @@
 #include "Aunisoma.h"
 #include <chrono>
 
+void writeScriptLine(Aunisoma* aunisoma, int i, int count, int iterations) {
+    std::cout << "\t{ \"iteration\": " << i << ",";
+    std::cout << "\"panels\": [\n";
+    for (int j = 0; j < aunisoma->numberOfPanels; j++) {
+        Panel* panel = aunisoma->get_panel_at(j);
+        Color color = panel->color;
+        std::cout << "\t\t{ \"index\": " << panel->index << ", \"red\": " << color.red << ", \"green\": " << color.green << ", \"blue\": " << color.blue << "}";
+        if (j < aunisoma->numberOfPanels - 1) {
+            std::cout << ",";
+        }
+        std::cout << "\n";
+
+    }
+    std::cout << "],\n\t\"time\": " << count << "}";
+
+    if (i < iterations - 1) {
+        std::cout << ",";
+    }
+
+    std::cout << "\n";
+}
+
+void trigger(Aunisoma* aunisoma, int panelIndex, bool active) {
+    int sensorIndex = panelIndex * 2;
+    aunisoma->sensors[sensorIndex]->active = active;
+}
 
 int main() {
     // Make const so we can assign arrays because screw c++
@@ -76,38 +102,38 @@ int main() {
     for (int i = 0; i < iterations; i++) {
         switch (i) {
             case 5:
-                aunisoma->sensors[3]->active = true;
+                trigger(aunisoma, 3, true);
                 break;
             case 500:
-                aunisoma->sensors[3]->active = false;
+                trigger(aunisoma, 3, false);
                 break;
             case 1000:
-                aunisoma->sensors[11]->active = true;
-                aunisoma->sensors[12]->active = true;
-                aunisoma->sensors[13]->active = true;
+                trigger(aunisoma, 11, true);
+                trigger(aunisoma, 12, true);
+                trigger(aunisoma, 13, true);
                 break;
             case 2000:
-                aunisoma->sensors[4]->active = true;
-                aunisoma->sensors[5]->active = true;
-                aunisoma->sensors[6]->active = true;
-                aunisoma->sensors[7]->active = true;
-                aunisoma->sensors[8]->active = true;
-                aunisoma->sensors[9]->active = true;
-                aunisoma->sensors[10]->active = true;
-                aunisoma->sensors[14]->active = true;
-                aunisoma->sensors[15]->active = true;
+                trigger(aunisoma, 4, true);
+                trigger(aunisoma, 5, true);
+                trigger(aunisoma, 6, true);
+                trigger(aunisoma, 7, true);
+                trigger(aunisoma, 8, true);
+                trigger(aunisoma, 9, true);
+                trigger(aunisoma, 10, true);
+                trigger(aunisoma, 14, true);
+                trigger(aunisoma, 15, true);
                 break;
             case 5000:
-                aunisoma->sensors[4]->active = false;
-                aunisoma->sensors[5]->active = false;
-                aunisoma->sensors[6]->active = false;
-                aunisoma->sensors[7]->active = false;
-                aunisoma->sensors[8]->active = false;
-                aunisoma->sensors[9]->active = false;
-                aunisoma->sensors[10]->active = false;
-                aunisoma->sensors[11]->active = false;
+                trigger(aunisoma, 4, false);
+                trigger(aunisoma, 5, false);
+                trigger(aunisoma, 6, false);
+                trigger(aunisoma, 7, false);
+                trigger(aunisoma, 8, false);
+                trigger(aunisoma, 9, false);
+                trigger(aunisoma, 10, false);
+                trigger(aunisoma, 11, false);
             case 5200:
-                aunisoma->sensors[12]->active = false;
+                trigger(aunisoma, 12, false);
         }
 
         auto start = std::chrono::high_resolution_clock::now();
@@ -116,26 +142,7 @@ int main() {
 
         auto finish = std::chrono::high_resolution_clock::now();
         long long int count = std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count();
-
-        std::cout << "\t{ \"iteration\": " << i << ",";
-        std::cout << "\"panels\": [\n";
-        for (int j = 0; j < aunisoma->numberOfPanels; j++) {
-            Panel* panel = aunisoma->get_panel_at(j);
-            Color color = panel->color;
-            std::cout << "\t\t{ \"index\": " << panel->index << ", \"red\": " << color.red << ", \"green\": " << color.green << ", \"blue\": " << color.blue << "}";
-            if (j < aunisoma->numberOfPanels - 1) {
-                std::cout << ",";
-            }
-            std::cout << "\n";
-
-        }
-        std::cout << "],\n\t\"time\": " << count << "}";
-
-        if (i < iterations - 1) {
-            std::cout << ",";
-        }
-
-        std::cout << "\n";
+        writeScriptLine(aunisoma, i, count, iterations);
     }
 
     std::cout << "]";

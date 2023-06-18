@@ -54,6 +54,9 @@ void Aunisoma::_create_interactions() {
 
 void Aunisoma::read_sensors() {
     for (int i = 0; i < this->numberOfPanels; i++) {
+        // panel index 0, sensor indexes are 0 and 1
+        // panel index 2, sensor indexes are 4 and 5
+        // panel index 10, sensors indexes are 20, 21
         int sensorIndexForPanel = i * 2;
         Sensor* sensorFront = this->sensors[sensorIndexForPanel];
         Sensor* sensorBack = this->sensors[sensorIndexForPanel+1];
