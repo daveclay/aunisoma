@@ -58,7 +58,7 @@ void Interaction::_trigger_new_reverberation(bool trigger_source_panel) {
         //if (this->currentReverberatingDistance >= panelReverberation->distanceFromTrigger) {
             this->eligible_panel_reverberations[this->numberOfEligiblePanelReverberations] = panelReverberation;
             this->numberOfEligiblePanelReverberations++;
-            if (trigger_source_panel || panelReverberation->isSourceInteraction) {
+            if (trigger_source_panel || !panelReverberation->isSourceInteraction) {
                 panelReverberation->start();
             }
         //}

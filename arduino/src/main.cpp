@@ -104,10 +104,8 @@ int main() {
             case 5:
                 trigger(aunisoma, 3, true);
                 break;
-            case 500:
-                trigger(aunisoma, 3, false);
-                break;
             case 1000:
+                trigger(aunisoma, 3, false);
                 trigger(aunisoma, 11, true);
                 trigger(aunisoma, 12, true);
                 trigger(aunisoma, 13, true);
