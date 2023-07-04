@@ -69,6 +69,8 @@ int main() {
     initial_gradient->add_rgb_point(1.6,   0, 255, 255);
     initial_gradient->add_rgb_point(3,     0, 255, 255);
 
+    initial_gradient->getColorForValue(3);
+
     GradientValueMap* blue_gradient = new GradientValueMap();
     blue_gradient->add_rgb_point(0.0,   0,   0,  10);
     blue_gradient->add_rgb_point(.4,    0,   0, 255);
@@ -99,7 +101,9 @@ int main() {
 
     Aunisoma* aunisoma = new Aunisoma(config, gradients, 3, sensors);
     int iterations = 100000;
-    for (int i = 0; i < iterations; i++) {
+    int i = 0;
+    while (true) {
+    // for (int i = 0; i < iterations; i++) {
         int mod = i % 700;
         if (mod == 0) {
             int numPanels = 1 + (std::rand() % 6); // 0 to 6
@@ -110,13 +114,18 @@ int main() {
             }
         }
 
+        if (i % 100000 == 0) {
+            std::cout << i << " iterations completed\n";
+        }
+
         auto start = std::chrono::high_resolution_clock::now();
 
         aunisoma->event_loop();
 
         auto finish = std::chrono::high_resolution_clock::now();
         long long int count = std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count();
-        writeScriptLine(aunisoma, i, count, iterations);
+        //writeScriptLine(aunisoma, i, count, iterations);
+        i += 1;
     }
 
     std::cout << "]";
