@@ -98,40 +98,16 @@ int main() {
     std::cout << "[\n";
 
     Aunisoma* aunisoma = new Aunisoma(config, gradients, 3, sensors);
-    int iterations = 6000;
+    int iterations = 100000;
     for (int i = 0; i < iterations; i++) {
-        switch (i) {
-            case 5:
-                trigger(aunisoma, 3, true);
-                break;
-            case 1000:
-                trigger(aunisoma, 3, false);
-                trigger(aunisoma, 11, true);
-                trigger(aunisoma, 12, true);
-                trigger(aunisoma, 13, true);
-                break;
-            case 2000:
-                trigger(aunisoma, 4, true);
-                trigger(aunisoma, 5, true);
-                trigger(aunisoma, 6, true);
-                trigger(aunisoma, 7, true);
-                trigger(aunisoma, 8, true);
-                trigger(aunisoma, 9, true);
-                trigger(aunisoma, 10, true);
-                trigger(aunisoma, 14, true);
-                trigger(aunisoma, 15, true);
-                break;
-            case 5000:
-                trigger(aunisoma, 4, false);
-                trigger(aunisoma, 5, false);
-                trigger(aunisoma, 6, false);
-                trigger(aunisoma, 7, false);
-                trigger(aunisoma, 8, false);
-                trigger(aunisoma, 9, false);
-                trigger(aunisoma, 10, false);
-                trigger(aunisoma, 11, false);
-            case 5200:
-                trigger(aunisoma, 12, false);
+        int mod = i % 700;
+        if (mod == 0) {
+            int numPanels = 1 + (std::rand() % 6); // 0 to 6
+            for (int j = 0; j < numPanels; j++) {
+                int panel = std::rand() % 20; // 0 through 19
+                int active = (std::rand() % 10) > 4; // 50%
+                trigger(aunisoma, panel, active);
+            }
         }
 
         auto start = std::chrono::high_resolution_clock::now();
