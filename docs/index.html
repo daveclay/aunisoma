@@ -83,14 +83,17 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
             </p>
         </td>
         <td>
-            Event Loop: <input type="text" id="eventLoopInfo"/>
+            <p>
+                Elapsed Time
+            </p>
+            <p id="elapsedTimeElement"></p>
         </td>
         <td>
             <p>
-                Current Power Draw: <input type="text" id="currentPowerDraw">
+                Current Power Draw: <span id="currentPowerDraw"></span>
             </p>
             <p>
-                Max Power Draw: <input type="text" id="maxPowerDraw">
+                Max Power Draw: <span id="maxPowerDraw"></span>
             </p>
         </td>
     </tr>
@@ -832,7 +835,7 @@ document.addEventListener("DOMContentLoaded", () => {
       this._calculate_next_gradient_index();
       this._create_panels();
       this._create_interactions();
-      this.transitionAnimation = new TransitionAnimation(500, this);
+      this.transitionAnimation = new TransitionAnimation(900, this);
       this.transitioned_during_this_max = false;
       this.ticks_since_last_transition = 0;
     }
@@ -1152,6 +1155,22 @@ document.addEventListener("DOMContentLoaded", () => {
     return (color / 255) * DRAW_PER_COLOR_PER_PANEL_AMPS;
   }
 
+  function getPowerDrawAmps(red, green, blue) {
+    return calculatePowerDrawForColorAmps(red)
+      + calculatePowerDrawForColorAmps(green)
+      + calculatePowerDrawForColorAmps(blue);
+  }
+
+  function addPowerDrawAmps(amps) {
+    currentAmps += amps;
+
+    CURRENT_POWER_DRAW_ELEMENT.innerText = (currentAmps + "").substring(0, 4);
+    if (currentAmps > maxAmps) {
+      maxAmps = currentAmps;
+      MAX_POWER_DRAW_ELEMENT.innerText = (maxAmps + "").substring(0, 4);
+    }
+  }
+
   /******************************************************************
    * UI Code
    *****************************************************************/
@@ -1162,23 +1181,16 @@ document.addEventListener("DOMContentLoaded", () => {
   const TRIGGER_SCRIPT_BUTTON = document.getElementById("triggerScriptButton");
   const TRIGGER_WALK_DOWN_BUTTON = document.getElementById("triggerWalkDownButton");
   const TRIGGER_MAX_BUTTON = document.getElementById("triggerMaxInteractionsButton");
-  const EVENT_LOOP_INFO_ELEMENT = document.getElementById("eventLoopInfo");
 
   const CURRENT_POWER_DRAW_ELEMENT = document.getElementById("currentPowerDraw");
   const MAX_POWER_DRAW_ELEMENT = document.getElementById("maxPowerDraw");
+
+  const ELAPSED_TIME_ELEMENT = document.getElementById("elapsedTimeElement");
 
   // TODO: show which panels have someone interacting
   const REVERBERATIONS_INFO_ELEMENT = document.getElementById("reverberationsInfo");
   const REVERBERATION_INFO_TEMPLATE_ELEMENT = document.getElementById("reverberationInfoTemplate");
   const PANEL_REVERBERATION_INFO_TEMPLATE_ELEMENT = document.getElementById("panelReverberationInfoTemplate");
-
-  EVENT_LOOP_INFO_ELEMENT.value = "stopped";
-
-  function getPowerDrawAmps(color) {
-    return calculatePowerDrawForColorAmps(color.red)
-      + calculatePowerDrawForColorAmps(color.green)
-      + calculatePowerDrawForColorAmps(color.blue);
-  }
 
   function toHexString(red, green, blue) {
     return "#"
@@ -1217,7 +1229,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     setColor(red, green, blue) {
       this.panelUIElement.style.backgroundColor = toHexString(red, green, blue);
-      // addPowerDrawAmps(color.getPowerDrawAmps());
+      addPowerDrawAmps(getPowerDrawAmps(red, green, blue));
     }
   }
 
@@ -1238,11 +1250,25 @@ document.addEventListener("DOMContentLoaded", () => {
     PANEL_UI_OBJECTS[i] = panelUI;
   }
 
+  let currentAmps = 0;
+  let maxAmps = 0;
+  let averageAmps = 0;
+  const START_TIME = new Date().getTime();
+
   setup();
 
   const mainRunInterval = setInterval(() => {
+    currentAmps = 0;
+    let elapsedSeconds = Math.round((new Date().getTime() - START_TIME) / 1000);
+    if (elapsedSeconds > 59) {
+      let elapsedMinutes = Math.round(elapsedSeconds / 60);
+      ELAPSED_TIME_ELEMENT.innerText = elapsedMinutes + " minutes";
+    } else {
+      ELAPSED_TIME_ELEMENT.innerText = elapsedSeconds + " seconds";
+    }
+
     loop();
-  }, 5);
+  }, 1);
 });
 
 </script>
