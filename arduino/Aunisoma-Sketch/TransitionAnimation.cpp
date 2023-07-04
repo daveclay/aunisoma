@@ -44,9 +44,8 @@ Color TransitionAnimation::get_color(float panel_value) {
     GradientValueMap* current_gradient = this->transitionAnimationCallback->getCurrentGradient();
     Color from_color = current_gradient->getColorForValue(panel_value);
     Color to_color = this->target_gradient->getColorForValue(panel_value);
-;
-    Color color = from_color.interpolate(to_color, this->current_value);
 
+    Color color = from_color.interpolate(to_color, this->current_value);
 
     return color;
 }
