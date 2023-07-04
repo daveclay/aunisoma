@@ -52,7 +52,7 @@ void Interaction::_trigger_new_reverberation(bool trigger_source_panel) {
                        this->sourcePanel->index + this->currentReverberatingDistance); // don't go beyond the end
     // So panels reverberating would be 4, 5, 6, 7, 8. 2 panels on each side of Panel 6.
     // Picking eligible PanelReverberations from _all_ the PanelReverberations.
-    for (int i = start; i < end; i++) {
+    for (int i = start; i <= end; i++) {
         PanelReverberation* panelReverberation = this->panelReverberationsByPanelIndex[i];
         // TODO: we already calculated the distance based on the start and end indexes
         //if (this->currentReverberatingDistance >= panelReverberation->distanceFromTrigger) {
