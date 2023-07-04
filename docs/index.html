@@ -96,65 +96,46 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
     </tr>
 </table>
 <script>
-document.addEventListener("DOMContentLoaded", (event) => {
-  const NUMBER_OF_PANELS = 20;
-  const PANEL_TEMPLATE_ELEMENT = document.getElementById("panelTemplate");
-  const STAGE = document.getElementById("stage");
-  const TRIGGER_SCRIPT_TEXTAREA = document.getElementById("triggerScript");
-  const TRIGGER_SCRIPT_BUTTON = document.getElementById("triggerScriptButton");
-  const TRIGGER_WALK_DOWN_BUTTON = document.getElementById("triggerWalkDownButton");
-  const TRIGGER_MAX_BUTTON = document.getElementById("triggerMaxInteractionsButton");
-  const EVENT_LOOP_INFO_ELEMENT = document.getElementById("eventLoopInfo");
+document.addEventListener("DOMContentLoaded", () => {
 
+  /******************************************************************
+   * Arduino.h
+   *****************************************************************/
 
-  const CURRENT_POWER_DRAW_ELEMENT = document.getElementById("currentPowerDraw");
-  const MAX_POWER_DRAW_ELEMENT = document.getElementById("maxPowerDraw");
+  HIGH = true;
 
-  // TODO: show which panels have someone interacting
-  const REVERBERATIONS_INFO_ELEMENT = document.getElementById("reverberationsInfo");
-  const REVERBERATION_INFO_TEMPLATE_ELEMENT = document.getElementById("reverberationInfoTemplate");
-  const PANEL_REVERBERATION_INFO_TEMPLATE_ELEMENT = document.getElementById("panelReverberationInfoTemplate");
-
-  // TODO: measure more accurately, whether this is linear
-  const DRAW_PER_COLOR_PER_PANEL_AMPS = 0.8046715655;
-
-
-  function randomIntBetween(min, max) {
-    return min + Math.round(Math.random() * (max - min));
+  function abs(val) {
+    return Math.abs(val);
   }
 
-  function calculatePowerDrawForColorAmps(color) {
-    return (color / 255) * DRAW_PER_COLOR_PER_PANEL_AMPS;
+  function min(a, b) {
+    return Math.min(a, b);
   }
 
-  function dimValueBy(value, amount, minLimit) {
-    if (amount < 0) {
-      return value;
-    }
-    if (!minLimit) {
-      minLimit = 0;
-    }
-    return Math.max(minLimit, Math.round(value * (1 - amount)));
+  function max(a, b) {
+    return Math.max(a, b);
   }
 
-  function clone(templateElement) {
-    let clone = templateElement.cloneNode(true);
-    clone.attributes.removeNamedItem("id");
-    return clone;
+  function maybe(percent) {
+    return Math.round(Math.random() * 100) > percent;
   }
 
-  function removeChildren(element) {
-    while (element.firstChild) {
-      element.removeChild(element.firstChild);
-    }
+  function round(value) {
+    return Math.round(value);
   }
 
-  function newPanel(index, context) {
-    let panelElement = clone(PANEL_TEMPLATE_ELEMENT);
-    panelElement.classList.add("panel-" + index);
-    STAGE.appendChild(panelElement);
-    return new Panel(panelElement, index, context);
+  function digitalRead(sensorPin) {
+    let sensor = sensors[sensorPin - FIRST_INPUT_PIN];
+    return sensor.active;
   }
+
+  function setPanelColor(i, red, green, blue) {
+    PANEL_UI_OBJECTS[i].setColor(red, green, blue);
+  }
+
+  /******************************************************************
+   * Color
+   *****************************************************************/
 
   class Color {
     constructor(red, green, blue) {
@@ -163,50 +144,17 @@ document.addEventListener("DOMContentLoaded", (event) => {
       this.blue = blue;
     }
 
-    setMinRed(minRed) {
-      this.minRed = minRed;
-    }
-
-    setMinGreen(minGreen) {
-      this.minGreen = minGreen;
-    }
-
-    setMinBlue(minBlue) {
-      this.minBlue = minBlue;
-    }
-
-    setMinColor(color) {
-      this.setMinRed(color.red);
-      this.setMinGreen(color.green);
-      this.setMinBlue(color.blue);
-    }
-
-    dimBy(amount) {
-      this.red = dimValueBy(this.red, amount, this.minRed);
-      this.green = dimValueBy(this.green, amount, this.minGreen);
-      this.blue = dimValueBy(this.blue, amount, this.minBlue);
-    }
-
     interpolate(color) {
       let red = (this.red + color.red) / 2;
       let green = (this.green + color.green) / 2;
       let blue = (this.blue + color.blue) / 2;
       return new Color(red, green, blue);
     }
-
-    getPowerDrawAmps() {
-      return calculatePowerDrawForColorAmps(this.red)
-        + calculatePowerDrawForColorAmps(this.green)
-        + calculatePowerDrawForColorAmps(this.blue);
-    }
-
-    toHexString() {
-      return "#"
-        + this.red.toString(16).padStart(2, "0")
-        + this.green.toString(16).padStart(2, "0")
-        + this.blue.toString(16).padStart(2, "0");
-    }
   }
+
+  /******************************************************************
+   * GradientValuePoint
+   *****************************************************************/
 
   class GradientValuePoint {
     constructor(value, colorValue) {
@@ -215,13 +163,16 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
   }
 
+  /******************************************************************
+   * SingleGradientValueMap
+   *****************************************************************/
+
   class SingleGradientValueMap {
     constructor() {
       this.gradientValuePoints = []; // new ArrayList<GradientValuePoint>();
     }
 
     getColorAtValue(value) {
-      //GradientValuePoint[] points = getGradientValuePointForValue(value);
       let points = this.getGradientValuePointsForValue(value);
 
       // ratio = zero-based value / range
@@ -237,7 +188,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
       // int
       let colorRange = maxColor - minColor;
       // double
-      let colorValue =  colorRange * ratio;
+      let colorValue = colorRange * ratio;
 
       // int
       let color = minColor + Math.round(colorValue);
@@ -245,7 +196,6 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
 
 
-    //GradientValuePoint[] getGradientValuePointForValue(double value) {
     getGradientValuePointsForValue(value) {
       let lowerPoint = null;
       let matchingPointsForValue = null;
@@ -255,9 +205,9 @@ document.addEventListener("DOMContentLoaded", (event) => {
           lowerPoint = point;
         } else {
           if (lowerPoint == null) {
-            matchingPointsForValue = [ point, point ];
+            matchingPointsForValue = [point, point];
           } else {
-            matchingPointsForValue = [ lowerPoint, point ];
+            matchingPointsForValue = [lowerPoint, point];
           }
           break;
         }
@@ -288,6 +238,10 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
   }
 
+  /******************************************************************
+   * GradientValueMap
+   *****************************************************************/
+
   class GradientValueMap {
 
     constructor() {
@@ -302,7 +256,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
       this.blueMap.reset();
     }
 
-    addRGBPoint(value, red, green, blue) {
+    add_rgb_point(value, red, green, blue) {
       this.addRedPoint(value, red);
       this.addGreenPoint(value, green);
       this.addBluePoint(value, blue);
@@ -328,112 +282,10 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
   }
 
-  function getBasicGradient() {
-    let gradientValueMap = new GradientValueMap();
-    gradientValueMap.addRGBPoint(0,   60,   0,   0);
-    gradientValueMap.addRGBPoint(.3, 255,   0,   0);
-    gradientValueMap.addRGBPoint(.6, 255,   0, 255);
-    gradientValueMap.addRGBPoint(1,    0, 255, 255);
 
-    return gradientValueMap;
-  }
-
-  function getGradient() {
-    let gradientValueMap = new GradientValueMap();
-    gradientValueMap.addRGBPoint(0,    60,   0,   0);
-    gradientValueMap.addRGBPoint(.4,  255,   0,   0);
-    gradientValueMap.addRGBPoint(1,   255, 255,   0);
-    gradientValueMap.addRGBPoint(1.2,   0, 255,   0);
-    gradientValueMap.addRGBPoint(1.5,   0, 255, 255);
-    gradientValueMap.addRGBPoint(3.6,   0,   0, 255);
-    gradientValueMap.addRGBPoint(4.5, 255,   0, 255);
-
-    return gradientValueMap;
-  }
-
-  function getStraightFireGradient() {
-    let gradientValueMap = new GradientValueMap();
-    gradientValueMap.addRGBPoint(0,   60,   0,   0);
-    gradientValueMap.addRGBPoint(.4, 255,   0,   0);
-    gradientValueMap.addRGBPoint(1,  255, 255,   0);
-
-    return gradientValueMap;
-  }
-
-  function getRainbowGradient() {
-    let gradientValueMap = new GradientValueMap();
-    gradientValueMap.addRGBPoint(0,   60, 0,     0);
-    gradientValueMap.addRGBPoint(.2, 255, 0,     0);
-    gradientValueMap.addRGBPoint(.3, 255, 255,   0);
-    gradientValueMap.addRGBPoint(.4,   0, 255,   0);
-    gradientValueMap.addRGBPoint(.6,   0, 255, 255);
-    gradientValueMap.addRGBPoint(.8,   0,   0, 255);
-    gradientValueMap.addRGBPoint(1,  255,   0, 255);
-
-    return gradientValueMap;
-  }
-
-  function getBlueGradient() {
-    let gradientValueMap = new GradientValueMap();
-    gradientValueMap.addRedPoint(0, 60);
-    gradientValueMap.addGreenPoint(0, 0);
-    gradientValueMap.addBluePoint(0, 0);
-
-    gradientValueMap.addRedPoint(.3, 30);
-    gradientValueMap.addGreenPoint(.3, 0);
-    gradientValueMap.addBluePoint(.3, 100);
-
-    gradientValueMap.addRedPoint(.6, 0);
-    gradientValueMap.addGreenPoint(.6, 0);
-    gradientValueMap.addBluePoint(.6, 180);
-
-    gradientValueMap.addRedPoint(.8, 0);
-    gradientValueMap.addGreenPoint(.8, 100);
-    gradientValueMap.addBluePoint(.8, 220);
-
-    gradientValueMap.addRedPoint(1, 0);
-    gradientValueMap.addGreenPoint(1, 180);
-    gradientValueMap.addBluePoint(1, 255);
-
-    return gradientValueMap;
-  }
-
-  function getFireGradient() {
-    let gradientValueMap = new GradientValueMap();
-    gradientValueMap.addRedPoint(0, 60);
-    gradientValueMap.addGreenPoint(0, 0);
-    gradientValueMap.addBluePoint(0, 0);
-
-    gradientValueMap.addRedPoint(.1, 100);
-    gradientValueMap.addGreenPoint(.1, 0);
-    gradientValueMap.addBluePoint(.1, 0);
-
-    gradientValueMap.addRedPoint(.6, 200);
-    gradientValueMap.addGreenPoint(.6, 0);
-    gradientValueMap.addBluePoint(.6, 0);
-
-    gradientValueMap.addRedPoint(.8, 255);
-    gradientValueMap.addGreenPoint(.8, 0);
-    gradientValueMap.addBluePoint(.8, 0);
-
-    gradientValueMap.addRedPoint(1, 255);
-    gradientValueMap.addGreenPoint(1, 255);
-    gradientValueMap.addBluePoint(1, 0);
-
-    return gradientValueMap;
-  }
-
-  function showDebugGradientElement(panel) {
-    /*
-    removeChildren(GRADIENT_ELEMENT);
-    for (const step of Array(panel.steps).keys()) {
-      let color = panel.getColorForValue(step / panel.steps);
-      let gradientLineElement = clone(GRADIENT_LINE_TEMPLATE_ELEMENT);
-      gradientLineElement.style.backgroundColor = color;
-      GRADIENT_ELEMENT.appendChild(gradientLineElement);
-    }
-     */
-  }
+  /******************************************************************
+   * Range
+   *****************************************************************/
 
   class Range {
     constructor(min, max) {
@@ -441,76 +293,105 @@ document.addEventListener("DOMContentLoaded", (event) => {
       this.max = max;
     }
 
-    randomDistribution(count) {
-      let length = this.max - this.min;
-      let divisionLength = length / count;
-      let distribution = [];
-      for (let i = 0; i < count; i++) {
-        // TODO: constraints on window size here?
-        let value = randomIntBetween(divisionLength * .2, divisionLength * 1.5);
-        distribution[i] = Math.min(value, this.max);
-      }
-
-      return distribution;
-    }
-
-    randomIntBetween() {
-      return randomIntBetween(this.min, this.max);
+    random_int_between() {
+      return this.min + Math.round(Math.random() * (this.max - this.min));
     }
   }
+
+  /******************************************************************
+   * Clock
+   *****************************************************************/
 
   class Clock {
     constructor() {
       this.running = false;
-      this.startTick = null;
-      this.ticks = null;
+      this.ticks = -1;
+    }
+
+    stop() {
+      this.running = false;
+      this.ticks = -1;
     }
 
     start() {
       this.running = true;
     }
 
-    stop() {
-      this.running = false;
-      this.startTick = null;
-      this.ticks = null;
+    restart() {
+      this.running = true;
+      this.ticks = -1;
     }
 
     next() {
       if (!this.running) {
-        // Don't confuse people by automatically running; next() can only be called after start()
-        throw "Clock is not running";
+        return;
       }
 
-      if (this.startTick == null) {
-        this.startTick = 0;
-      }
-
-      if (this.ticks == null) {
+      if (this.ticks < 0) {
         this.ticks = 0;
       } else {
         this.ticks += 1;
       }
     }
-
-    restart() {
-      this.running = true;
-      this.startTick = null;
-      this.ticks = null;
-    }
   }
 
+  /******************************************************************
+   * Cycle
+   *****************************************************************/
+  const CYCLE_DIRECTION_UP = 1;
+  const CYCLE_DIRECTION_DOWN = 2;
+
+  const CYCLE_TYPE_UP = 1;
+  const CYCLE_TYPE_UP_AND_DOWN = 2;
+
   class Cycle {
-    constructor(durationTicks,
-                onUpFn,
-                onDownFn,
-                isOneShot) {
-      this.durationTicks = durationTicks;
-      this.onUpFn = onUpFn;
-      this.onDownFn = onDownFn;
-      this.isOneShot = isOneShot;
+
+    constructor(duration_ticks,
+                oneShot,
+                cycleType,
+                cycleHandler) {
+      this.duration_ticks = 0;
+      this.oneShot = false;
+      this.cycleType;
+      this.cycleHandler;
+      this.clock;
+      this.iterations = 0;
+
+      this.duration_ticks = duration_ticks;
+      this.oneShot = oneShot;
+      this.cycleType = cycleType;
+      this.cycleHandler = cycleHandler;
       this.clock = new Clock();
       this.iterations = 0;
+    }
+
+    next() {
+      if (this.clock.ticks > -1 && this.clock.ticks >= this.duration_ticks) {
+        this.iterations += 1;
+        if (!this.oneShot) {
+          this.clock.restart();
+        }
+      }
+      if (this.iterations > 0 && this.oneShot) {
+        return;
+      }
+
+      this.clock.next();
+      let looping_elapsed_duration = this.clock.ticks % this.duration_ticks;
+
+      if (this.cycleType == CYCLE_TYPE_UP) {
+        let current_value = looping_elapsed_duration / this.duration_ticks;
+        this.cycleHandler.value(current_value, CYCLE_DIRECTION_UP);
+      } else {
+        let half_animation_loop_duration_ticks = round(this.duration_ticks / 2);
+        if (looping_elapsed_duration < half_animation_loop_duration_ticks) {
+          let current_value = looping_elapsed_duration / half_animation_loop_duration_ticks;
+          this.cycleHandler.value(current_value, CYCLE_DIRECTION_UP);
+        } else {
+          let current_value = (this.duration_ticks - looping_elapsed_duration) / half_animation_loop_duration_ticks;
+          this.cycleHandler.value(current_value, CYCLE_DIRECTION_DOWN);
+        }
+      }
     }
 
     start() {
@@ -521,132 +402,96 @@ document.addEventListener("DOMContentLoaded", (event) => {
       this.clock.stop();
     }
 
-    isDone() {
-      return this.isOneShot && this.iterations > 0;
-    }
-
-    next() {
-      if (this.clock.ticks >= this.durationTicks) {
-        this.iterations += 1;
-        if (this.isOneShot) {
-          this.stop();
-          return;
-        } else {
-          // we're cycling; once this goes over the duration, we may as well reset back to 0
-          this.clock.restart();
-        }
-      }
-
-      this.clock.next();
-
-      let halfAnimationLoopDurationTicks = this.durationTicks / 2; // for up and down
-      let loopingElapsedDuration = this.clock.ticks % this.durationTicks;
-
-      if (loopingElapsedDuration < halfAnimationLoopDurationTicks) {
-        // on our way up
-        let currentValue = loopingElapsedDuration / halfAnimationLoopDurationTicks;
-        this.onUpFn(currentValue);
-      } else {
-        // on our way down
-        let currentValue = (this.durationTicks - loopingElapsedDuration) / halfAnimationLoopDurationTicks;
-        this.onDownFn(currentValue);
-      }
-    }
-
     jumpToDownCycle() {
-      if (this.durationTicks >= this.clock.ticks) {
-        // Don't "underun" the clock here: only jump down if it's meaningful to do so. This
-        // shouldn't result in 0, otherwise we'll never hit a single iteration.
-        // TODO: the problem with this is that this never gets to a zero point.
-        this.clock.ticks = Math.max(0, this.durationTicks - this.clock.ticks);
+      if (this.duration_ticks >= this.clock.ticks) {
+        this.clock.ticks = max(0, this.duration_ticks - this.clock.ticks);
       }
     }
 
-    restart(durationTicks) {
-      if (durationTicks) {
-        this.durationTicks = durationTicks;
+    restart(new_duration_ticks) {
+      if (new_duration_ticks) {
+        this.duration_ticks = new_duration_ticks;
       }
       this.iterations = 0;
       this.clock.restart();
     }
 
     isAtZeroPoint() {
-      return this.clock.ticks == null || (this.clock.ticks % this.durationTicks === 0);
+      return this.clock.ticks < 0 || (this.clock.ticks % this.duration_ticks == 0);
+    }
+
+    isDone() {
+      return this.oneShot && this.iterations > 0;
     }
   }
 
+  /******************************************************************
+   * PanelReverberation
+   *****************************************************************/
+
   class PanelReverberation {
     constructor(panel,
-                interaction) {
+                sourcePanel,
+                distanceFromTrigger,
+                reverberationDistanceSource,
+                config) {
+      this.panel;
+      this.sourcePanel;
+      this.config;
+      this.reverberationDistanceSource;
+      this.isSourceInteraction;
+      this.scale;
+      this.cycle;
+      this.currentValue;
+      this.distanceFromTrigger;
+
       this.panel = panel;
-      this.interaction = interaction;
-      this.interactionConfig = this.panel.panelContext.interactionConfig;
-      let oneShot = !this.isSourceInteraction();
-      this.cycle = new Cycle(
-        this.interactionConfig.initialTriggerPanelAnimationLoopDurationTicks,
-        (value) => this.onUpCycle(value),
-        (value) => this.onDownCycle(value),
-        oneShot
-      );
+      this.sourcePanel = sourcePanel;
+      this.config = config;
+      this.reverberationDistanceSource = reverberationDistanceSource;
+      this.isSourceInteraction = panel.index == this.sourcePanel.index;
+      this.scale = 0;
+      let oneShot = !this.isSourceInteraction;
+      this.cycle = new Cycle(config.initial_trigger_panel_animation_loop_duration_ticks,
+        oneShot,
+        CYCLE_TYPE_UP_AND_DOWN,
+        this);
       this.currentValue = 0;
-      this.distanceFromTrigger = this.interaction.getDistanceFromTriggerToPanel(this.panel);
+      this.distanceFromTrigger = distanceFromTrigger;
     }
 
-    _calculateScale() {
-      if (this.panel === this.interaction.sourcePanel) {
-        return 1;
-      } else {
-        let maxDistance = this.interaction.currentReverberatingDistance;
-        return (maxDistance - this.distanceFromTrigger) / maxDistance;
+    value(value, direction) {
+      this.setValue(value);
+      if (direction == CYCLE_DIRECTION_UP) {
+        if (!this.sourcePanel.active && !this.cycle.isAtZeroPoint()) {
+          this.cycle.jumpToDownCycle();
+        }
       }
     }
 
-    isSourceInteraction() {
-      return this.panel.index === this.interaction.sourcePanel.index;
+    setValue(value) {
+      this.currentValue = value * this.scale;
     }
 
     start() {
-      this.scale = this._calculateScale();
+      this.scale = this.calculateScale();
       this.cycle.restart();
-      console.log("Started PanelReverberation", this);
     }
 
     stop() {
       this.cycle.stop();
-      console.log("Stopped PanelReverberation", this);
-    }
-
-    onUpCycle(value) {
-      // on our way up
-      this._setValue(value);
-      if (!this.interaction.sourcePanel.interactionActive && !this.cycle.isAtZeroPoint()) {
-        // Fade out from where this animation loop is at by jumping the cycle to the down-side.
-        this.cycle.jumpToDownCycle();
-      }
-    }
-
-    onDownCycle(value) {
-      // on our way down
-      this._setValue(value);
-    }
-
-    _setValue(value) {
-      this.currentValue = value * this.scale;
     }
 
     update() {
       this.cycle.next();
-      if (this.isSourceInteraction() && this.panel.interactionActive && this._isAnimationLoopDone()) {
-        this.cycle.restart(this.interactionConfig.getTriggerPanelAnimationLoopDurationTicks());
+      if (this.isSourceInteraction && this.panel.active && this.isAnimationLoopDone()) {
+        let newDurationTicks = this.config.getTriggerPanelAnimationLoopDurationTicks();
+        this.cycle.restart(newDurationTicks);
       }
     }
 
-    _isAnimationLoopDone() {
-      return this.cycle.isDone() || (this.cycle.iterations > 0 && this.cycle.isAtZeroPoint());
-    }
-
     isDone() {
-      if (this.isSourceInteraction() && this.panel.interactionActive) {
+      if (this.isSourceInteraction && this.panel.active) {
         return false;
       }
 
@@ -654,86 +499,104 @@ document.addEventListener("DOMContentLoaded", (event) => {
         return true;
       }
 
-      // Otherwise, this is waiting for the animation loop to be done.
-      return this._isAnimationLoopDone();
+      return this.isAnimationLoopDone();
+    }
+
+    calculateScale() {
+      if (this.isSourceInteraction) {
+        return 1;
+      } else {
+        let maxDistance = this.reverberationDistanceSource.getReverberationDistance();
+        return (maxDistance - this.distanceFromTrigger) / maxDistance;
+      }
+    }
+
+    isAnimationLoopDone() {
+      return this.cycle.isDone() || (this.cycle.iterations > 0 && this.cycle.isAtZeroPoint());
     }
   }
+
+  /******************************************************************
+   * Interaction
+   *****************************************************************/
 
   class Interaction {
     constructor(sourcePanel,
                 interactionConfig,
                 panelContext) {
+
+      this.sourcePanel;
+      this.config;
+      this.panel_context;
+      this.clock;
+      this.panelReverberationsByPanelIndex = [];
+      this.eligible_panel_reverberations = [];
+
+      // the _current_ number of Panels that are reverberating to one side
+      this.currentReverberatingDistance = 0;
+      // the index of the first Panel to the left that is reverberating
+      this.panel_reverberations_start_index = 0;
+      // the index of the last Panel to the _right_ that is reverberatin
+      this.panel_reverberations_end_index = 0;
+      this.numberOfEligiblePanelReverberations = 0;
+      this.panel_reverberations_still_active = false;
+      this.source_panel_reverberation;
+
       this.sourcePanel = sourcePanel;
-      this.interactionConfig = interactionConfig;
-      this.panelContext = panelContext;
-
+      this.config = config;
+      this.panel_context = panelContext;
       this.clock = new Clock();
+      this.source_panel_reverberation = new PanelReverberation(
+        this.sourcePanel,
+        this.sourcePanel,
+        0,
+        this,
+        this.config);
       this._buildPanelReverberations();
+      this.panel_reverberations_still_active = false;
     }
 
-    _buildPanelReverberations() {
-      this.sourcePanelReverberation = new PanelReverberation(this.sourcePanel, this);
-      this.panelReverberationsByPanelIndex = {};
-      this.panelReverberationsByPanelIndex[this.sourcePanel.index] = this.sourcePanelReverberation;
-      this._collectAllNeighborPanels().forEach(panel => {
-        this.panelReverberationsByPanelIndex[panel.index] = new PanelReverberation(panel, this)
-      });
-
-      this.panelReverberations = Object.values(this.panelReverberationsByPanelIndex);
+    getReverberationDistance() {
+      return this.currentReverberatingDistance;
     }
 
-    _collectAllNeighborPanels() {
-      let fromIndex = this.sourcePanel.index;
-      let reverberatingPanels = [];
-      for (let i = 0; i < this.interactionConfig.maxReverberationDistance- 1; i++) {
-        let distanceFromIndex = i + 1;
-        let leftPanelIndex = fromIndex - distanceFromIndex;
-        let rightPanelIndex = fromIndex + distanceFromIndex;
-
-        if (leftPanelIndex >= 0) {
-          reverberatingPanels[reverberatingPanels.length] = this.panelContext.getPanelAt(leftPanelIndex);
-        }
-
-        if (rightPanelIndex <= this.panelContext.panels.length - 1) {
-          reverberatingPanels[reverberatingPanels.length] = this.panelContext.getPanelAt(rightPanelIndex);
-        }
-      }
-      return reverberatingPanels;
-    }
-
-    _calculateActivePanelReverberations() {
-      return this.eligiblePanelReverberations.filter(panelReverberation => !panelReverberation.isDone());
+    getDistanceFromTrigger(panel) {
+      return abs(this.sourcePanel.index - panel.index);
     }
 
     start() {
       if (this.clock.running) {
-        throw "Interaction is already started!";
+        return;
       }
+
       this.clock.start();
-      this._triggerNewReverberation({
-        triggerSourcePanel: true
-      });
-      console.log("Started interaction", this);
+      this._trigger_new_reverberation(true);
     }
 
-    /**
-     * This gets called to trigger new _reverberations_, either initially when an interaction starts, or reviving
-     * after a reverberation animation is done.
-     * @param options
-     * @private
-     */
-    _triggerNewReverberation(options) {
-      this.currentReverberatingDistance = this.interactionConfig.getReverberationDistance();
-      this.eligiblePanelReverberations = this.panelReverberations.filter(panelReverberation =>
-        this.currentReverberatingDistance >= panelReverberation.distanceFromTrigger
-      );
-
-      console.log("triggering " + this.currentReverberatingDistance + " reverberating panels");
-      this.eligiblePanelReverberations.forEach(panelReverberation => {
-        if (options.triggerSourcePanel || !panelReverberation.isSourceInteraction()) {
+    _trigger_new_reverberation(trigger_source_panel) {
+      this.currentReverberatingDistance = this.config.get_reverberation_distance();
+      this.numberOfEligiblePanelReverberations = 0;
+      // Calculate which PanelReverberations to start. Because this is referencing them _by panel index_, the for
+      // loop doesn't start at 0, but rather where we want the new reverberation to start, and goes till
+      // source panel is 6, current distance is 2, start index = 6 - 2 = 4.
+      let start = max(0,
+        this.sourcePanel.index - this.currentReverberatingDistance);
+      // source panel is 6, current distance is 2, start index = 6 + 2 = 8.
+      let end = min(this.config.number_of_panels - 1,
+        this.sourcePanel.index + this.currentReverberatingDistance); // don't go beyond the end
+      // So panels reverberating would be 4, 5, 6, 7, 8. 2 panels on each side of Panel 6.
+      // Picking eligible PanelReverberations from _all_ the PanelReverberations.
+      for (let i = start; i < end; i++) {
+        let panelReverberation = this.panelReverberationsByPanelIndex[i];
+        // TODO: we already calculated the distance based on the start and end indexes
+        //if (this.currentReverberatingDistance >= panelReverberation.distanceFromTrigger) {
+        this.eligible_panel_reverberations[this.numberOfEligiblePanelReverberations] = panelReverberation;
+        this.numberOfEligiblePanelReverberations++;
+        if (trigger_source_panel || !panelReverberation.isSourceInteraction) {
           panelReverberation.start();
         }
-      });
+        //}
+      }
     }
 
     stop() {
@@ -741,823 +604,646 @@ document.addEventListener("DOMContentLoaded", (event) => {
         return;
       }
       this.clock.stop();
-      this.activePanelReverberations.forEach(panelReverberation => {
-        // These are marked as done, but haven't been reaped because this happens after the update() method is called.
-        // So at the last clock step, everything is done, this is called, and the final PanelReverberations are stopped.
-        // We can't reap them within the update() method because they need to hold the value for the panels that is
-        // set _after_ the update() method is called.
-        panelReverberation.stop();
-      });
-      console.log("Stopped Interaction", this);
     }
 
-    /**
-     * Calculate this Interaction's values that will be used to set the Panels color.
-     */
     update() {
       if (!this.clock.running) {
         return;
       }
       this.clock.next();
-      // pretty sure this has to be calculated _before_ we call PanelReverberation.update()
-      this.isAtZeroPoint = this._calculateIsAtZeroPoint()
-
-      // Goes through the eligible PanelReverberations and figures out which ones are still "active" (where
-      // isDone() returns false).
-      this.activePanelReverberations = this._calculateActivePanelReverberations();
-      this.activePanelReverberations.forEach(panelReverberation => {
-        let reverberationPanelDelayTicks = this.interactionConfig.reverberationPanelDelayTicks;
-        let delayForPanelToStartTicks = panelReverberation.distanceFromTrigger * reverberationPanelDelayTicks;
-        // Note: this.startTick is when the Reverberation starts, and this waits for a delay to start calculating values
-        if (this.clock.ticks >= delayForPanelToStartTicks) {
-          panelReverberation.update();
+      let last_panel_reverberation_alive = null;
+      let numberOfAlivePanelReverberations = 0;
+      // This is looping through _eligible_ panels, not _all_ panels.
+      for (let i = 0; i < this.numberOfEligiblePanelReverberations; i++) {
+        let panelReverberation = this.eligible_panel_reverberations[i];
+        if (!panelReverberation.isDone()) {
+          this._start_panel_reverberation(panelReverberation);
+          if (panelReverberation.isDone()) {
+            // maybe it's down now that it's been updated? TODO: is this necessary or will the next update() catch it?
+            panelReverberation.stop();
+          } else {
+            numberOfAlivePanelReverberations++;
+            last_panel_reverberation_alive = panelReverberation;
+          }
         }
-      });
-
-      // TODO: calling PanelReverberation stop() here happens _before_ we figure out the value XXX
-      this.activePanelReverberations.forEach(panelReverberation => {
-        if (panelReverberation.isDone()) {
-          panelReverberation.stop();
-        }
-      });
-
-      // TODO: interestingly, this might revive some PanelReverberations before we set the Panel value.
-      this._maybeRevivePanelReverberations();
-    }
-
-    /**
-     * Calculates whether the PanelReverberations are at a "zero point" - meaning the animations are at 0.
-     * @returns {boolean}
-     * @private
-     */
-    _calculateIsAtZeroPoint() {
-      let last = this._findLastRemainingAliveSourcePanelReverberation();
-      return last != null && last.currentValue === 0;
-    }
-
-    /**
-     * Returns the last PanelReverberation if only one last active one exists. Otherwise, null.
-     * @returns {unknown|null}
-     * @private
-     */
-    _findLastRemainingAliveSourcePanelReverberation() {
-      let alive = this.panelReverberations.filter(panelReverberation => !panelReverberation.isDone());
-      if (alive.length === 1) {
-        return alive[0];
-      } else {
-        return null;
       }
-    }
 
-    /**
-     * Maybe trigger new reverberation animations
-     * @private
-     */
-    _maybeRevivePanelReverberations() {
-      if (this.isAtZeroPoint && this.sourcePanel.interactionActive && Math.random() > .65) {
-        // TODO: make probability a function in the interaction config
-        // Restart the clock: since this is at zero point, the clock can restart at 0 and continue running.
-        // Additionally, this means the revived new PanelReverberations will respect the delay from 0, not have
-        // to recalculate each panel in a continually running clock.
+      this.panel_reverberations_still_active = numberOfAlivePanelReverberations > 0;
+      if (numberOfAlivePanelReverberations == 1 && last_panel_reverberation_alive.currentValue == 0 && this.sourcePanel.active && maybe(65)) {
         this.clock.restart();
-        this._triggerNewReverberation({
-          triggerSourcePanel: false
-        });
+        this._trigger_new_reverberation(false);
       }
     }
 
-    /**
-     * Called after update(), this checks whether the Interaction is dead. This means not only the panel is no longer
-     * active, but that the reverberation animation is done.
-     * @returns {boolean}
-     */
+    _start_panel_reverberation(panel_reverberation) {
+      let reverberation_panel_delay_ticks = this.config.reverberation_panel_delay_ticks;
+      let delay_for_panel_to_start_ticks = panel_reverberation.distanceFromTrigger * reverberation_panel_delay_ticks;
+      if (this.clock.ticks >= delay_for_panel_to_start_ticks) {
+        if (!panel_reverberation.cycle.clock.running) {
+          // TODO: sometimes the PanelReverberation has not had start() called
+          panel_reverberation.start();
+        }
+        panel_reverberation.update();
+      }
+    }
+
     isDead() {
-      if (this.sourcePanel.interactionActive) {
+      if (this.sourcePanel.active) {
         return false;
       }
-      // after update() is called, the final active PanelReverberations may be "done".
-      if (!this.activePanelReverberations) {
-        return true;
+
+      return this.panel_reverberations_still_active;
+    }
+
+    get_value_for_panel(panel) {
+      let panelReverberation = this.panelReverberationsByPanelIndex[panel.index];
+      if (panelReverberation == null) {
+        return 0;
+      } else {
+        return panelReverberation.currentValue;
       }
-      return this.activePanelReverberations.filter(panelReverberation => !panelReverberation.isDone()).length === 0;
     }
 
-    getDistanceFromTriggerToPanel(panel) {
-      return Math.abs(this.sourcePanel.index - panel.index);
+    _buildPanelReverberations() {
+      // These track the indexes when adding left and right Panels
+      this.panel_reverberations_start_index = 100; // arbitrary max value
+      this.panel_reverberations_end_index = 0;
+
+      // Add the source Panel
+      this.addPanelReverberation(this.source_panel_reverberation);
+
+      // iterate through _all_ potential possible Panels that may reverberate. This is potential more than will be
+      // assigned to this Interaction, as the source Panel may be on the end and have none to the left (or right).
+      let from_index = this.sourcePanel.index;
+      for (let i = 0; i < this.config.max_reverberation_distance; i++) {
+        let distance_from_index = i + 1;
+        let left_panel_index = from_index - distance_from_index;
+        let right_panel_index = from_index + distance_from_index;
+
+        if (left_panel_index >= 0) {
+          let panel = this.panel_context.get_panel_at(left_panel_index);
+          let panelReverberation = this.createPanelReverberation(
+            panel,
+            distance_from_index);
+          this.addPanelReverberation(panelReverberation);
+        }
+
+        if (right_panel_index <= this.config.number_of_panels - 1) {
+          let panel = this.panel_context.get_panel_at(right_panel_index);
+          let panelReverberation = this.createPanelReverberation(
+            panel,
+            distance_from_index);
+          this.addPanelReverberation(panelReverberation);
+        }
+      }
     }
 
-    /**
-     * Return this Interactoin's value for the given Panel. It basis this value on the PanelReverberation for
-     * the given Panel.
-     * @param panel
-     * @returns {number|*}
-     */
-    getValueForPanel(panel) {
-      // TODO: this is called after update() is called, and doesn't reference the _active_ PanelReverberations, and
-      // even if it did, if we reap or recalculate PanelReverberation this logic would be incorrect... It just
-      // happens to work out that the other non-active or "done" PanelReverbation return 0 for this value.
-      return this.panelReverberationsByPanelIndex[panel.index].currentValue;
+    addPanelReverberation(panelReverberation) {
+      let panelIndex = panelReverberation.panel.index;
+      // NOTE! The array isn't 0-based, but indexed by the Panel index (this makes lookups by Panel easier).
+      this.panelReverberationsByPanelIndex[panelIndex] = panelReverberation;
+
+      // This tracks which index to _start_ looking up PanelReverberations and where to _stop_, since it is not
+      // 0 based.
+      if (panelIndex > this.panel_reverberations_end_index) {
+        this.panel_reverberations_end_index = panelIndex;
+      }
+
+      if (panelIndex < this.panel_reverberations_start_index) {
+        this.panel_reverberations_start_index = panelIndex;
+      }
+    }
+
+    createPanelReverberation(panel, distanceFromTrigger) {
+      return new PanelReverberation(
+        panel,
+        this.sourcePanel,
+        distanceFromTrigger,
+        this,
+        this.config);
     }
   }
 
-  class InteractionConfig {
-    constructor(minReverberationDistance,
-                maxReverberationDistance,
-                reverberationPanelDelayTicks,
-                minTriggerPanelAnimationLoopDurationTicks,
-                maxTriggerPanelAnimationLoopDurationTicks,
-                maxInteractionThresholdPercent) {
-      this.maxReverberationDistance = maxReverberationDistance;
-      this.reverberationDistanceRange = new Range(minReverberationDistance, maxReverberationDistance);
-      this.reverberationPanelDelayTicks = reverberationPanelDelayTicks;
-      this.triggerPanelAnimationLoopDurationTicksRange = new Range(minTriggerPanelAnimationLoopDurationTicks, maxTriggerPanelAnimationLoopDurationTicks);
-      this.initialTriggerPanelAnimationLoopDurationTicks = (maxTriggerPanelAnimationLoopDurationTicks + minTriggerPanelAnimationLoopDurationTicks) / 2;
-      this.maxInteractionThresholdPercent = maxInteractionThresholdPercent;
-    }
+  class Config {
+    constructor(number_of_panels,
+                min_reverberation_distance,
+                max_reverberation_distance,
+                reverberation_panel_delay_ticks,
+                min_trigger_panel_animation_loop_duration_ticks,
+                max_trigger_panel_animation_loop_duration_ticks,
+                max_interaction_threshold_percent,
+                max_interaction_duration_ticks,
+                max_interaction_amount_of_reverberation,
+                max_interaction_value_multiplier) {
 
-    getReverberationDistance() {
-      return this.reverberationDistanceRange.randomIntBetween();
+      this.number_of_panels;
+      this.initial_trigger_panel_animation_loop_duration_ticks;
+      this.reverberation_distance_range;
+      this.max_reverberation_distance;
+      this.reverberation_panel_delay_ticks;
+      this.trigger_panel_animation_loop_duration_ticks_range;
+      this.max_interaction_threshold_percent;
+      this.max_interaction_duration_ticks;
+      this.max_interaction_amount_of_reverberation;
+      this.max_interaction_value_multiplier;
+
+      this.number_of_panels = number_of_panels;
+      this.max_reverberation_distance = max_reverberation_distance;
+      this.reverberation_distance_range = new Range(
+        min_reverberation_distance,
+        max_reverberation_distance);
+      this.reverberation_panel_delay_ticks = reverberation_panel_delay_ticks;
+      this.trigger_panel_animation_loop_duration_ticks_range = new Range(
+        min_trigger_panel_animation_loop_duration_ticks,
+        max_trigger_panel_animation_loop_duration_ticks);
+      this.initial_trigger_panel_animation_loop_duration_ticks =
+        (max_trigger_panel_animation_loop_duration_ticks + min_trigger_panel_animation_loop_duration_ticks) / 2;
+      this.max_interaction_threshold_percent = max_interaction_threshold_percent;
+      this.max_interaction_duration_ticks = max_interaction_duration_ticks;
+      this.max_interaction_amount_of_reverberation = max_interaction_amount_of_reverberation;
+      this.max_interaction_value_multiplier = max_interaction_value_multiplier;
     }
 
     getTriggerPanelAnimationLoopDurationTicks() {
-      return this.triggerPanelAnimationLoopDurationTicksRange.randomIntBetween();
-    }
-  }
-
-  class InteractionContext {
-    constructor(interactionConfig, panelContext) {
-      this.interactionConfig = interactionConfig;
-      this.panelContext = panelContext;
+      return this.trigger_panel_animation_loop_duration_ticks_range.random_int_between();
     }
 
-    createInteraction(panel) {
-      return new Interaction(
-        panel,
-        this.interactionConfig,
-        this.panelContext
-      );
+    get_reverberation_distance() {
+      return this.reverberation_distance_range.random_int_between();
     }
   }
 
   class Panel {
-    constructor(panelElement,
-                index,
-                panelContext) {
-      this.panelContext = panelContext;
-      this.interactionActive = false;
+    constructor(index,
+                idleColor) {
+      this.index;
+      this.idleColor;
+      this.color;
+      this.currentValue;
+      this.active;
+
       this.index = index;
-      this.idleColor = panelContext.idleGradient.getColorForValue(0);
-
-      this.panelElement = panelElement;
-      this.panelUIElement = panelElement.querySelector("div[class='panel']");
-      this.panelInfoElement = panelElement.querySelector("div[class='panelInfo']");
-
-      this.setColor(this.idleColor);
-
-      panelElement.addEventListener("click", () => {
-        if (this.interactionActive) {
-          this.stopInteraction();
-        } else {
-          this.panelContext.triggerPanel(this);
-        }
-      });
-    }
-
-    startInteraction() {
-      this.interactionActive = true;
-      this.panelInfoElement.innerText = "Active";
-    }
-
-    stopInteraction() {
-      this.interactionActive = false;
-      this.panelInfoElement.innerHTML = "&nbsp;";
+      this.idleColor = idleColor;
+      this.color = idleColor;
+      this.active = false;
+      this.currentValue = 0;
     }
 
     reset() {
-      this.setColor(this.idleColor);
-    }
-
-    /**
-     * Update this Panel at the given tick, taking into account its current
-     * state - is it triggered? Reverberating? Etc.
-     * @param panelValueSources
-     */
-    update(panelValueSources) {
-      this.setColor(this.nextColor(panelValueSources));
-    }
-
-    setColor(color) {
-      this.color = color;
-      // TODO: Separate UI from logic?
-      this.panelUIElement.style.backgroundColor = this.color.toHexString();
-      this.panelContext.addPowerDrawAmps(color.getPowerDrawAmps());
-    }
-
-    nextColor(panelValueSources) {
-      // TODO: we could do this in PanelContext, where it would know which PanelSources are valid, and how to mix gradients. The Panel doesn't know what's going on.
-      let valueSums = 0;
-      panelValueSources.forEach(panelValueSource => {
-        let reverberationPanelValue = panelValueSource.getValueForPanel(this);
-        valueSums += reverberationPanelValue;
-      });
-
-      return this.panelContext.idleGradient.getColorForValue(valueSums);
+      this.color = this.idleColor;
+      this.currentValue = 0;
     }
   }
 
-  class PanelInteractionCollector {
-    constructor() {
-      this.reset();
-    }
+  class Aunisoma {
+    constructor(config,
+                gradients,
+                numberOfGradients,
+                sensors) {
+      this.numberOfPanels;
+      this.sensors;
 
-    addPanelAndValueSource(panel, valueSource) {
-      let valueSourcesInvolvingPanel = this._getValueSourcesForPanel(panel);
-      valueSourcesInvolvingPanel.push(valueSource);
-    }
+      this.currentGradient;
+      this.activePercent;
+      this.active_panel_count;
 
-    forEachPanelAndValueSources(fn) {
-      Object.values(this.panelAndValueSourcesByPanelIndex).forEach(fn);
-    }
-
-    _getValueSourcesForPanel(panel) {
-      if (!this.panelAndValueSourcesByPanelIndex[panel.index]) {
-        this.panelAndValueSourcesByPanelIndex[panel.index] = {
-          panel: panel,
-          panelValueSources: []
-        };
-      }
-
-      return this.panelAndValueSourcesByPanelIndex[panel.index].panelValueSources;
-    }
-
-    reset() {
-      this.panelAndValueSourcesByPanelIndex = {};
-    }
-  }
-
-  class PanelContext {
-    constructor(numberOfPanels,
-                interactionConfig,
-                idleGradient) {
-      this.numberOfPanels = numberOfPanels;
-      this.interactionConfig = interactionConfig;
-      this.interactionContext = new InteractionContext(interactionConfig, this);
-      this.idleGradient = idleGradient;
+      this.config;
+      this.gradients;
+      this.numberOfGradients;
       this.panels = [];
-      this.interactionsBySourcePanelIndex = {};
-      this._createPanels();
-      this._createInteractions();
-      this.maxInteractionAnimation = new MaxInteractionAnimation(this);
-      this.isAtMaxInteractions = false;
-      this.amps = 0;
-      this.maxAmps = -1;
-      this.panelInteractionCollector = new PanelInteractionCollector();
+      this.interactions_by_source_panel_index = [];
+      this.transitionAnimation;
+      this.current_gradient_index;
+      this.next_gradient_index;
+      this.maxGradientIndex;
+      this.transitioned_during_this_max;
+      this.ticks_since_last_transition;
+      this.interaction_panel_values = [];
+
+      this.config = config;
+      this.gradients = gradients;
+      this.numberOfGradients = numberOfGradients;
+      this.current_gradient_index = 0;
+      this.next_gradient_index = 0;
+      this.currentGradient = this.gradients[this.current_gradient_index];
+      this.maxGradientIndex = this.numberOfGradients - 1;
+      this.numberOfPanels = config.number_of_panels;
+      this.sensors = sensors;
+      this._calculate_next_gradient_index();
+      this._create_panels();
+      this._create_interactions();
+      this.transitionAnimation = new TransitionAnimation(500, this);
+      this.transitioned_during_this_max = false;
+      this.ticks_since_last_transition = 0;
     }
 
-    _createPanels() {
-      for (const index of Array(this.numberOfPanels).keys()) {
-        this.panels.push(newPanel(index, this));
-      }
-    }
-
-    _createInteractions() {
-      this.interactions = this.panels.map(panel => {
-        let interaction = this.interactionContext.createInteraction(panel);
-        this.interactionsBySourcePanelIndex[panel.index] = interaction;
-        return interaction;
-      });
-    }
-
-    getPanelAt(index) {
+    get_panel_at(index) {
       return this.panels[index];
     }
 
-    /**
-     * Entry point
-     * @param panel
-     */
-    triggerPanel(panel) {
-      // debounce
-      if (!panel.interactionActive) {
-        panel.startInteraction();
-        let interaction = this.interactionsBySourcePanelIndex[panel.index];
-        if (!interaction.clock.running) {
-          interaction.start();
-        }
-        if (this.intervalId == null) {
-          this.start();
+    _calculate_next_gradient_index() {
+      if (this.current_gradient_index == this.maxGradientIndex) {
+        this.next_gradient_index = 0;
+      } else {
+        this.next_gradient_index = this.current_gradient_index + 1;
+      }
+    }
+
+    _create_panels() {
+      for (let i = 0; i < this.numberOfPanels; i++) {
+        let idle_color = this.currentGradient.getColorForValue(0);
+        let panel = new Panel(i, idle_color);
+        panel.index = i;
+        panel.idleColor = idle_color;
+        panel.color = idle_color;
+        this.panels[i] = panel;
+      }
+    }
+
+    _create_interactions() {
+      for (let i = 0; i < this.numberOfPanels; i++) {
+        let panel = this.panels[i];
+        let interaction = new Interaction(panel, this.config, this);
+        this.interactions_by_source_panel_index[panel.index] = interaction;
+      }
+    }
+
+    read_sensors() {
+      for (let i = 0; i < this.numberOfPanels; i++) {
+        // panel index 0, sensor indexes are 0 and 1
+        // panel index 2, sensor indexes are 4 and 5
+        // panel index 10, sensors indexes are 20, 21
+        let sensorIndexForPanel = i * 2;
+        let sensorFront = this.sensors[sensorIndexForPanel];
+        let sensorBack = this.sensors[sensorIndexForPanel + 1];
+
+        let active = sensorFront.active || sensorBack.active;
+        this._handle_panel_sensor(i, active);
+      }
+    }
+
+    _handle_panel_sensor(panel_index, active) {
+      let panel = this.panels[panel_index];
+      if (active != panel.active) {
+        panel.active = active;
+        if (active) {
+          let interaction = this.interactions_by_source_panel_index[panel.index];
+          if (!interaction.clock.running) {
+            interaction.start();
+          }
         }
       }
     }
 
-    start() {
-      this.intervalId = setInterval(() => this.eventLoop(), 20);
-      EVENT_LOOP_INFO_ELEMENT.value = "running";
-    }
+    event_loop() {
+      this.read_sensors();
+      this.active_panel_count = 0;
 
-    stop() {
-      clearInterval(this.intervalId);
-      this.intervalId = null;
-      EVENT_LOOP_INFO_ELEMENT.value = "stopped";
-    }
+      // Zero-out the interaction panel values
+      for (let i = 0; i < this.numberOfPanels; i++) {
+        // TODO: combine these two outer loops?
+        this.interaction_panel_values[i] = 0;
+      }
 
-    addPowerDrawAmps(amps) {
-      this.amps += amps;
-    }
-
-    eventLoop() {
-      this.isAtMaxInteractions = this._calculateAtMaxInteraction();
-
-      // TODO: tell it to stop? Maybe? Or will we lose its value before we render?
-      // TODO: do we need a setup, calculate, render, teardown lifecycle steps? It's confusing to know when update is called vs when the color is set.
-
-      this.panelInteractionCollector.reset();
-      let activeInteractions = [];
-
-      this.interactions.forEach(interaction => {
-        // update the internal state of the Interaction
-        // This must be first - the Interactions' state must be updated to determine whether it is _dead_ or not.
-        interaction.update()
+      for (let i = 0; i < this.numberOfPanels; i++) {
+        let interaction = this.interactions_by_source_panel_index[i];
+        interaction.update();
         // now that the internal state has been updated, determine whether it is dead and stop it if necessary.
         if (interaction.isDead()) {
-          // TODO: Should Interaction call stop() itself after update() is called, and then this can just ask?
+          // TODO: Should Interaction call stop() itself after update() is called, and then self can just ask?
           interaction.stop();
         } else {
-          activeInteractions.push(interaction);
-          interaction.activePanelReverberations.forEach(panelReverberation => {
-            let panel = panelReverberation.panel;
-            let interaction = panelReverberation.interaction;
-
-            if (this.isAtMaxInteractions) {
-              // TODO: filterValueSource? only max does this?
-              interaction = this.maxInteractionAnimation.filterInteraction(interaction);
-            }
-            this.panelInteractionCollector.addPanelAndValueSource(panel, interaction);
-          });
+          for (let j = 0; j < this.numberOfPanels; j++) {
+            let panel = this.panels[j];
+            this.interaction_panel_values[panel.index] += interaction.get_value_for_panel(panel);
+          }
         }
-      });
 
-      this.maxInteractionAnimation.update();
-
-      if (this.maxInteractionAnimation.isRunning()) {
-        // all Panels, both active and inactive, participate in the max animation
-        this.panels.forEach(panel => {
-          this.panelInteractionCollector.addPanelAndValueSource(panel, this.maxInteractionAnimation);
-        })
+        if (interaction.sourcePanel.active) {
+          this.active_panel_count += 1;
+        }
       }
 
-      this.panelInteractionCollector.forEachPanelAndValueSources(panelAndValueSources => {
-        let panel = panelAndValueSources.panel;
-        panel.update(
-          panelAndValueSources.panelValueSources
-        );
-      });
-
-      if (activeInteractions.length === 0) {
-        this.stop();
-      }
-
-      this._updatePowerDraw();
-    }
-
-    _updatePowerDraw() {
-      CURRENT_POWER_DRAW_ELEMENT.value = this.amps + "";
-      if (this.maxAmps < this.amps) {
-        this.maxAmps = this.amps;
-        MAX_POWER_DRAW_ELEMENT.value = this.maxAmps + "";
-      }
-      this.amps = 0;
-    }
-
-    _calculateAtMaxInteraction() {
-      let activePanels = this.panels.filter(panel => panel.interactionActive).length;
-      let activePercent = activePanels / this.panels.length;
-      return activePercent >= this.interactionConfig.maxInteractionThresholdPercent;
-    }
-  }
-
-  class InteractionFilter {
-    constructor(interaction) {
-      this.interaction = interaction;
-    }
-
-    getValueForPanel(panel) {
-      let originalValue = this.interaction.getValueForPanel(panel);
-      return originalValue * .4;
-    }
-  }
-
-  class MaxInteractionAnimation {
-
-    constructor(panelContext) {
-      this.panelContext = panelContext;
-      this.cycle = new Cycle(
-        // TODO: move duration to config
-        500,
-        (value) => this.onUpCycle(value),
-        (value) => this.onDownCycle(value)
-      );
-      this.currentValue = 0;
-      this.panelValuesByPanelIndex = {};
-    }
-
-    filterInteraction(interaction) {
-      return new InteractionFilter(interaction);
-    }
-
-    isRunning() {
-      if (this.panelContext.isAtMaxInteractions) {
-        return true;
+      this.activePercent = (this.active_panel_count) / (this.numberOfPanels);
+      let is_at_max_interactions = this.activePercent >= this.config.max_interaction_threshold_percent;
+      if (is_at_max_interactions) {
+        if (!this.transitionAnimation.cycle.clock.running) {
+          if (this.transitioned_during_this_max) {
+            this.ticks_since_last_transition += 1;
+            // If we transitioned once already and we're _still_ at max - need some state to know if
+            // TODO: also, restart this after some delay if we're still at max interactions
+            if (this.ticks_since_last_transition > 5000 && maybe(99)) {
+              this._start_transition();
+              this.ticks_since_last_transition = 0;
+            }
+          } else {
+            this._start_transition();
+            this.transitioned_during_this_max = true;
+          }
+        }
       } else {
-        let nonZeroPanelIndexes = Object.keys(this.panelValuesByPanelIndex).filter(panelIndex => {
-          return this.panelValuesByPanelIndex[panelIndex] > 0;
-        });
-
-        return nonZeroPanelIndexes.length > 0;
+        // reset state for max tracking
+        this.transitioned_during_this_max = false;
+        this.ticks_since_last_transition = 0;
+        if (this.current_gradient_index != 0 && !this.transitionAnimation.active && maybe(99)) {
+          // reset back to original gradient
+          this.next_gradient_index = 0;
+          this._start_transition();
+        }
       }
+
+      if (this.transitionAnimation.active) {
+        this.transitionAnimation.update();
+      }
+      this._update_panels();
+    }
+
+    _start_transition() {
+      let gradient = this.gradients[this.next_gradient_index];
+      this.transitionAnimation.start(gradient);
+    }
+
+    getCurrentGradient() {
+      return this.currentGradient;
+    }
+
+    switch_to_next_gradient() {
+      this.current_gradient_index = this.next_gradient_index;
+      this._calculate_next_gradient_index();
+      this.currentGradient = this.gradients[this.current_gradient_index];
+      this.ticks_since_last_transition = 1;
+    }
+
+    _update_panels() {
+      for (let i = 0; i < this.numberOfPanels; i++) {
+        let panel = this.panels[i];
+        this._update_panel(panel, this.interaction_panel_values[panel.index]);
+      }
+    }
+
+    _update_panel(panel, total_panel_value) {
+      panel.currentValue = total_panel_value;
+      if (this.transitionAnimation.active) {
+        // Transitioning to new gradient
+        panel.color = this.transitionAnimation.get_color(total_panel_value);
+      } else {
+        // regular animation
+        panel.color = this.currentGradient.getColorForValue(total_panel_value);
+      }
+    }
+  }
+
+  class Sensor {
+    constructor() {
+      this.active = false;
+    }
+  }
+
+  class TransitionAnimation {
+    constructor(durationTicks,
+                transitionAnimationCallback) {
+      this.active;
+      this.cycle;
+      this.transitionAnimationCallback;
+      this.current_value;
+      this.target_gradient;
+
+      this.transitionAnimationCallback = transitionAnimationCallback;
+      this.cycle = new Cycle(durationTicks,
+        false,
+        CYCLE_TYPE_UP,
+        this);
+
+      this.current_value = 0;
+      this.active = false;
+    }
+
+    value(value, direction) {
+      this.current_value = value;
+    }
+
+    start(new_target_gradient) {
+      this.target_gradient = new_target_gradient;
+      this.cycle.restart();
+      this.active = true;
     }
 
     update() {
-      if (!this.cycle.clock.running) {
-        this.cycle.start();
+      if (!this.active) {
+        return;
       }
 
       this.cycle.next();
-    }
 
-    onUpCycle(value) {
-      this.currentValue = value;
-    }
-
-    onDownCycle(value) {
-      this.currentValue = value;
-    }
-
-    getValueForPanel(panel) {
-      if (!this.panelContext.isAtMaxInteractions) {
-        let previousPanelValue = this.panelValuesByPanelIndex[panel.index];
-        if (previousPanelValue <= 0.02) {
-          // Due to the math below, some panels never actually hit 0 value. This forces a 0 value if it's close,
-          // which ensures the panels reset to 0 if they're inactive.
-          this.panelValuesByPanelIndex[panel.index] = 0;
-          return 0;
-        }
-      }
-      // but then it's also... looping somehow....
-      // the value for the panel is like a value mod... hrm
-      // 0,  1,  2,  3, ..., 20
-      // 0, .1, .2,     ...,  1
-      //
-      // so, I have a value from 0...1
-      // I want that spread out over all panels, but "loop" around
-      // currentValue = .5
-      // index = 2;
-      // distance ratio = 2 / 20, .1
-      // currentValue - distance ratio = .4
-      let distanceRatio = panel.index / this.panelContext.panels.length;
-      let wrappedValue = Math.abs(this.currentValue - distanceRatio);
-      // console.log(wrappedValue);
-      let value = 4 * wrappedValue;
-      this.panelValuesByPanelIndex[panel.index] = value;
-      return value;
-    }
-  }
-
-
-  /***
-   * Test infrastructure
-   ***/
-
-  const runTest = (name, fn) => {
-    try {
-      fn();
-      console.log("\t" + name + ": passed");
-    } catch (error) {
-      console.log("\t" + name + ": failed: " + error);
-    }
-  };
-
-  class Given {
-    constructor(name, testInitFn) {
-      this.name = name;
-      this.testInitFn = testInitFn;
-      this.testFns = [];
-    }
-
-    when(description, setupFn) {
-      return new When(this, "when " + description, setupFn);
-    }
-
-    then(testFn) {
-      return new When(this);
-    }
-
-    addTestFn(testFn) {
-      this.testFns[this.testFns.length] = testFn;
-    }
-
-    runTestFns() {
-      console.log("Given " + this.name);
-      this.testFns.forEach(testFn => testFn());
-    }
-  }
-
-  class When {
-    constructor(given,
-                description,
-                setupFn) {
-      this.given = given;
-      this.description = description;
-      this.setupFn = setupFn;
-    }
-
-    then(testFn) {
-      this.given.addTestFn(() => {
-        runTest(this.description, () => {
-          let context = {};
-          let subject = this.given.testInitFn(context);
-          if (this.setupFn) {
-            this.setupFn(subject, context);
-          }
-          testFn(subject, context);
-        });
-      });
-
-      return this;
-    }
-
-    when(description, setupFn) {
-      return new When(this.given, "when " + description, setupFn);
-    }
-
-    run() {
-      this.given.runTestFns();
-    }
-  }
-
-  const given = (name, setupFn) => {
-    return new Given(name, setupFn);
-  }
-
-  const assertFalse = (value) => {
-    if (value) {
-      throw "expected value to be false, but was " + value;
-    }
-  }
-
-  const assertTrue = (value) => {
-    if (!value) {
-      throw "expected value to be true, but was " + value;
-    }
-  }
-
-  class Assertion {
-    constructor(actualValue) {
-      this.actualValue = actualValue;
-    }
-
-    isTrue() {
-      assertTrue(this.actualValue);
-    }
-
-    isFalse() {
-      assertFalse(this.actualValue);
-    }
-
-    equals(expectedValue) {
-      assertEquals(this.actualValue, expectedValue);
-    }
-
-    isNull() {
-      assertNull(this.actualValue);
-    }
-  }
-
-  const assert = (actualValue) => {
-    return new Assertion(actualValue);
-  }
-
-  class Run {
-    constructor(fn) {
-      this.fn = fn;
-    }
-
-    times(count) {
-      for (let i = 0; i < count; i++) {
-        this.fn();
+      if (this.current_value >= .97) {
+        // Done!
+        this.transitionAnimationCallback.switch_to_next_gradient();
+        this.cycle.stop();
+        this.active = false;
       }
     }
-  }
 
-  const run = (fn) => new Run(fn);
+    get_color(panel_value) {
+      let current_gradient = this.transitionAnimationCallback.getCurrentGradient();
+      let from_color = current_gradient.getColorForValue(panel_value);
+      let to_color = this.target_gradient.getColorForValue(panel_value);
 
-  const assertEquals = (actualValue, expectedValue) => {
-    if (expectedValue !== actualValue) {
-      throw "Expected " + expectedValue + " but was " + actualValue;
+      let color = from_color.interpolate(to_color, this.current_value);
+
+      return color;
     }
   }
 
-  const assertNull = (actualValue) => {
-    if (actualValue) {
-      throw "Expected null, but was " + actualValue;
-    }
-  }
+  /******************************************************************
+   * Aunisoma-Sketch.ino
+   *****************************************************************/
 
-  const tests = [
-    /**
-     * Clock tests
-     */
-    given("Clock", () => new Clock())
-      .when("initialized")
-      .then((clock) => {
-        assert(clock.running).isFalse();
-        assert(clock.ticks).isNull();
-      })
-      .when("started", clock => { clock.start() })
-      .then((clock) => {
-        assert(clock.running).isTrue();
-        assert(clock.ticks).isNull();
-      })
-      .when("next", clock => {
-        clock.start();
-        clock.next();
-      })
-      .then((clock) => {
-        assert(clock.running).isTrue();
-        assert(clock.startTick).equals(0);
-        assert(clock.ticks).equals(0);
-      })
-      .when("clock has been running", clock => {
-        clock.start();
-        run(() => clock.next()).times(100);
-      })
-      .then(clock => {
-        assert(clock.running).isTrue();
-        assert(clock.startTick).equals(0);
-        assert(clock.ticks).equals(99);
-      })
-      .when("clock is stopped", clock => {
-        clock.start();
-        run(() => clock.next()).times(100);
-        clock.stop();
-      })
-      .then(clock => {
-        assert(clock.running).isFalse();
-        assert(clock.startTick).isNull();
-        assert(clock.ticks).isNull();
-      })
-      .when("clock is restarted", clock => {
-        clock.start();
-        run(() => clock.next()).times(100);
-        clock.restart();
-        clock.next();
-      })
-      .then(clock => {
-        assert(clock.running).isTrue();
-        assert(clock.startTick).equals(0);
-        assert(clock.ticks).equals(0);
-      }),
-    /**
-     * Cycle tests
-     */
-    given("Cycle", (context) => {
-      let onUpFn = (value) => {
-        context.onUpFnValue = value;
-      }
-      let onDownFn = (value) => {
-        context.onDownFnValue = value;
-      }
-      return new Cycle(100, onUpFn, onDownFn);
-    })
-      .when("initialized")
-      .then(cycle=> {
-        assert(cycle.iterations).equals(0);
-      })
-      .when("on first step of Cycle", (cycle) => {
-        cycle.start();
-        cycle.next();
-      })
-      .then((cycle, context) => {
-        assert(cycle.iterations).equals(0);
-        assert(cycle.clock.ticks).equals(0);
-        assert(context.onUpFnValue).equals(0);
-        assert(context.onDownFnValue).isNull();
-      })
-      .when("on second step of Cycle", (cycle) => {
-        cycle.start();
-        cycle.next();
-        cycle.next();
-      })
-      .then((cycle, context) => {
-        assert(cycle.iterations).equals(0);
-        assert(cycle.clock.ticks).equals(1);
-        assert(context.onUpFnValue).equals(0.02);
-        assert(context.onDownFnValue).isNull();
-      })
-      .when("one step before halfway point in cycle", (cycle, context) => {
-        cycle.start();
-        cycle.clock.ticks = 48
-        cycle.next();
-      })
-      .then((cycle, context) => {
-        assert(cycle.iterations).equals(0);
-        assert(cycle.clock.ticks).equals(49);
-        assert(context.onUpFnValue).equals(.98);
-        assert(context.onDownFnValue).isNull();
-      })
-      .when("halfway point in cycle", (cycle, context) => {
-        cycle.start();
-        cycle.clock.ticks = 49
-        cycle.next();
-      })
-      .then((cycle, context) => {
-        assert(cycle.iterations).equals(0);
-        assert(cycle.clock.ticks).equals(50);
-        assert(context.onUpFnValue).isNull();
-        assert(context.onDownFnValue).equals(1)
-      })
+  const FIRST_INPUT_PIN = 4 // 14 through 54 are PIR pins
+
+  let sensors = [];
+
+  let number_of_panels = 20;
+// number of panels to the left and right
+  let min_reverberation_distance = 2;
+  let max_reverberation_distance = 5;
+// how long to wait to trigger a neighbor Panel to reverberate
+  let reverb_delay_ticks = 20;
+  let min_trigger_panel_animation_loop_duration_ticks = 120;
+  let max_trigger_panel_animation_loop_duration_ticks = 200;
+  let max_interaction_threshold_percent = .5;
+  let max_interaction_duration_ticks = 300;
+  let max_interaction_amount_of_reverberation = 0;  // this tends to flicker the max animation if set > 0
+  let max_interaction_value_multiplier = 3;
+
+  let config = new Config(
+    number_of_panels,
+    min_reverberation_distance,
+    max_reverberation_distance,
+    reverb_delay_ticks,
+    min_trigger_panel_animation_loop_duration_ticks,
+    max_trigger_panel_animation_loop_duration_ticks,
+    max_interaction_threshold_percent,
+    max_interaction_duration_ticks,
+    max_interaction_amount_of_reverberation,
+    max_interaction_value_multiplier);
+
+  let initial_gradient = new GradientValueMap();
+  let blue_gradient = new GradientValueMap();
+  let green_gradient = new GradientValueMap();
+
+  let gradients = [
+    initial_gradient,
+    blue_gradient,
+    green_gradient
   ];
 
-  tests.forEach(test => {
-    test.run();
-  })
+  let aunisoma;
 
-  /***
-   * Initialization
-   ***/
+  function setup() {
+    initial_gradient.add_rgb_point(0.0, 3, 0, 0);
+    initial_gradient.add_rgb_point(.4, 255, 0, 0);
+    initial_gradient.add_rgb_point(1.0, 255, 255, 0);
+    initial_gradient.add_rgb_point(1.6, 0, 255, 255);
+    initial_gradient.add_rgb_point(3, 0, 255, 255);
+
+    blue_gradient.add_rgb_point(0.0, 0, 0, 10);
+    blue_gradient.add_rgb_point(.4, 0, 0, 255);
+    blue_gradient.add_rgb_point(1.0, 255, 0, 255);
+    blue_gradient.add_rgb_point(2, 255, 255, 0);
+    blue_gradient.add_rgb_point(3, 255, 255, 0);
+
+    green_gradient.add_rgb_point(0.0, 0, 10, 0);
+    green_gradient.add_rgb_point(.4, 0, 255, 0);
+    green_gradient.add_rgb_point(1.0, 255, 255, 0);
+    green_gradient.add_rgb_point(2, 255, 0, 255);
+    green_gradient.add_rgb_point(3, 255, 0, 255);
+
+    for (let i = 0; i < 40; i++) {
+      sensors[i] = new Sensor();
+    }
+
+    aunisoma = new Aunisoma(config, gradients, 3, sensors);
+  }
+
+  function loop() {
+    for (let i = 0; i < 40; i++) {
+      let sensorPin = FIRST_INPUT_PIN + i;
+      let panelActive = digitalRead(sensorPin) == HIGH;
+      sensors[i].active = panelActive;
+    }
+
+    aunisoma.event_loop();
+
+    for (let i = 0; i < number_of_panels; i++) {
+      let panel = aunisoma.get_panel_at(i);
+      let color = panel.color;
+      setPanelColor(i, color.red, color.green, color.blue);
+    }
+  }
+
+  /******************************************************************
+   * Power Calculations/Utilities
+   *****************************************************************/
+
+    // TODO: capture average amp-hours over time for various interactions for nightly consumption
+  const DRAW_PER_COLOR_PER_PANEL_AMPS = 0.8046715655;
+
+  function calculatePowerDrawForColorAmps(color) {
+    return (color / 255) * DRAW_PER_COLOR_PER_PANEL_AMPS;
+  }
+
+  /******************************************************************
+   * UI Code
+   *****************************************************************/
+
+  const PANEL_TEMPLATE_ELEMENT = document.getElementById("panelTemplate");
+  const STAGE = document.getElementById("stage");
+  const TRIGGER_SCRIPT_TEXTAREA = document.getElementById("triggerScript");
+  const TRIGGER_SCRIPT_BUTTON = document.getElementById("triggerScriptButton");
+  const TRIGGER_WALK_DOWN_BUTTON = document.getElementById("triggerWalkDownButton");
+  const TRIGGER_MAX_BUTTON = document.getElementById("triggerMaxInteractionsButton");
+  const EVENT_LOOP_INFO_ELEMENT = document.getElementById("eventLoopInfo");
+
+  const CURRENT_POWER_DRAW_ELEMENT = document.getElementById("currentPowerDraw");
+  const MAX_POWER_DRAW_ELEMENT = document.getElementById("maxPowerDraw");
+
+  // TODO: show which panels have someone interacting
+  const REVERBERATIONS_INFO_ELEMENT = document.getElementById("reverberationsInfo");
+  const REVERBERATION_INFO_TEMPLATE_ELEMENT = document.getElementById("reverberationInfoTemplate");
+  const PANEL_REVERBERATION_INFO_TEMPLATE_ELEMENT = document.getElementById("panelReverberationInfoTemplate");
 
   EVENT_LOOP_INFO_ELEMENT.value = "stopped";
 
-  const MIN_REVERBERATION_DISTANCE = 2;
-  const MAX_REVERBERATION_DISTANCE = 6;
-  const REVERB_DELAY_TICKS = 20;
-  const MIN_TRIGGER_PANEL_ANIMATION_LOOP_DURATION_TICKS = 200;
-  const MAX_TRIGGER_PANEL_ANIMATION_LOOP_DURATION_TICKS = 500;
-  const MAX_INTERACTION_THRESHOLD_PERCENT = .5;
-
-  let interactionConfig = new InteractionConfig(
-    MIN_REVERBERATION_DISTANCE,
-    MAX_REVERBERATION_DISTANCE,
-    REVERB_DELAY_TICKS,
-    MIN_TRIGGER_PANEL_ANIMATION_LOOP_DURATION_TICKS,
-    MAX_TRIGGER_PANEL_ANIMATION_LOOP_DURATION_TICKS,
-    MAX_INTERACTION_THRESHOLD_PERCENT
-  );
-
-  let panelContext = new PanelContext(
-    NUMBER_OF_PANELS,
-    interactionConfig,
-    getGradient()
-  );
-
-  function runScript() {
-    let triggers = TRIGGER_SCRIPT_TEXTAREA.value.split("\n");
-    triggers.forEach(trigger => {
-      let triggerCmd = trigger.split(" ");
-      let panelIndex = parseInt(triggerCmd[0]);
-      let panel = panelContext.getPanelAt(panelIndex);
-      if (panel) {
-        setTimeout(
-          () => panelContext.triggerPanel(panel),
-          parseInt(triggerCmd[2])
-        );
-        setTimeout(
-          () => panel.stopInteraction(),
-          parseInt(triggerCmd[4])
-        )
-      }
-    });
+  function getPowerDrawAmps(color) {
+    return calculatePowerDrawForColorAmps(color.red)
+      + calculatePowerDrawForColorAmps(color.green)
+      + calculatePowerDrawForColorAmps(color.blue);
   }
 
-  TRIGGER_SCRIPT_BUTTON.addEventListener("click", () => runScript());
+  function toHexString(red, green, blue) {
+    return "#"
+      + red.toString(16).padStart(2, "0")
+      + green.toString(16).padStart(2, "0")
+      + blue.toString(16).padStart(2, "0");
+  }
 
-  TRIGGER_WALK_DOWN_BUTTON.addEventListener("click", () => {
-    const WALK_DELAY_BETWEEN_PANELS = 1000;
-    for (let i = 0; i < NUMBER_OF_PANELS; i++) {
-      let time = i * WALK_DELAY_BETWEEN_PANELS
-      setTimeout(() => {
-        let panel = panelContext.getPanelAt(i);
-        panelContext.triggerPanel(panel);
-      }, time);
-      setTimeout(() => {
-        let panel = panelContext.getPanelAt(i);
-        panel.stopInteraction();
-      }, time + (Math.random() * 6000));
+  function clone(templateElement) {
+    let clone = templateElement.cloneNode(true);
+    clone.attributes.removeNamedItem("id");
+    return clone;
+  }
+
+  function removeChildren(element) {
+    while (element.firstChild) {
+      element.removeChild(element.firstChild);
     }
-  });
+  }
 
-  TRIGGER_MAX_BUTTON.addEventListener("click", () => {
-    let numberOfPanels =
-      (panelContext.panels.length * panelContext.interactionConfig.maxInteractionThresholdPercent) + 1;
-    for (let i = 0; i < numberOfPanels; i++) {
-      let panel = panelContext.getPanelAt(i);
-      panelContext.triggerPanel(panel);
+  class PanelUI {
+    constructor(index, panelElement) {
+      this.index = index;
+      this.panelElement = panelElement;
+      this.panelUIElement = panelElement.querySelector("div[class='panel']");
+      this.panelInfoElement = panelElement.querySelector("div[class='panelInfo']");
     }
-  })
 
+    setActive(active) {
+      if (active) {
+        this.panelInfoElement.innerText = "Active";
+      } else {
+        this.panelInfoElement.innerHTML = "&nbsp;";
+      }
+    }
 
+    setColor(red, green, blue) {
+      this.panelUIElement.style.backgroundColor = toHexString(red, green, blue);
+      // addPowerDrawAmps(color.getPowerDrawAmps());
+    }
+  }
+
+  const PANEL_UI_OBJECTS = [];
+
+  for (let i = 0; i < number_of_panels; i++) {
+    let panelElement = clone(PANEL_TEMPLATE_ELEMENT);
+    panelElement.classList.add("panel-" + i);
+    STAGE.appendChild(panelElement);
+
+    let panelUI = new PanelUI(i, panelElement);
+    panelElement.addEventListener("click", () => {
+      let sensor = sensors[i*2];
+      sensor.active = !sensor.active;
+      panelUI.setActive(sensor.active);
+    })
+
+    PANEL_UI_OBJECTS[i] = panelUI;
+  }
+
+  setup();
+
+  const mainRunInterval = setInterval(() => {
+    loop();
+  }, 5);
 });
-
 
 </script>
 </body>
