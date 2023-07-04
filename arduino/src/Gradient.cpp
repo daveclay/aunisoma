@@ -21,7 +21,7 @@ void SingleGradientValueMap::addPoint(float value, int color_value) {
 }
 
 int SingleGradientValueMap::get_color_value_at_value(float value) {
-    GradientValuePoint* points[2];
+    GradientValuePoint* points[2] = { NULL, NULL };
     this->get_gradient_value_points_for_value(value, points);
 
     float min_value = points[0]->value;
@@ -39,8 +39,9 @@ int SingleGradientValueMap::get_color_value_at_value(float value) {
     return std::min(255, std::max(0, color_value));
 }
 
-void SingleGradientValueMap::get_gradient_value_points_for_value(float value, GradientValuePoint* value_points[]) {
-    GradientValuePoint* lower_point = nullptr;
+void SingleGradientValueMap::get_gradient_value_points_for_value(float value,
+                                                                 GradientValuePoint* value_points[]) {
+    GradientValuePoint* lower_point = NULL;
     for (int i = 0; i < this->size; i++) {
         GradientValuePoint* point = this->gradientValuePoints[i];
         if (value >= point->value) {
@@ -57,7 +58,7 @@ void SingleGradientValueMap::get_gradient_value_points_for_value(float value, Gr
         }
     }
 
-    if (!value_points[0]) {
+    if (value_points[0] == NULL) {
         //otherwise, use the last (max) two points
         value_points[0] = this->gradientValuePoints[this->size - 2];
         value_points[1] = this->gradientValuePoints[this->size - 1];
