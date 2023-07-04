@@ -90,7 +90,8 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
     const MAX_POWER_DRAW_ELEMENT = document.getElementById("maxPowerDraw");
 
     // TODO: measure more accurately, whether this is linear
-    const DRAW_PER_COLOR_PER_PANEL_AMPS = 0.8046715655;
+    // const DRAW_PER_COLOR_PER_PANEL_AMPS = 0.8046715655; // Amps 12v
+    const DRAW_PER_COLOR_PER_PANEL_AMPS = 0.438911763; // Amps 24v
 
     function calculatePowerDrawForColorAmps(color) {
       return (color / 255) * DRAW_PER_COLOR_PER_PANEL_AMPS;
@@ -197,7 +198,7 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
 
       setColor(color) {
         this.panelElement.style.backgroundColor = colorToHexString(color);
-        // this.amps = getPowerDrawAmps(color)
+        this.amps = getPowerDrawAmps(color)
       }
     }
 
