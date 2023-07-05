@@ -43,6 +43,11 @@
         vertical-align: top;
         padding: 5px;
     }
+    .gradient-slice {
+        display: inline-block;
+        width: 1px;
+        height: 100px;
+    }
 </style>
 <div id="stage"></div>
 <div id="panelTemplate" class="panelContainer">
@@ -87,6 +92,10 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
                 Elapsed Time
             </p>
             <p id="elapsedTimeElement"></p>
+            <p>
+                Loop Time
+            </p>
+            <p id="loopTime"></p>
         </td>
         <td>
             <p>
@@ -97,7 +106,12 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
             </p>
         </td>
     </tr>
+    <tr>
+        <td colspan="4" id="gradientContainer">
+        </td>
+    </tr>
 </table>
+<div id="gradientTemplate"></div>
 <script>
 document.addEventListener("DOMContentLoaded", () => {
 
@@ -139,6 +153,24 @@ document.addEventListener("DOMContentLoaded", () => {
   /******************************************************************
    * Color
    *****************************************************************/
+
+  const gamma8 = [
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,
+    1,  1,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,
+    2,  3,  3,  3,  3,  3,  3,  3,  4,  4,  4,  4,  4,  5,  5,  5,
+    5,  6,  6,  6,  6,  7,  7,  7,  7,  8,  8,  8,  9,  9,  9, 10,
+    10, 10, 11, 11, 11, 12, 12, 13, 13, 13, 14, 14, 15, 15, 16, 16,
+    17, 17, 18, 18, 19, 19, 20, 20, 21, 21, 22, 22, 23, 24, 24, 25,
+    25, 26, 27, 27, 28, 29, 29, 30, 31, 32, 32, 33, 34, 35, 35, 36,
+    37, 38, 39, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 50,
+    51, 52, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 66, 67, 68,
+    69, 70, 72, 73, 74, 75, 77, 78, 79, 81, 82, 83, 85, 86, 87, 89,
+    90, 92, 93, 95, 96, 98, 99,101,102,104,105,107,109,110,112,114,
+    115,117,119,120,122,124,126,127,129,131,133,135,137,138,140,142,
+    144,146,148,150,152,154,156,158,160,162,164,167,169,171,173,175,
+    177,180,182,184,186,189,191,193,196,198,200,203,205,208,210,213,
+    215,218,220,223,225,228,231,233,236,239,241,244,247,249,252,255 ];
 
   class Color {
     constructor(red, green, blue) {
@@ -835,7 +867,7 @@ document.addEventListener("DOMContentLoaded", () => {
       this._calculate_next_gradient_index();
       this._create_panels();
       this._create_interactions();
-      this.transitionAnimation = new TransitionAnimation(900, this);
+      this.transitionAnimation = new TransitionAnimation(500, this);
       this.transitioned_during_this_max = false;
       this.ticks_since_last_transition = 0;
     }
@@ -1073,7 +1105,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let reverb_delay_ticks = 20;
   let min_trigger_panel_animation_loop_duration_ticks = 120;
   let max_trigger_panel_animation_loop_duration_ticks = 200;
-  let max_interaction_threshold_percent = .5;
+  let max_interaction_threshold_percent = .1;
   let max_interaction_duration_ticks = 300;
   let max_interaction_amount_of_reverberation = 0;  // this tends to flicker the max animation if set > 0
   let max_interaction_value_multiplier = 3;
@@ -1104,20 +1136,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function setup() {
     initial_gradient.add_rgb_point(0.0, 3, 0, 0);
-    initial_gradient.add_rgb_point(.4, 255, 0, 0);
+    initial_gradient.add_rgb_point(.7, 255, 0, 0);
     initial_gradient.add_rgb_point(1.0, 255, 255, 0);
     initial_gradient.add_rgb_point(1.6, 0, 255, 255);
     initial_gradient.add_rgb_point(3, 0, 255, 255);
 
     blue_gradient.add_rgb_point(0.0, 0, 0, 10);
     blue_gradient.add_rgb_point(.4, 0, 0, 255);
-    blue_gradient.add_rgb_point(1.0, 255, 0, 255);
+    blue_gradient.add_rgb_point(.7, 200, 0, 200);
+    blue_gradient.add_rgb_point(1, 255, 0, 255);
     blue_gradient.add_rgb_point(2, 255, 255, 0);
     blue_gradient.add_rgb_point(3, 255, 255, 0);
 
     green_gradient.add_rgb_point(0.0, 0, 10, 0);
-    green_gradient.add_rgb_point(.4, 0, 255, 0);
-    green_gradient.add_rgb_point(1.0, 255, 255, 0);
+    green_gradient.add_rgb_point(.6, 0, 255, 0);
+    green_gradient.add_rgb_point(.8, 255, 255, 0);
     green_gradient.add_rgb_point(2, 255, 0, 255);
     green_gradient.add_rgb_point(3, 255, 0, 255);
 
@@ -1129,6 +1162,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function loop() {
+    let start = new Date().getTime();
     for (let i = 0; i < 40; i++) {
       let sensorPin = FIRST_INPUT_PIN + i;
       let panelActive = digitalRead(sensorPin) == HIGH;
@@ -1142,6 +1176,8 @@ document.addEventListener("DOMContentLoaded", () => {
       let color = panel.color;
       setPanelColor(i, color.red, color.green, color.blue);
     }
+
+    LOOP_TIME_ELEMENT.innerText = Math.round(new Date().getTime() - start) + " ms";
   }
 
   /******************************************************************
@@ -1177,6 +1213,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const PANEL_TEMPLATE_ELEMENT = document.getElementById("panelTemplate");
   const STAGE = document.getElementById("stage");
+
+  const GRADIENT_CONTAINER_ELEMENT = document.getElementById("gradientContainer");
+  const GRADIENT_TEMPLATE_ELEMENT = document.getElementById("gradientTemplate");
+
   const TRIGGER_SCRIPT_TEXTAREA = document.getElementById("triggerScript");
   const TRIGGER_SCRIPT_BUTTON = document.getElementById("triggerScriptButton");
   const TRIGGER_WALK_DOWN_BUTTON = document.getElementById("triggerWalkDownButton");
@@ -1186,11 +1226,26 @@ document.addEventListener("DOMContentLoaded", () => {
   const MAX_POWER_DRAW_ELEMENT = document.getElementById("maxPowerDraw");
 
   const ELAPSED_TIME_ELEMENT = document.getElementById("elapsedTimeElement");
+  const LOOP_TIME_ELEMENT = document.getElementById("loopTime")
 
   // TODO: show which panels have someone interacting
   const REVERBERATIONS_INFO_ELEMENT = document.getElementById("reverberationsInfo");
   const REVERBERATION_INFO_TEMPLATE_ELEMENT = document.getElementById("reverberationInfoTemplate");
   const PANEL_REVERBERATION_INFO_TEMPLATE_ELEMENT = document.getElementById("panelReverberationInfoTemplate");
+
+  function renderGradient(gradient) {
+    let gradientElement = clone(GRADIENT_TEMPLATE_ELEMENT);
+    let steps = 1000;
+    for (let i = 0; i < steps; i++) {
+      let span = document.createElement("span");
+      span.setAttribute("class", "gradient-slice");
+      let color = gradient.getColorForValue(i / steps);
+      span.style.backgroundColor = toHexString(color.red, color.green, color.blue);
+      gradientElement.appendChild(span);
+    }
+
+    GRADIENT_CONTAINER_ELEMENT.appendChild(gradientElement);
+  }
 
   function toHexString(red, green, blue) {
     return "#"
@@ -1256,6 +1311,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const START_TIME = new Date().getTime();
 
   setup();
+
+  renderGradient(initial_gradient);
+  renderGradient(blue_gradient);
+  renderGradient(green_gradient);
 
   const mainRunInterval = setInterval(() => {
     currentAmps = 0;
