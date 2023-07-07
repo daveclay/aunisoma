@@ -102,8 +102,8 @@ int main() {
     Aunisoma* aunisoma = new Aunisoma(config, gradients, 3, sensors);
     int iterations = 100000;
     int i = 0;
-    while (true) {
-    // for (int i = 0; i < iterations; i++) {
+    // while (true) {
+    for (int i = 0; i < iterations; i++) {
         int mod = i % 700;
         if (mod == 0) {
             int numPanels = 1 + (std::rand() % 6); // 0 to 6
@@ -124,7 +124,7 @@ int main() {
 
         auto finish = std::chrono::high_resolution_clock::now();
         long long int count = std::chrono::duration_cast<std::chrono::nanoseconds>(finish - start).count();
-        //writeScriptLine(aunisoma, i, count, iterations);
+        writeScriptLine(aunisoma, i, count, iterations);
         i += 1;
     }
 
