@@ -37,12 +37,12 @@ int main() {
     // int i = 0;
     // while (true) {
     for (int i = 0; i < iterations; i++) {
-        int mod = i % 700;
+        int mod = i % 500;
         if (mod == 0) {
             int numPanels = 1 + (std::rand() % 6); // 0 to 6
             for (int j = 0; j < numPanels; j++) {
                 int panel = std::rand() % 20; // 0 through 19
-                int active = i == 0 || (std::rand() % 10) > 4; // 50%
+                int active = i == 0 || (std::rand() % 10) > 3; // 50%
                 setPIRPinSensor(panel, active);
             }
         }

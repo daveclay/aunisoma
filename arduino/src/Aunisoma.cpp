@@ -29,8 +29,9 @@ Panel* Aunisoma::get_panel_at(int index) {
 
 void Aunisoma::_calculate_next_gradient_index() {
     if (this->current_gradient_index == this->maxGradientIndex) {
-        this->next_gradient_index = 0;
+        this->next_gradient_index = 1; // don't go back to the non-max gradient until max is reset?
     } else {
+        // TODO: randomize this? transition colors look weird if they're random, but might be more interesting for engagement.
         this->next_gradient_index = this->current_gradient_index + 1;
     }
 }
@@ -117,7 +118,7 @@ void Aunisoma::event_loop() {
                 this->ticks_since_last_transition += 1;
                 // If we transitioned once already and we're _still_ at max - need some state to know if
                 // TODO: also, restart this after some delay if we're still at max interactions
-                if (this->ticks_since_last_transition > 5000 and maybe(99)) {
+                if (this->ticks_since_last_transition > 5000 and maybe(90)) {
                     this->_start_transition();
                     this->ticks_since_last_transition = 0;
                 }
