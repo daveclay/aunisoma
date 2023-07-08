@@ -58,14 +58,11 @@ void Interaction::_trigger_new_reverberation(bool trigger_source_panel) {
     // Picking eligible PanelReverberations from _all_ the PanelReverberations.
     for (int i = start; i <= end; i++) {
         PanelReverberation* panelReverberation = this->panelReverberationsByPanelIndex[i];
-        // TODO: we already calculated the distance based on the start and end indexes
-        //if (this->currentReverberatingDistance >= panelReverberation->distanceFromTrigger) {
-            this->eligible_panel_reverberations[this->numberOfEligiblePanelReverberations] = panelReverberation;
-            this->numberOfEligiblePanelReverberations++;
-            if (trigger_source_panel || !panelReverberation->isSourceInteraction) {
-                panelReverberation->start();
-            }
-        //}
+        this->eligible_panel_reverberations[this->numberOfEligiblePanelReverberations] = panelReverberation;
+        this->numberOfEligiblePanelReverberations++;
+        if (trigger_source_panel || !panelReverberation->isSourceInteraction) {
+            panelReverberation->start();
+        }
     }
 }
 

@@ -17,21 +17,10 @@ public:
     int reverberation_panel_delay_ticks;
     Range* trigger_panel_animation_loop_duration_ticks_range;
     float max_interaction_threshold_percent;
-    int max_interaction_duration_ticks;
-    float max_interaction_amount_of_reverberation;
-    float max_interaction_value_multiplier;
 
-    Config(int number_of_panels,
-           int min_reverberation_distance,
-           int max_reverberation_distance,
-           int reverberation_panel_delay_ticks,
-           int min_trigger_panel_animation_loop_duration_ticks,
-           int max_trigger_panel_animation_loop_duration_ticks,
-           float max_interaction_threshold_percent,
-           int max_interaction_duration_ticks,
-           float max_interaction_amount_of_reverberation,
-           float max_interaction_value_multiplier);
+    Config();
 
+    void init();
     int getTriggerPanelAnimationLoopDurationTicks() const;
     int get_reverberation_distance() const;
 };

@@ -13,9 +13,6 @@ public:
 
     Range(int min, int max);
     int random_int_between();
-
-private:
-    int range;
 };
 
 
