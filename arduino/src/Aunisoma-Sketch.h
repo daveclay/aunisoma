@@ -15,7 +15,7 @@ Adafruit_DotStar strip(NUMPIXELS, DOTSTAR_BGR);
 
 Sensor* sensors[40] = {};
 
-int number_of_panels = 20;
+int number_of_panels = NUMPIXELS;
 Config config = Config();
 
 GradientValueMap* initial_gradient = new GradientValueMap();
