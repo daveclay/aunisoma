@@ -39,7 +39,7 @@ GradientValueMap* gradients[5] = {
 Aunisoma* aunisoma;
 
 void setup(void) {
-  Serial.begin(9600);
+    Serial.begin(9600);
     initial_gradient->add_rgb_point(0.0, 3, 0, 0);
     initial_gradient->add_rgb_point(.4, 255, 0, 0);
     initial_gradient->add_rgb_point(1.0, 255, 255, 0);
@@ -91,27 +91,27 @@ void setup(void) {
 }
 
 void loop(void) {
-  for (int i = 0; i < 40; i++) {
-    int sensorPin = FIRST_INPUT_PIN + i;
-    int panelActive = digitalRead(sensorPin) == HIGH;
-    sensors[i]->active = panelActive;
-/*
-    if (panelActive) {
-    Serial.print("Sensor ");
-    Serial.print(i);
-    Serial.print(" reading pin ");
-    Serial.print(sensorPin);
-    Serial.println(" HIGH ");
+    for (int i = 0; i < 40; i++) {
+        int sensorPin = FIRST_INPUT_PIN + i;
+        int panelActive = digitalRead(sensorPin) == HIGH;
+        sensors[i]->active = panelActive;
+		/*
+		if (panelActive) {
+			Serial.print("Sensor ");
+			Serial.print(i);
+			Serial.print(" reading pin ");
+			Serial.print(sensorPin);
+			Serial.println(" HIGH ");
+		}
+        */
     }
-    */
-  }
 
-  aunisoma->event_loop();
+    aunisoma->event_loop();
 
-  for (int i = 0; i < number_of_panels; i++) {
-    Panel* panel = aunisoma->get_panel_at(i);
-    Color color = panel->color;
-    strip.setPixelColor(i, color.red, color.green, color.blue);
+    for (int i = 0; i < number_of_panels; i++) {
+        Panel *panel = aunisoma->get_panel_at(i);
+        Color color = panel->color;
+        strip.setPixelColor(i, color.red, color.green, color.blue);
 /*
     Serial.print(i);
     Serial.print("\t");
@@ -121,8 +121,8 @@ void loop(void) {
     Serial.print("\t");
     Serial.println(color.blue);
     */
-  }
-
+    }
+  
   strip.show();
   delay(4);
 }
