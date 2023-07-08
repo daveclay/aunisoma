@@ -43,10 +43,14 @@ Config* config = new Config(
 GradientValueMap* initial_gradient = new GradientValueMap();
 GradientValueMap* blue_gradient = new GradientValueMap();
 GradientValueMap* green_gradient = new GradientValueMap();
+GradientValueMap* purple_red_gradient = new GradientValueMap();
+GradientValueMap* green_blue_gradient = new GradientValueMap();
 
-GradientValueMap* gradients[3] = {
+GradientValueMap* gradients[5] = {
         initial_gradient,
         blue_gradient,
+        purple_red_gradient,
+        green_blue_gradient,
         green_gradient
 };
 
@@ -71,12 +75,24 @@ void setup() {
     green_gradient->add_rgb_point(2, 255, 0, 255);
     green_gradient->add_rgb_point(3, 255, 0, 255);
 
+    purple_red_gradient->add_rgb_point(0,   1,    0,   1);
+    purple_red_gradient->add_rgb_point(.5, 255,   0, 255);
+    purple_red_gradient->add_rgb_point(1,  255,   0,   0);
+    purple_red_gradient->add_rgb_point(2,  255, 255,   0);
+    purple_red_gradient->add_rgb_point(3,    0, 255,   0);
+
+    green_blue_gradient->add_rgb_point(0,    0,   3,   0);
+    green_blue_gradient->add_rgb_point(.3,   0, 255,   0);
+    green_blue_gradient->add_rgb_point(1,    0, 255, 255);
+    green_blue_gradient->add_rgb_point(2,    0,   0, 255);
+    green_blue_gradient->add_rgb_point(3,  255,   0, 255);
+
     for (int i = 0; i < 40; i++) {
         sensors[i] = new Sensor();
         pinMode(FIRST_INPUT_PIN + i, INPUT_PULLDOWN);
     }
 
-    aunisoma = new Aunisoma(config, gradients, 3, sensors);
+    aunisoma = new Aunisoma(config, gradients, 5, sensors);
     strip.begin();
 }
 

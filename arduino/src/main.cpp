@@ -42,7 +42,7 @@ int main() {
             int numPanels = 1 + (std::rand() % 6); // 0 to 6
             for (int j = 0; j < numPanels; j++) {
                 int panel = std::rand() % 20; // 0 through 19
-                int active = (std::rand() % 10) > 4; // 50%
+                int active = i == 0 || (std::rand() % 10) > 4; // 50%
                 setPIRPinSensor(panel, active);
             }
         }
