@@ -17,6 +17,8 @@ public:
     int reverberation_panel_delay_ticks;
     Range* trigger_panel_animation_loop_duration_ticks_range;
     float max_interaction_threshold_percent;
+    int min_max_interaction_gradient_transition_duration;
+    int odds_for_max_interaction_gradient_transition;
 
     Config();
 

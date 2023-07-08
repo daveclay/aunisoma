@@ -116,9 +116,8 @@ void Aunisoma::event_loop() {
         if (!this->transitionAnimation->cycle->clock->running) {
             if (this->transitioned_during_this_max) {
                 this->ticks_since_last_transition += 1;
-                // If we transitioned once already and we're _still_ at max - need some state to know if
-                // TODO: also, restart this after some delay if we're still at max interactions
-                if (this->ticks_since_last_transition > 5000 and maybe(90)) {
+                if (this->ticks_since_last_transition > config->min_max_interaction_gradient_transition_duration
+                    && maybe(config->odds_for_max_interaction_gradient_transition)) {
                     this->_start_transition();
                     this->ticks_since_last_transition = 0;
                 }
@@ -131,7 +130,7 @@ void Aunisoma::event_loop() {
         // reset state for max tracking
         this->transitioned_during_this_max = false;
         this->ticks_since_last_transition = 0;
-        if (this->current_gradient_index != 0 && !this->transitionAnimation->active && maybe(99)) {
+        if (this->current_gradient_index != 0 && !this->transitionAnimation->active) {
             // reset back to original gradient
             this->next_gradient_index = 0;
             this->_start_transition();

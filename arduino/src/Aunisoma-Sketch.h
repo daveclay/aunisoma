@@ -71,6 +71,8 @@ void setup() {
     config.reverberation_panel_delay_ticks = 20;
     config.trigger_panel_animation_loop_duration_ticks_range = new Range(220, 300);
     config.max_interaction_threshold_percent = .5;
+    config.min_max_interaction_gradient_transition_duration = 5000;
+    config.odds_for_max_interaction_gradient_transition = 90;
 
     config.init();
 
