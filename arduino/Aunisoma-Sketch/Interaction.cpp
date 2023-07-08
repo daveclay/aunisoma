@@ -19,7 +19,7 @@ Interaction::Interaction(Panel* sourcePanel, Config* config, PanelContext* panel
             this->config);
 
     for (int i = 0; i < 20; i++) {
-      this->panelReverberationsByPanelIndex[i] = NULL;
+      this->panelReverberationsByPanelIndex[i] = 0;
     }
 
     this->_build_panel_reverberations();
@@ -58,14 +58,11 @@ void Interaction::_trigger_new_reverberation(bool trigger_source_panel) {
     // Picking eligible PanelReverberations from _all_ the PanelReverberations.
     for (int i = start; i <= end; i++) {
         PanelReverberation* panelReverberation = this->panelReverberationsByPanelIndex[i];
-        // TODO: we already calculated the distance based on the start and end indexes
-        //if (this->currentReverberatingDistance >= panelReverberation->distanceFromTrigger) {
-            this->eligible_panel_reverberations[this->numberOfEligiblePanelReverberations] = panelReverberation;
-            this->numberOfEligiblePanelReverberations++;
-            if (trigger_source_panel || !panelReverberation->isSourceInteraction) {
-                panelReverberation->start();
-            }
-        //}
+        this->eligible_panel_reverberations[this->numberOfEligiblePanelReverberations] = panelReverberation;
+        this->numberOfEligiblePanelReverberations++;
+        if (trigger_source_panel || !panelReverberation->isSourceInteraction) {
+            panelReverberation->start();
+        }
     }
 }
 
@@ -81,7 +78,7 @@ void Interaction::update() {
         return;
     }
     this->clock->next();
-    PanelReverberation* last_panel_reverberation_alive = nullptr;
+    PanelReverberation* last_panel_reverberation_alive = 0;
     int numberOfAlivePanelReverberations = 0;
     // This is looping through _eligible_ panels, not _all_ panels.
     for (int i = 0; i < this->numberOfEligiblePanelReverberations; i++) {
@@ -127,7 +124,7 @@ bool Interaction::isDead() {
 
 float Interaction::get_value_for_panel(Panel* panel) {
     PanelReverberation* panelReverberation = this->panelReverberationsByPanelIndex[panel->index];
-    if (panelReverberation == NULL) {
+    if (panelReverberation == 0) {
         return 0;
     } else {
         return panelReverberation->currentValue;

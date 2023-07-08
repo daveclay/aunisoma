@@ -1,15 +1,19 @@
-#ifndef C_AUNISOMA_ARDUINO_SKETCH_H
-#define C_AUNISOMA_ARDUINO_SKETCH_H
-
-#include "Arduino.h"
+#include "Adafruit_DotStar.h"
+#include "SPI.h"
+#include "Clock.h"
+#include "Cycle.h"
 #include "Color.h"
 #include "Config.h"
 #include "Gradient.h"
+#include "Panel.h"
+#include "PanelContext.h"
+#include "PanelReverberation.h"
 #include "Sensor.h"
+#include "TransitionAnimation.h"
 #include "Aunisoma.h"
 
-const int NUMPIXELS = 20;
-const int FIRST_INPUT_PIN = 0;
+#define NUMPIXELS 20  // Number of LEDs in strip
+#define FIRST_INPUT_PIN 4 // 14 through 54 are PIR pins
 
 Adafruit_DotStar strip(NUMPIXELS, DOTSTAR_BGR);
 
@@ -34,7 +38,8 @@ GradientValueMap* gradients[5] = {
 
 Aunisoma* aunisoma;
 
-void setup() {
+void setup(void) {
+    Serial.begin(9600);
     initial_gradient->add_rgb_point(0.0, 3, 0, 0);
     initial_gradient->add_rgb_point(.4, 255, 0, 0);
     initial_gradient->add_rgb_point(1.0, 255, 255, 0);
@@ -85,11 +90,20 @@ void setup() {
     strip.begin();
 }
 
-void loop() {
+void loop(void) {
     for (int i = 0; i < 40; i++) {
         int sensorPin = FIRST_INPUT_PIN + i;
         int panelActive = digitalRead(sensorPin) == HIGH;
         sensors[i]->active = panelActive;
+		/*
+		if (panelActive) {
+			Serial.print("Sensor ");
+			Serial.print(i);
+			Serial.print(" reading pin ");
+			Serial.print(sensorPin);
+			Serial.println(" HIGH ");
+		}
+        */
     }
 
     aunisoma->event_loop();
@@ -98,7 +112,17 @@ void loop() {
         Panel *panel = aunisoma->get_panel_at(i);
         Color color = panel->color;
         strip.setPixelColor(i, color.red, color.green, color.blue);
+/*
+    Serial.print(i);
+    Serial.print("\t");
+    Serial.print(color.red);
+    Serial.print("\t");
+    Serial.print(color.green);
+    Serial.print("\t");
+    Serial.println(color.blue);
+    */
     }
+  
+  strip.show();
+  delay(4);
 }
-
-#endif // C_AUNISOMA_ARDUINO_SKETCH_H

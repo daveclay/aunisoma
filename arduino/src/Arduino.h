@@ -19,19 +19,15 @@ void pinMode(int pin, int mode);
 int digitalRead(int pin);
 void setPIRPinSensor(int panelIndex, int pinValue);
 const int DOTSTAR_BGR = 1;
+void delay(int);
 
-class Adafruit_DotStar {
+class SerialThing {
 public:
-    Adafruit_DotStar(int numPixels, int rgbOrder) {
-    }
-
-    void begin() {
-    }
-
-    void setPixelColor(int index, int red, int green, int blue) {
-        // stub
+    void begin(int) const {
     }
 };
+
+const SerialThing Serial = SerialThing();
 
 
 #endif //C_AUNISOMA_ARDUINO_H

@@ -28,6 +28,9 @@ int random(int max) {
     return std::rand() % max;
 }
 
+void delay(int) {
+}
+
 class ArduinoStub {
 public:
     int pins[40];
