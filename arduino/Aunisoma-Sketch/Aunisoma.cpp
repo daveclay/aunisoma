@@ -40,9 +40,6 @@ void Aunisoma::_create_panels() {
     for (int i = 0; i < this->numberOfPanels; i++) {
         Color idle_color = this->currentGradient->getColorForValue(0);
         Panel* panel = new Panel(i, idle_color);
-        panel->index = i;
-        panel->idleColor = idle_color;
-        panel->color = idle_color;
         this->panels[i] = panel;
     }
 }
@@ -84,7 +81,7 @@ void Aunisoma::_handle_panel_sensor(int panel_index, bool active) {
 
 void Aunisoma::event_loop() {
     this->read_sensors();
-    active_panel_count = 0;
+    int active_panel_count = 0;
 
     // Zero-out the interaction panel values
     for (int i = 0; i < this->numberOfPanels; i++) {
@@ -95,6 +92,7 @@ void Aunisoma::event_loop() {
     for (int i = 0; i < this->numberOfPanels; i++) {
         Interaction* interaction = this->interactions_by_source_panel_index[i];
         interaction->update();
+
         // now that the internal state has been updated, determine whether it is dead and stop it if necessary.
         if (interaction->isDead()) {
             // TODO: Should Interaction call stop() itself after update() is called, and then self can just ask?
@@ -111,7 +109,7 @@ void Aunisoma::event_loop() {
         }
     }
 
-    activePercent = ((float) active_panel_count) / ((float) this->numberOfPanels);
+    float activePercent = (float) active_panel_count / (float) this->numberOfPanels;
     bool is_at_max_interactions = activePercent >= this->config->max_interaction_threshold_percent;
     if (is_at_max_interactions) {
         if (!this->transitionAnimation->cycle->clock->running) {

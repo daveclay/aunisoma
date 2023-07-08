@@ -4,7 +4,7 @@
 
 #include "Interaction.h"
 #include "Maths.h"
-#include <algorithm>
+#include "Arduino.h"
 
 Interaction::Interaction(Panel* sourcePanel, Config* config, PanelContext* panelContext) {
     this->sourcePanel = sourcePanel;
@@ -18,6 +18,10 @@ Interaction::Interaction(Panel* sourcePanel, Config* config, PanelContext* panel
             this,
             this->config);
 
+    for (int i = 0; i < 20; i++) {
+      this->panelReverberationsByPanelIndex[i] = 0;
+    }
+
     this->_build_panel_reverberations();
     this->panel_reverberations_still_active = false;
 }
@@ -27,7 +31,7 @@ int Interaction::getReverberationDistance() {
 }
 
 int Interaction::getDistanceFromTrigger(Panel* panel) {
-    return std::abs(this->sourcePanel->index - panel->index);
+    return abs(this->sourcePanel->index - panel->index);
 }
 
 void Interaction::start() {
@@ -45,10 +49,10 @@ void Interaction::_trigger_new_reverberation(bool trigger_source_panel) {
     // Calculate which PanelReverberations to start. Because this is referencing them _by panel index_, the for
     // loop doesn't start at 0, but rather where we want the new reverberation to start, and goes till
     // source panel is 6, current distance is 2, start index = 6 - 2 = 4.
-    int start = std::max(0,
+    int start = max(0,
                          this->sourcePanel->index - this->currentReverberatingDistance);
     // source panel is 6, current distance is 2, start index = 6 + 2 = 8.
-    int end = std::min(this->config->number_of_panels - 1,
+    int end = min(this->config->number_of_panels - 1,
                        this->sourcePanel->index + this->currentReverberatingDistance); // don't go beyond the end
     // So panels reverberating would be 4, 5, 6, 7, 8. 2 panels on each side of Panel 6.
     // Picking eligible PanelReverberations from _all_ the PanelReverberations.
@@ -77,7 +81,7 @@ void Interaction::update() {
         return;
     }
     this->clock->next();
-    PanelReverberation* last_panel_reverberation_alive = nullptr;
+    PanelReverberation* last_panel_reverberation_alive = 0;
     int numberOfAlivePanelReverberations = 0;
     // This is looping through _eligible_ panels, not _all_ panels.
     for (int i = 0; i < this->numberOfEligiblePanelReverberations; i++) {
@@ -123,7 +127,7 @@ bool Interaction::isDead() {
 
 float Interaction::get_value_for_panel(Panel* panel) {
     PanelReverberation* panelReverberation = this->panelReverberationsByPanelIndex[panel->index];
-    if (panelReverberation == nullptr) {
+    if (panelReverberation == 0) {
         return 0;
     } else {
         return panelReverberation->currentValue;

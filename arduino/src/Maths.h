@@ -2,7 +2,7 @@
 // Created by David Clay on 6/15/23.
 //
 
-#include <cstdlib>
+#include "Arduino.h"
 
 static int interpolateValue(int value_a, int value_b, float amount) {
     float value_a_amount = ((float)value_a) * (1.0f - amount);
@@ -12,5 +12,5 @@ static int interpolateValue(int value_a, int value_b, float amount) {
 }
 
 static bool maybe(int percentage) {
-    return rand() % 100 > percentage;
+    return random(101) > percentage;
 }

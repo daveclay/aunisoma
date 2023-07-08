@@ -21,18 +21,14 @@ public:
 
     Panel* get_panel_at(int);
     void event_loop();
-    void read_sensors();
     void switch_to_next_gradient();
     GradientValueMap* getCurrentGradient();
-
-    GradientValueMap* currentGradient;
-    float activePercent;
-    int active_panel_count;
 
 private:
     Config* config;
     GradientValueMap** gradients;
     int numberOfGradients;
+    GradientValueMap* currentGradient;
     Panel* panels[20];
     Interaction* interactions_by_source_panel_index[20];
     TransitionAnimation* transitionAnimation;
@@ -46,6 +42,7 @@ private:
     void _calculate_next_gradient_index();
     void _create_panels();
     void _create_interactions();
+    void read_sensors();
     void _handle_panel_sensor(int panel_index, bool active);
     void _start_transition();
     void _update_panels();

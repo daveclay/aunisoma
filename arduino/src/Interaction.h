@@ -6,7 +6,6 @@
 #define C_AUNISOMA_INTERACTION_H
 
 
-#include <cmath>
 #include "Panel.h"
 #include "Config.h"
 #include "Clock.h"

@@ -10,7 +10,6 @@
 
 class Panel {
 public:
-    Panel(int index, Color idleColor);
 
     int index;
     Color idleColor;
@@ -18,6 +17,7 @@ public:
     float currentValue;
     bool active;
 
+    Panel(int index, Color idleColor);
     void reset();
 };
 

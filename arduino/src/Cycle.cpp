@@ -2,9 +2,8 @@
 // Created by David Clay on 6/15/23.
 //
 
-#include <cmath>
-#include <algorithm>
 #include "Cycle.h"
+#include "Arduino.h"
 
 Cycle::Cycle(int duration_ticks, bool oneShot, CycleType cycleType, CycleHandler* cycleHandler) {
     this->duration_ticks = duration_ticks;
@@ -33,7 +32,7 @@ void Cycle::next() {
         float current_value = (float)looping_elapsed_duration / (float)this->duration_ticks;
         this->cycleHandler->value(current_value, CYCLE_DIRECTION_UP);
     } else {
-        int half_animation_loop_duration_ticks = std::round(this->duration_ticks / 2);
+        int half_animation_loop_duration_ticks = round(this->duration_ticks / 2);
         if (looping_elapsed_duration < half_animation_loop_duration_ticks) {
             float current_value = (float)looping_elapsed_duration / (float)half_animation_loop_duration_ticks;
             this->cycleHandler->value(current_value, CYCLE_DIRECTION_UP);
@@ -54,7 +53,7 @@ void Cycle::stop() {
 
 void Cycle::jumpToDownCycle() {
     if (this->duration_ticks >= this->clock->ticks) {
-        this->clock->ticks = std::max(0, this->duration_ticks - this->clock->ticks);
+        this->clock->ticks = max(0, this->duration_ticks - this->clock->ticks);
     }
 }
 

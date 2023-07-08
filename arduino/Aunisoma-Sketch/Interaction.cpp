@@ -122,7 +122,7 @@ bool Interaction::isDead() {
         return false;
     }
 
-    return !this->panel_reverberations_still_active;
+    return this->panel_reverberations_still_active;
 }
 
 float Interaction::get_value_for_panel(Panel* panel) {

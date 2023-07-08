@@ -2,9 +2,8 @@
 // Created by David Clay on 6/15/23.
 //
 
-#include <cmath>
-#include <algorithm>
 #include "Gradient.h"
+#include "Arduino.h"
 
 GradientValuePoint::GradientValuePoint(float value, int color_value) {
     this->value = value;
@@ -21,7 +20,7 @@ void SingleGradientValueMap::addPoint(float value, int color_value) {
 }
 
 int SingleGradientValueMap::get_color_value_at_value(float value) {
-    GradientValuePoint* points[2] = { NULL, NULL };
+    GradientValuePoint* points[2] = { 0, 0};
     this->get_gradient_value_points_for_value(value, points);
 
     float min_value = points[0]->value;
@@ -36,18 +35,17 @@ int SingleGradientValueMap::get_color_value_at_value(float value) {
 
     int color_value = min_color + (int)round(ranged_color_value);
 
-    return std::min(255, std::max(0, color_value));
+    return min(255, max(0, color_value));
 }
 
-void SingleGradientValueMap::get_gradient_value_points_for_value(float value,
-                                                                 GradientValuePoint* value_points[]) {
-    GradientValuePoint* lower_point = NULL;
+void SingleGradientValueMap::get_gradient_value_points_for_value(float value, GradientValuePoint* value_points[]) {
+    GradientValuePoint* lower_point = 0;
     for (int i = 0; i < this->size; i++) {
         GradientValuePoint* point = this->gradientValuePoints[i];
         if (value >= point->value) {
             lower_point = point;
         } else {
-            if (lower_point) {
+            if (lower_point != 0) {
                 value_points[0] = lower_point;
                 value_points[1] = point;
             } else {
@@ -58,7 +56,7 @@ void SingleGradientValueMap::get_gradient_value_points_for_value(float value,
         }
     }
 
-    if (value_points[0] == NULL) {
+    if (value_points[0] == 0) {
         //otherwise, use the last (max) two points
         value_points[0] = this->gradientValuePoints[this->size - 2];
         value_points[1] = this->gradientValuePoints[this->size - 1];
