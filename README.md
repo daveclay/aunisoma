@@ -7,17 +7,6 @@
 ## Code
 * idle should animate "pulse" occasionally
 * Is 5 seconds too short for real-life human interaction? should be more like 30 seconds?
-* should color transition for fewer than max?
-
-## Electronics
-* Panel boards - Walter
-* Main panel - me
-* Wiring - me
-
-## Power
-* Battery & soloar - me
-
-## Structure
-* Panel frames - Cyclefab
-* Panel stands - me, Adam?
-* Assembly
+* bring back `MaxAnimation` to limit power draw
+* Split thresholds into "low interactivity", "med interactivity" (color shifts), and "max interactivity" (`MaxAnimation`)
+* should color transition for fewer than max interactions?
