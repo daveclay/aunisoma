@@ -843,43 +843,13 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   class Config {
-    constructor(number_of_panels,
-                min_reverberation_distance,
-                max_reverberation_distance,
-                reverberation_panel_delay_ticks,
-                min_trigger_panel_animation_loop_duration_ticks,
-                max_trigger_panel_animation_loop_duration_ticks,
-                max_interaction_threshold_percent,
-                max_interaction_duration_ticks,
-                max_interaction_amount_of_reverberation,
-                max_interaction_value_multiplier) {
+    constructor() {
+    }
 
-      this.number_of_panels;
-      this.initial_trigger_panel_animation_loop_duration_ticks;
-      this.reverberation_distance_range;
-      this.max_reverberation_distance;
-      this.reverberation_panel_delay_ticks;
-      this.trigger_panel_animation_loop_duration_ticks_range;
-      this.max_interaction_threshold_percent;
-      this.max_interaction_duration_ticks;
-      this.max_interaction_amount_of_reverberation;
-      this.max_interaction_value_multiplier;
-
-      this.number_of_panels = number_of_panels;
-      this.max_reverberation_distance = max_reverberation_distance;
-      this.reverberation_distance_range = new Range(
-        min_reverberation_distance,
-        max_reverberation_distance);
-      this.reverberation_panel_delay_ticks = reverberation_panel_delay_ticks;
-      this.trigger_panel_animation_loop_duration_ticks_range = new Range(
-        min_trigger_panel_animation_loop_duration_ticks,
-        max_trigger_panel_animation_loop_duration_ticks);
+    init() {
+      this.max_reverberation_distance = this.reverberation_distance_range.max;
       this.initial_trigger_panel_animation_loop_duration_ticks =
-        (max_trigger_panel_animation_loop_duration_ticks + min_trigger_panel_animation_loop_duration_ticks) / 2;
-      this.max_interaction_threshold_percent = max_interaction_threshold_percent;
-      this.max_interaction_duration_ticks = max_interaction_duration_ticks;
-      this.max_interaction_amount_of_reverberation = max_interaction_amount_of_reverberation;
-      this.max_interaction_value_multiplier = max_interaction_value_multiplier;
+        (this.trigger_panel_animation_loop_duration_ticks_range.max + this.trigger_panel_animation_loop_duration_ticks_range.min) / 2;
     }
 
     getTriggerPanelAnimationLoopDurationTicks() {
@@ -934,7 +904,7 @@ document.addEventListener("DOMContentLoaded", () => {
       this.current_gradient_index;
       this.next_gradient_index;
       this.maxGradientIndex;
-      this.transitioned_during_this_max;
+      this.transitioned_during_current_intermediate_state;
       this.ticks_since_last_transition;
       this.interaction_panel_values = [];
 
@@ -951,7 +921,8 @@ document.addEventListener("DOMContentLoaded", () => {
       this._create_panels();
       this._create_interactions();
       this.transitionAnimation = new TransitionAnimation(500, this);
-      this.transitioned_during_this_max = false;
+      this.maxInteractionAnimation = new MaxInteractionAnimation();
+      this.transitioned_during_current_intermediate_state = false;
       this.ticks_since_last_transition = 0;
     }
 
@@ -1043,10 +1014,10 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       this.activePercent = (this.active_panel_count) / (this.numberOfPanels);
-      let is_at_max_interactions = this.activePercent >= this.config.max_interaction_threshold_percent;
+      let is_at_max_interactions = this.activePercent >= this.config.intermediate_interaction_threshold_percent;
       if (is_at_max_interactions) {
         if (!this.transitionAnimation.cycle.clock.running) {
-          if (this.transitioned_during_this_max) {
+          if (this.transitioned_during_current_intermediate_state) {
             this.ticks_since_last_transition += 1;
             if (this.ticks_since_last_transition > 5000 && maybe(90)) {
               this._start_transition();
@@ -1054,12 +1025,12 @@ document.addEventListener("DOMContentLoaded", () => {
             }
           } else {
             this._start_transition();
-            this.transitioned_during_this_max = true;
+            this.transitioned_during_current_intermediate_state = true;
           }
         }
       } else {
         // reset state for max tracking
-        this.transitioned_during_this_max = false;
+        this.transitioned_during_current_intermediate_state = false;
         this.ticks_since_last_transition = 0;
         if (this.current_gradient_index != 0 && !this.transitionAnimation.active) {
           // reset back to original gradient
@@ -1208,6 +1179,62 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  class MaxInteractionAnimation {
+
+    constructor() {
+      this.cycle = new Cycle(500,
+        false,
+        CYCLE_TYPE_UP,
+        this);
+      this.currentValue = 0;
+      this.panelValuesByPanelIndex = {};
+    }
+
+    isRunning() {
+        let nonZeroPanelIndexes = Object.keys(this.panelValuesByPanelIndex).filter(panelIndex => {
+          return this.panelValuesByPanelIndex[panelIndex] > 0;
+        });
+
+        return nonZeroPanelIndexes.length > 0;
+    }
+
+    update() {
+      this.cycle.next();
+    }
+
+    value(value, direction) {
+      this.current_value = value;
+    }
+
+    getValueForPanel(panel) {
+      let previousPanelValue = this.panelValuesByPanelIndex[panel.index];
+      if (previousPanelValue <= 0.02) {
+        // Due to the math below, some panels never actually hit 0 value. This forces a 0 value if it's close,
+        // which ensures the panels reset to 0 if they're inactive.
+        this.panelValuesByPanelIndex[panel.index] = 0;
+        return 0;
+      }
+      // but then it's also... looping somehow....
+      // the value for the panel is like a value mod... hrm
+      // 0,  1,  2,  3, ..., 20
+      // 0, .1, .2,     ...,  1
+      //
+      // so, I have a value from 0...1
+      // I want that spread out over all panels, but "loop" around
+      // currentValue = .5
+      // index = 2;
+      // distance ratio = 2 / 20, .1
+      // currentValue - distance ratio = .4
+      let distanceRatio = panel.index / this.panelContext.panels.length;
+      let wrappedValue = Math.abs(this.currentValue - distanceRatio);
+      // console.log(wrappedValue);
+      let value = 4 * wrappedValue;
+      this.panelValuesByPanelIndex[panel.index] = value;
+      return value;
+    }
+  }
+
+
   /******************************************************************
    * Aunisoma-Sketch.ino
    *****************************************************************/
@@ -1217,29 +1244,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let sensors = [];
 
   let number_of_panels = 20;
-// number of panels to the left and right
-  let min_reverberation_distance = 2;
-  let max_reverberation_distance = 5;
-// how long to wait to trigger a neighbor Panel to reverberate
-  let reverb_delay_ticks = 20;
-  let min_trigger_panel_animation_loop_duration_ticks = 220;
-  let max_trigger_panel_animation_loop_duration_ticks = 300;
-  let max_interaction_threshold_percent = .5;
-  let max_interaction_duration_ticks = 500;
-  let max_interaction_amount_of_reverberation = 0;  // this tends to flicker the max animation if set > 0
-  let max_interaction_value_multiplier = 3;
-
-  let config = new Config(
-    number_of_panels,
-    min_reverberation_distance,
-    max_reverberation_distance,
-    reverb_delay_ticks,
-    min_trigger_panel_animation_loop_duration_ticks,
-    max_trigger_panel_animation_loop_duration_ticks,
-    max_interaction_threshold_percent,
-    max_interaction_duration_ticks,
-    max_interaction_amount_of_reverberation,
-    max_interaction_value_multiplier);
+  let config = new Config();
 
   let initial_gradient = new GradientValueMap();
   let blue_gradient = new GradientValueMap();
@@ -1258,36 +1263,47 @@ document.addEventListener("DOMContentLoaded", () => {
   let aunisoma;
 
   function setup() {
-    initial_gradient.add_rgb_point(0.0, 20, 0, 0);
-    initial_gradient.add_rgb_point(.7, 255, 0, 0);
+    initial_gradient.add_rgb_point(0.0, 3, 0, 0);
+    initial_gradient.add_rgb_point(.4, 255, 0, 0);
     initial_gradient.add_rgb_point(1.0, 255, 255, 0);
     initial_gradient.add_rgb_point(1.6, 0, 255, 255);
     initial_gradient.add_rgb_point(3, 0, 255, 255);
 
-    blue_gradient.add_rgb_point(0.0, 0, 0, 30);
+    blue_gradient.add_rgb_point(0.0, 0, 0, 10);
     blue_gradient.add_rgb_point(.4, 0, 0, 255);
-    blue_gradient.add_rgb_point(.8, 200, 0, 200);
-    blue_gradient.add_rgb_point(1, 255, 0, 255);
+    blue_gradient.add_rgb_point(1.0, 255, 0, 255);
     blue_gradient.add_rgb_point(2, 255, 255, 0);
     blue_gradient.add_rgb_point(3, 255, 255, 0);
 
-    green_gradient.add_rgb_point(0.0, 0, 30, 0);
-    green_gradient.add_rgb_point(.6, 0, 255, 0);
-    green_gradient.add_rgb_point(.8, 255, 255, 0);
+    green_gradient.add_rgb_point(0.0, 0, 10, 0);
+    green_gradient.add_rgb_point(.4, 0, 255, 0);
+    green_gradient.add_rgb_point(1.0, 255, 255, 0);
     green_gradient.add_rgb_point(2, 255, 0, 255);
     green_gradient.add_rgb_point(3, 255, 0, 255);
 
-    purple_red_gradient.add_rgb_point(0,   20,   0,  20);
+    purple_red_gradient.add_rgb_point(0,   1,    0,   1);
     purple_red_gradient.add_rgb_point(.5, 255,   0, 255);
     purple_red_gradient.add_rgb_point(1,  255,   0,   0);
     purple_red_gradient.add_rgb_point(2,  255, 255,   0);
     purple_red_gradient.add_rgb_point(3,    0, 255,   0);
 
-    green_blue_gradient.add_rgb_point(0,    0,  20,   0);
+    green_blue_gradient.add_rgb_point(0,    0,   3,   0);
     green_blue_gradient.add_rgb_point(.3,   0, 255,   0);
     green_blue_gradient.add_rgb_point(1,    0, 255, 255);
     green_blue_gradient.add_rgb_point(2,    0,   0, 255);
     green_blue_gradient.add_rgb_point(3,  255,   0, 255);
+
+    config.number_of_panels = number_of_panels;
+    config.reverberation_distance_range = new Range(2, 5);
+    // how long to wait to trigger a neighbor Panel to reverberate
+    config.reverberation_panel_delay_ticks = 20;
+    config.trigger_panel_animation_loop_duration_ticks_range = new Range(220, 300);
+    config.max_interaction_threshold_percent = .85;
+    config.intermediate_interaction_threshold_percent = .5;
+    config.min_max_interaction_gradient_transition_duration = 5000;
+    config.odds_for_max_interaction_gradient_transition = 90;
+
+    config.init();
 
     for (let i = 0; i < 40; i++) {
       sensors[i] = new Sensor();
@@ -1362,7 +1378,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document
     .getElementById("triggerMaxInteractionsButton")
     .addEventListener("click", () => {
-    let numberOfSensorsToTrigger = (max_interaction_threshold_percent * number_of_panels) + 1;
+    let numberOfSensorsToTrigger = (config.max_interaction_threshold_percent * number_of_panels) + 1;
     let indiciesToTrigger = {};
     while (Object.keys(indiciesToTrigger).length < numberOfSensorsToTrigger) {
       let panelIndex;
