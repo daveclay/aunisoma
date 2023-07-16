@@ -157,6 +157,22 @@ document.addEventListener("DOMContentLoaded", () => {
    * Color
    *****************************************************************/
 
+  function limit(red, green, blue) {
+    let diff = (red + green + blue) - 510;
+    if (diff > 0) {
+      let mult = 1 - (diff / 510);
+      return new Color(
+        red * mult,
+        green * mult,
+        blue * mult);
+    }
+    return new Color(red, green, blue);
+  }
+
+  function constrain(minValue, maxValue, value) {
+    return max(minValue, min(maxValue, value));
+  }
+
   const gamma8 = [
     0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
     0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  1,  1,  1,
@@ -177,9 +193,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   class Color {
     constructor(red, green, blue, hue, saturation, lightness) {
-      this.red = red;
-      this.green = green;
-      this.blue = blue;
+      this.red = constrain(0, 255, round(red));
+      this.green = constrain(0, 255, round(green));
+      this.blue = constrain(0, 255, round(blue));
 
       this.hue = hue;
       this.saturation = saturation;
@@ -1420,6 +1436,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     setColor(red, green, blue, hue, saturation, lightness) {
+      red = gamma8[red];
+      green = gamma8[green];
+      blue = gamma8[blue];
+      let limited = limit(red, green, blue);
+      red = limited.red;
+      green = limited.green;
+      blue = limited.blue;
       // this.panelUIElement.style.backgroundColor = toHSLString(hue, saturation, lightness);
       this.panelUIElement.style.backgroundColor = toHexString(red, green, blue);
       addPowerDrawAmps(getPowerDrawAmps(red, green, blue));
