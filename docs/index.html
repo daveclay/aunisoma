@@ -1357,6 +1357,22 @@ document.addEventListener("DOMContentLoaded", () => {
   const TRIGGER_SCRIPT_BUTTON = document.getElementById("triggerScriptButton");
   const TRIGGER_WALK_DOWN_BUTTON = document.getElementById("triggerWalkDownButton");
   const TRIGGER_MAX_BUTTON = document.getElementById("triggerMaxInteractionsButton");
+  TRIGGER_MAX_BUTTON.addEventListener("click", () => {
+    let numberOfSensorsToTrigger = (max_interaction_threshold_percent * number_of_panels) + 1;
+    let indiciesToTrigger = {};
+    while (Object.keys(indiciesToTrigger).length < numberOfSensorsToTrigger) {
+      let panelIndex;
+      do {
+        panelIndex = Math.round(Math.random() * number_of_panels);
+      } while (indiciesToTrigger[panelIndex] != null);
+      indiciesToTrigger[panelIndex] = 1;
+    }
+
+    Object.keys(indiciesToTrigger).forEach(i => {
+      sensors[i*2].active = true;
+      PANEL_UI_OBJECTS[i].setActive(true);
+    });
+  });
 
   const CURRENT_POWER_DRAW_ELEMENT = document.getElementById("currentPowerDraw");
   const MAX_POWER_DRAW_ELEMENT = document.getElementById("maxPowerDraw");
