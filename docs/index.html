@@ -157,6 +157,21 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /******************************************************************
+   * Maths
+   *****************************************************************/
+
+  function constrain(minValue, maxValue, value) {
+    return max(minValue, min(maxValue, value));
+  }
+
+  function interpolateValue(value_a, value_b, amount) {
+    let value_a_amount = value_a * (1.0 - amount);
+    let value_b_amount = value_b * amount;
+
+    return round(value_a_amount + value_b_amount);
+  }
+
+  /******************************************************************
    * Color
    *****************************************************************/
 
@@ -170,10 +185,6 @@ document.addEventListener("DOMContentLoaded", () => {
         blue * mult);
     }
     return new Color(red, green, blue);
-  }
-
-  function constrain(minValue, maxValue, value) {
-    return max(minValue, min(maxValue, value));
   }
 
   const gamma8 = [
@@ -205,10 +216,10 @@ document.addEventListener("DOMContentLoaded", () => {
       this.lightness = lightness;
     }
 
-    interpolate(color) {
-      let red = (this.red + color.red) / 2;
-      let green = (this.green + color.green) / 2;
-      let blue = (this.blue + color.blue) / 2;
+    interpolate(color, amount) {
+      let red = interpolateValue(this.red, color.red, amount);
+      let green = interpolateValue(this.green, color.green, amount);
+      let blue = interpolateValue(this.blue, color.blue, amount);
 
       let hue = (this.hue + color.hue) / 2;
       let saturation = (this.saturation + color.saturation) / 2;
@@ -1018,9 +1029,10 @@ document.addEventListener("DOMContentLoaded", () => {
       let is_at_max_interactions = this.activePercent >= this.config.max_interaction_threshold_percent;
       if (is_at_max_interactions) {
         if (!this.maxInteractionAnimation.active) {
-          this.maxInteractionAnimation.start();
+          this.maxInteractionAnimation.start(this.panels);
         }
       } else {
+        // TODO: how to blend from max back to intermediate? the max should _stop_ animating, but the transition takes in previous gradient? As a transition from the panel color?
         if (this.maxInteractionAnimation.active) {
           this.maxInteractionAnimation.active = false;
         }
@@ -1203,8 +1215,9 @@ document.addEventListener("DOMContentLoaded", () => {
       this.active;
       this.cycle;
       this.current_value;
-      this.panelValuesByPanelIndex = [];
+      this.panelColorByPanelIndex = [];
       this.gradient = gradient;
+      this.transitionTicks;
 
       this.numberOfPanels = numberOfPanels;
       this.cycle = new Cycle(100,
@@ -1213,26 +1226,26 @@ document.addEventListener("DOMContentLoaded", () => {
         this);
       this.current_value = 0;
       this.active = 0;
-      this._buildPanelValues();
-    }
-
-    _buildPanelValues() {
-      for (let i = 0; i < this.numberOfPanels; i++) {
-        this.panelValuesByPanelIndex[i] = 0;
-      }
+      this.transitionTicks = 0;
+      this.transitionDuration = 100;
     }
 
     value(value, direction) {
       this.current_value = value;
     }
 
-    start() {
+    start(panels) {
+      this.transitionTicks = -1;
+      for (let i = 0; i < this.numberOfPanels; i++) {
+        this.panelColorByPanelIndex[i] = panels[i].color;
+      }
       this.cycle.restart();
       this.active = true;
     }
 
     update() {
       this.cycle.next();
+      this.transitionTicks += 1;
     }
 
     get_color(panel) {
@@ -1247,20 +1260,20 @@ document.addEventListener("DOMContentLoaded", () => {
       // index = 2;
       // distance ratio = 2 / 20, .1
       // currentValue - distance ratio = .4
-      let distanceRatio = (panel.index / this.panelValuesByPanelIndex.length);
+      let distanceRatio = (panel.index / this.panelColorByPanelIndex.length);
       // let value = Math.abs(this.current_value - distanceRatio);
       let value = this.current_value + distanceRatio;
       if (value > 1) {
         value = value - 1;
       }
 
-      this.panelValuesByPanelIndex[panel.index] = value;
-
-      if (panel.index == 9) {
-        console.log(value);
+      let maxColor = this.gradient.getColorForValue(value);
+      if (this.transitionTicks < this.transitionDuration) {
+        let fromColor = this.panelColorByPanelIndex[panel.index];
+        return fromColor.interpolate(maxColor, this.transitionTicks / this.transitionDuration);
+      } else {
+        return maxColor;
       }
-
-      return this.gradient.getColorForValue(value);
     }
   }
 
