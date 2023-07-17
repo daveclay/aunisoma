@@ -1032,11 +1032,6 @@ document.addEventListener("DOMContentLoaded", () => {
           this.maxInteractionAnimation.start(this.panels);
         }
       } else {
-        // TODO: how to blend from max back to intermediate? the max should _stop_ animating, but the transition takes in previous gradient? As a transition from the panel color?
-        if (this.maxInteractionAnimation.active) {
-          this.maxInteractionAnimation.active = false;
-        }
-
         let is_at_intermediate_interactions = this.activePercent >= this.config.intermediate_interaction_threshold_percent;
         if (is_at_intermediate_interactions) {
           if (!this.transitionAnimation.cycle.clock.running) {
@@ -1061,6 +1056,13 @@ document.addEventListener("DOMContentLoaded", () => {
             this._start_transition();
           }
         }
+
+        if (this.maxInteractionAnimation.active) {
+          this.maxInteractionAnimation.active = false;
+          // indicate that the max interaction should transition out
+          this.maxInteractionAnimation.hasTransitionedOut = false;
+          this.maxInteractionAnimation.transitionTicks = 0;
+        }
       }
 
       if (this.maxInteractionAnimation.active) {
@@ -1069,6 +1071,9 @@ document.addEventListener("DOMContentLoaded", () => {
         this.transitionAnimation.update();
       }
       this._update_panels();
+      if (!this.maxInteractionAnimation.hasTransitionedOut) {
+        this.maxInteractionAnimation.updateTransition();
+      }
     }
 
     _start_transition() {
@@ -1096,15 +1101,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
     _update_panel(panel, total_panel_value) {
       panel.currentValue = total_panel_value;
+
       if (this.maxInteractionAnimation.active) {
         // TODO: use the total_panel_value for _something_?
         panel.color = this.maxInteractionAnimation.get_color(panel);
-      } else if (this.transitionAnimation.active) {
-        // Transitioning to new gradient
-        panel.color = this.transitionAnimation.get_color(total_panel_value);
       } else {
-        // regular animation
-        panel.color = this.currentGradient.getColorForValue(total_panel_value);
+        let color;
+        if (this.transitionAnimation.active) {
+          // Transitioning to new gradient
+          color = this.transitionAnimation.get_color(total_panel_value);
+        } else {
+          // regular animation
+          color = this.currentGradient.getColorForValue(total_panel_value);
+        }
+
+        if (!this.maxInteractionAnimation.hasTransitionedOut) {
+          let fromColor = this.maxInteractionAnimation.panelColorByPanelIndex[panel.index];
+          let transitionAmount = this.maxInteractionAnimation.get_transition_amount();
+          color = fromColor.interpolate(color, transitionAmount);
+        }
+
+        panel.color = color;
       }
     }
   }
@@ -1218,6 +1235,7 @@ document.addEventListener("DOMContentLoaded", () => {
       this.panelColorByPanelIndex = [];
       this.gradient = gradient;
       this.transitionTicks;
+      this.hasTransitionedOut;
 
       this.numberOfPanels = numberOfPanels;
       this.cycle = new Cycle(100,
@@ -1228,6 +1246,7 @@ document.addEventListener("DOMContentLoaded", () => {
       this.active = 0;
       this.transitionTicks = 0;
       this.transitionDuration = 100;
+      this.hasTransitionedOut = true;
     }
 
     value(value, direction) {
@@ -1236,6 +1255,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     start(panels) {
       this.transitionTicks = -1;
+      this.hasTransitionedOut = true;
       for (let i = 0; i < this.numberOfPanels; i++) {
         this.panelColorByPanelIndex[i] = panels[i].color;
       }
@@ -1246,6 +1266,15 @@ document.addEventListener("DOMContentLoaded", () => {
     update() {
       this.cycle.next();
       this.transitionTicks += 1;
+    }
+
+    get_transition_amount() {
+      return this.transitionTicks / this.transitionDuration;
+    }
+
+    updateTransition() {
+      this.transitionTicks += 1;
+      this.hasTransitionedOut = this.transitionTicks >= this.transitionDuration;
     }
 
     get_color(panel) {
@@ -1268,12 +1297,16 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       let maxColor = this.gradient.getColorForValue(value);
+      let color;
       if (this.transitionTicks < this.transitionDuration) {
         let fromColor = this.panelColorByPanelIndex[panel.index];
-        return fromColor.interpolate(maxColor, this.transitionTicks / this.transitionDuration);
+        color = fromColor.interpolate(maxColor, this.get_transition_amount());
       } else {
-        return maxColor;
+        color = maxColor;
       }
+
+      this.panelColorByPanelIndex[panel.index] = color;
+      return color;
     }
   }
 
