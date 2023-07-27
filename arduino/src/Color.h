@@ -29,7 +29,7 @@ public:
     int green;
     int blue;
 
-    Color(int red, int green, int blue);
+    Color(int red = 0, int green = 0, int blue = 0);
     Color interpolate(Color color, float amount) const;
 };
 

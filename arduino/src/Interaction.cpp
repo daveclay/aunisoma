@@ -18,7 +18,7 @@ Interaction::Interaction(Panel* sourcePanel, Config* config, PanelContext* panel
             this,
             this->config);
 
-    for (int i = 0; i < 20; i++) {
+    for (int i = 0; i < config->number_of_panels; i++) {
       this->panelReverberationsByPanelIndex[i] = 0;
     }
 

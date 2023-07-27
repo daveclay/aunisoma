@@ -18,7 +18,7 @@ public:
 class SingleGradientValueMap {
 public:
     SingleGradientValueMap();
-    GradientValuePoint* gradientValuePoints[10]; // TODO: eh, only need 10 or so. I'm sure I'll remember to bump this when I want more. Enjoy, future me!
+    GradientValuePoint* gradientValuePoints[30]; // TODO: eh, only need 10 or so. I'm sure I'll remember to bump this when I want more. Enjoy, future me!
 
     void addPoint(float value, int color_value);
     int get_color_value_at_value(float value);

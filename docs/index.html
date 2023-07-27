@@ -944,9 +944,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     _calculate_next_gradient_index() {
       if (this.current_gradient_index == this.maxGradientIndex) {
-        this.next_gradient_index = 0;
+          this.next_gradient_index = 1; // don't go back to the non-max gradient until max is reset?
       } else {
-        this.next_gradient_index = this.current_gradient_index + 1;
+          // TODO: randomize this? transition colors look weird if they're random, but might be more interesting for engagement.
+          this.next_gradient_index = this.current_gradient_index + 1;
       }
     }
 
@@ -1025,21 +1026,22 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
 
-      this.activePercent = (this.active_panel_count) / (this.numberOfPanels);
-      let is_at_max_interactions = this.activePercent >= this.config.max_interaction_threshold_percent;
+      let activePercent = (this.active_panel_count) / (this.numberOfPanels);
+      let is_at_max_interactions = activePercent >= this.config.max_interaction_threshold_percent;
       if (is_at_max_interactions) {
         if (!this.maxInteractionAnimation.active) {
-          this.maxInteractionAnimation.start(this.panels);
+          this.maxInteractionAnimation.start();
         }
       } else {
-        let is_at_intermediate_interactions = this.activePercent >= this.config.intermediate_interaction_threshold_percent;
+        let is_at_intermediate_interactions = activePercent >= this.config.intermediate_interaction_threshold_percent;
         if (is_at_intermediate_interactions) {
           if (!this.transitionAnimation.cycle.clock.running) {
             if (this.transitioned_during_current_intermediate_state) {
               this.ticks_since_last_transition += 1;
-              if (this.ticks_since_last_transition > 5000 && maybe(90)) {
-                this._start_transition();
-                this.ticks_since_last_transition = 0;
+              if (this.ticks_since_last_transition > config.min_max_interaction_gradient_transition_duration
+                  && maybe(config.odds_for_max_interaction_gradient_transition)) {
+                  this._start_transition();
+                  this.ticks_since_last_transition = 0;
               }
             } else {
               this._start_transition();
@@ -1227,8 +1229,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   class MaxInteractionAnimation {
 
-    constructor(numberOfPanels, gradient) {
+    constructor(numberOfPanels, panels, gradient) {
       this.numberOfPanels;
+      this.panels;
       this.active;
       this.cycle;
       this.current_value;
@@ -1238,6 +1241,7 @@ document.addEventListener("DOMContentLoaded", () => {
       this.hasTransitionedOut;
 
       this.numberOfPanels = numberOfPanels;
+      this.panels = panels;
       this.cycle = new Cycle(100,
         false,
         CYCLE_TYPE_UP,
@@ -1253,11 +1257,11 @@ document.addEventListener("DOMContentLoaded", () => {
       this.current_value = value;
     }
 
-    start(panels) {
+    start() {
       this.transitionTicks = -1;
       this.hasTransitionedOut = true;
       for (let i = 0; i < this.numberOfPanels; i++) {
-        this.panelColorByPanelIndex[i] = panels[i].color;
+        this.panelColorByPanelIndex[i] = this.panels[i].color;
       }
       this.cycle.restart();
       this.active = true;
@@ -1296,17 +1300,19 @@ document.addEventListener("DOMContentLoaded", () => {
         value = value - 1;
       }
 
-      let maxColor = this.gradient.getColorForValue(value);
-      let color;
-      if (this.transitionTicks < this.transitionDuration) {
-        let fromColor = this.panelColorByPanelIndex[panel.index];
-        color = fromColor.interpolate(maxColor, this.get_transition_amount());
-      } else {
-        color = maxColor;
-      }
-
+      let color = this.getColorForPanelAndValue(panel, value);
       this.panelColorByPanelIndex[panel.index] = color;
       return color;
+    }
+
+    getColorForPanelAndValue(panel, value) {
+      let maxColor = this.gradient.getColorForValue(value);
+      if (this.transitionTicks < this.transitionDuration) {
+          let fromColor = this.panelColorByPanelIndex[panel.index];
+          return fromColor.interpolate(maxColor, this.get_transition_amount());
+      } else {
+          return maxColor;
+      }
     }
   }
 
@@ -1365,20 +1371,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
     blue_gradient.add_rgb_point(0.0, 0, 0, 10);
     blue_gradient.add_rgb_point(.4, 0, 0, 255);
-    blue_gradient.add_rgb_point(1.0, 255, 0, 255);
+    blue_gradient.add_rgb_point(.8, 255, 0, 255);
     blue_gradient.add_rgb_point(2, 255, 255, 0);
     blue_gradient.add_rgb_point(3, 255, 255, 0);
 
     green_gradient.add_rgb_point(0.0, 0, 10, 0);
     green_gradient.add_rgb_point(.4, 0, 255, 0);
-    green_gradient.add_rgb_point(1.0, 255, 255, 0);
-    green_gradient.add_rgb_point(2, 255, 0, 255);
+    green_gradient.add_rgb_point(.8, 255, 255, 0);
+    green_gradient.add_rgb_point(1.5, 255, 0, 255);
     green_gradient.add_rgb_point(3, 255, 0, 255);
 
     purple_red_gradient.add_rgb_point(0,   1,    0,   1);
-    purple_red_gradient.add_rgb_point(.5, 255,   0, 255);
-    purple_red_gradient.add_rgb_point(1,  255,   0,   0);
-    purple_red_gradient.add_rgb_point(2,  255, 255,   0);
+    purple_red_gradient.add_rgb_point(.4, 255,   0, 255);
+    purple_red_gradient.add_rgb_point(.85,  255,   0,   0);
+    purple_red_gradient.add_rgb_point(1.2,  255, 255,   0);
     purple_red_gradient.add_rgb_point(3,    0, 255,   0);
 
     green_blue_gradient.add_rgb_point(0,    0,   3,   0);
@@ -1534,10 +1540,12 @@ document.addEventListener("DOMContentLoaded", () => {
       rgbSpan.style.backgroundColor = toHexString(color.red, color.green, color.blue);
       rgbGradientElement.appendChild(rgbSpan);
 
+      /*
       let hslSpan = document.createElement("span");
       hslSpan.setAttribute("class", "gradient-slice");
       hslSpan.style.backgroundColor = toHSLString(color.hue, color.saturation, color.lightness);
       hslGradientElement.appendChild(hslSpan);
+      */
     }
 
     let nameElement = document.createElement("p");
@@ -1590,10 +1598,6 @@ document.addEventListener("DOMContentLoaded", () => {
       red = gamma8[red];
       green = gamma8[green];
       blue = gamma8[blue];
-      let limited = limit(red, green, blue);
-      red = limited.red;
-      green = limited.green;
-      blue = limited.blue;
       // this.panelUIElement.style.backgroundColor = toHSLString(hue, saturation, lightness);
       this.panelUIElement.style.backgroundColor = toHexString(red, green, blue);
       addPowerDrawAmps(getPowerDrawAmps(red, green, blue));
