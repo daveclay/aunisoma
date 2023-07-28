@@ -933,7 +933,7 @@ document.addEventListener("DOMContentLoaded", () => {
       this._create_panels();
       this._create_interactions();
       this.transitionAnimation = new TransitionAnimation(500, this);
-      this.maxInteractionAnimation = new MaxInteractionAnimation(config.number_of_panels, maxAnimationGradient);
+      this.maxInteractionAnimation = new MaxInteractionAnimation(config.number_of_panels, this.panels, maxAnimationGradient);
       this.transitioned_during_current_intermediate_state = false;
       this.ticks_since_last_transition = 0;
     }
