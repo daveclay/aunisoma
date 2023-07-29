@@ -170,16 +170,21 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
       }
 
       runNextStep() {
-        this.iteration += 1;
-        if (this.iteration >= this.script.length) {
+        const nextStep = this.iteration + 1;
+        if (nextStep >= this.script.length) {
           clearInterval(this.interval);
           STEP_ELEMENT.innerText = "Finished " + this.script.length + " steps";
           return;
         }
 
-        this.step = this.script[this.iteration];
-        STEP_ELEMENT.innerText = "running step " + this.iteration + " of " + this.script.length;
-        this.update(this.step.panels);
+        this._runStep(this.iteration + 1);
+      }
+
+      _runStep(step) {
+          this.iteration = step;
+          this.step = this.script[this.iteration];
+          STEP_ELEMENT.innerText = "running step " + this.iteration + " of " + this.script.length;
+          this.update(this.step.panels);
       }
 
       update(panels) {
@@ -206,6 +211,10 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
           PAUSE_BUTTON.innerText = "Pause";
         }
       }
+
+      jumpToStep(step) {
+        this._runStep(step);
+      }
     }
 
     class PanelUI {
@@ -230,6 +239,10 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
 
     PAUSE_BUTTON.addEventListener("click", () => {
         scriptRunner.togglePause();
+    });
+
+    JUMP_TO_STEP_INPUT.addEventListener("change", (event) => {
+        scriptRunner.jumpToStep(parseInt(event.target.value));
     });
 
     TRIGGER_SCRIPT_FILE.addEventListener("change", (event) => {
