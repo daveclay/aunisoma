@@ -63,10 +63,13 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
         </td>
         <td>
             <p>
-                Step
+                <div id="step"></div>
             </p>
             <p>
-                <div id="step"></div>
+                <button id="pauseButton">Pause</button>
+            </p>
+            <p>
+                <input type="text" id="jumpToStepInput"/>
             </p>
         </td>
         <td>
@@ -81,6 +84,7 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
 </table>
 <script>
   document.addEventListener("DOMContentLoaded", (event) => {
+    let running = false;
     const PANEL_TEMPLATE_ELEMENT = document.getElementById("panelTemplate");
     const STAGE = document.getElementById("stage");
     const TRIGGER_SCRIPT_FILE = document.getElementById("triggerScript");
@@ -88,6 +92,9 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
 
     const CURRENT_POWER_DRAW_ELEMENT = document.getElementById("currentPowerDraw");
     const MAX_POWER_DRAW_ELEMENT = document.getElementById("maxPowerDraw");
+
+    const PAUSE_BUTTON = document.getElementById("pauseButton");
+    const JUMP_TO_STEP_INPUT = document.getElementById("jumpToStepInput");
 
     // TODO: measure more accurately, whether this is linear
     // const DRAW_PER_COLOR_PER_PANEL_AMPS = 0.8046715655; // Amps 12v
@@ -125,6 +132,7 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
 
     class ScriptRunner {
       constructor() {
+        this.running = false;
         this.panelUIs = [];
         this.maxAmps = 0;
         this.iteration = -1;
@@ -152,8 +160,13 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
       }
 
       run(script) {
+        this.running = true;
         this.script = script;
-        this.interval = setInterval(() => this.runNextStep(), 4);
+        this._runInterval();
+      }
+
+      _runInterval() {
+          this.interval = setInterval(() => this.runNextStep(), 4);
       }
 
       runNextStep() {
@@ -182,6 +195,17 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
         this.maxAmps = Math.max(this.maxAmps, totalAmps);
         MAX_POWER_DRAW_ELEMENT.value = this.maxAmps;
       }
+
+      togglePause() {
+        if (this.interval) {
+          clearInterval(this.interval);
+          this.interval = null;
+          PAUSE_BUTTON.innerText = "Continue";
+        } else {
+          this._runInterval();
+          PAUSE_BUTTON.innerText = "Pause";
+        }
+      }
     }
 
     class PanelUI {
@@ -203,6 +227,10 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
     }
 
     const scriptRunner = new ScriptRunner();
+
+    PAUSE_BUTTON.addEventListener("click", () => {
+        scriptRunner.togglePause();
+    });
 
     TRIGGER_SCRIPT_FILE.addEventListener("change", (event) => {
       const file = event.target.files[0];
