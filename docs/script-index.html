@@ -169,19 +169,29 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
           this.interval = setInterval(() => this.runNextStep(), 4);
       }
 
+      runPreviousStep() {
+        const prevIndex = this.iteration - 1;
+        if (prevIndex < 0) {
+          clearInterval(this.interval);
+          return;
+        }
+
+        this._runStepAtIndex(prevIndex);
+      }
+
       runNextStep() {
-        const nextStep = this.iteration + 1;
-        if (nextStep >= this.script.length) {
+        const nextIndex = this.iteration + 1;
+        if (nextIndex >= this.script.length) {
           clearInterval(this.interval);
           STEP_ELEMENT.innerText = "Finished " + this.script.length + " steps";
           return;
         }
 
-        this._runStep(this.iteration + 1);
+        this._runStepAtIndex(nextIndex);
       }
 
-      _runStep(step) {
-          this.iteration = step;
+      _runStepAtIndex(index) {
+          this.iteration = index;
           this.step = this.script[this.iteration];
           STEP_ELEMENT.innerText = "running step " + this.iteration + " of " + this.script.length;
           this.update(this.step.panels);
@@ -212,8 +222,11 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
         }
       }
 
-      jumpToStep(step) {
-        this._runStep(step);
+      jumpToStepIndex(index) {
+        if (index < 0) {
+          return;
+        }
+        this._runStepAtIndex(index);
       }
     }
 
@@ -242,7 +255,15 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
     });
 
     JUMP_TO_STEP_INPUT.addEventListener("change", (event) => {
-        scriptRunner.jumpToStep(parseInt(event.target.value));
+        scriptRunner.jumpToStepIndex(parseInt(event.target.value));
+    });
+
+    JUMP_TO_STEP_INPUT.addEventListener("keydown", (event) => {
+       if (event.key === "ArrowUp") {
+           scriptRunner.runNextStep();
+       } else if (event.key === "ArrowDown") {
+           scriptRunner.runPreviousStep();
+       }
     });
 
     TRIGGER_SCRIPT_FILE.addEventListener("change", (event) => {
