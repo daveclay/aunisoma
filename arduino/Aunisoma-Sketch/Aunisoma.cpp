@@ -5,7 +5,9 @@
 #include "Aunisoma.h"
 #include "Maths.h"
 
-Aunisoma::Aunisoma(Config* config, GradientValueMap** gradients, int numberOfGradients, Sensor** sensors) {
+Aunisoma::Aunisoma(Config* config,
+                   GradientValueMap* maxAnimationGradient,
+                   GradientValueMap** gradients, int numberOfGradients, Sensor** sensors) {
     this->config = config;
     this->gradients = gradients;
     this->numberOfGradients = numberOfGradients;
@@ -19,7 +21,10 @@ Aunisoma::Aunisoma(Config* config, GradientValueMap** gradients, int numberOfGra
     this->_create_panels();
     this->_create_interactions();
     this->transitionAnimation = new TransitionAnimation(500, this);
-    this->transitioned_during_this_max = false;
+    this->maxInteractionAnimation = new MaxInteractionAnimation(config->number_of_panels,
+                                                                this->panels,
+                                                                maxAnimationGradient);
+    this->transitioned_during_current_intermediate_state = false;
     this->ticks_since_last_transition = 0;
 }
 
@@ -113,34 +118,53 @@ void Aunisoma::event_loop() {
     float activePercent = (float) active_panel_count / (float) this->numberOfPanels;
     bool is_at_max_interactions = activePercent >= this->config->max_interaction_threshold_percent;
     if (is_at_max_interactions) {
-        if (!this->transitionAnimation->cycle->clock->running) {
-            if (this->transitioned_during_this_max) {
-                this->ticks_since_last_transition += 1;
-                if (this->ticks_since_last_transition > config->min_max_interaction_gradient_transition_duration
-                    && maybe(config->odds_for_max_interaction_gradient_transition)) {
-                    this->_start_transition();
-                    this->ticks_since_last_transition = 0;
-                }
-            } else {
-                this->_start_transition();
-                this->transitioned_during_this_max = true;
-            }
+        if (!this->maxInteractionAnimation->active) {
+            this->maxInteractionAnimation->start();
         }
     } else {
-        // reset state for max tracking
-        this->transitioned_during_this_max = false;
-        this->ticks_since_last_transition = 0;
-        if (this->current_gradient_index != 0 && !this->transitionAnimation->active) {
-            // reset back to original gradient
-            this->next_gradient_index = 0;
-            this->_start_transition();
+        bool is_at_intermediate_interactions = activePercent >= this->config->intermediate_interaction_threshold_percent;
+        if (is_at_intermediate_interactions) {
+            if (!this->transitionAnimation->cycle->clock->running) {
+                if (this->transitioned_during_current_intermediate_state) {
+                    this->ticks_since_last_transition += 1;
+                    if (this->ticks_since_last_transition > config->min_max_interaction_gradient_transition_duration
+                        && maybe(config->odds_for_max_interaction_gradient_transition)) {
+                        this->_start_transition();
+                        this->ticks_since_last_transition = 0;
+                    }
+                } else {
+                    this->_start_transition();
+                    this->transitioned_during_current_intermediate_state = true;
+                }
+            }
+        } else {
+            // reset state for max tracking
+            this->transitioned_during_current_intermediate_state = false;
+            this->ticks_since_last_transition = 0;
+            if (this->current_gradient_index != 0 && !this->transitionAnimation->active) {
+                // reset back to original gradient
+                this->next_gradient_index = 0;
+                this->_start_transition();
+            }
+        }
+
+        if (this->maxInteractionAnimation->active) {
+            this->maxInteractionAnimation->active = false;
+            // indicate that the max interaction should transition out
+            this->maxInteractionAnimation->hasTransitionedOut = false;
+            this->maxInteractionAnimation->transitionTicks = 0;
         }
     }
 
-    if (this->transitionAnimation->active) {
+    if (this->maxInteractionAnimation->active) {
+        this->maxInteractionAnimation->update();
+    } else if (this->transitionAnimation->active) {
         this->transitionAnimation->update();
     }
     this->_update_panels();
+    if (!this->maxInteractionAnimation->hasTransitionedOut) {
+        this->maxInteractionAnimation->updateTransition();
+    }
 }
 
 void Aunisoma::_start_transition() {
@@ -168,11 +192,26 @@ void Aunisoma::_update_panels() {
 
 void Aunisoma::_update_panel(Panel* panel, float total_panel_value) {
     panel->currentValue = total_panel_value;
-    if (this->transitionAnimation->active) {
-        // Transitioning to new gradient
-        panel->color = this->transitionAnimation->get_color(total_panel_value);
+
+    if (this->maxInteractionAnimation->active) {
+        // TODO: use the total_panel_value for _something_?
+        panel->color = this->maxInteractionAnimation->get_color(panel);
     } else {
-        // regular animation
-        panel->color = this->currentGradient->getColorForValue(total_panel_value);
+        Color color;
+        if (this->transitionAnimation->active) {
+            // Transitioning to new gradient
+            color = this->transitionAnimation->get_color(total_panel_value);
+        } else {
+            // regular animation
+            color = this->currentGradient->getColorForValue(total_panel_value);
+        }
+
+        if (!this->maxInteractionAnimation->hasTransitionedOut) {
+            Color fromColor = this->maxInteractionAnimation->panelColorByPanelIndex[panel->index];
+            float transitionAmount = this->maxInteractionAnimation->get_transition_amount();
+            color = fromColor.interpolate(color, transitionAmount);
+        }
+
+        panel->color = color;
     }
 }

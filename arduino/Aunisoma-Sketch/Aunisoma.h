@@ -11,10 +11,13 @@
 #include "Interaction.h"
 #include "TransitionAnimation.h"
 #include "Sensor.h"
+#include "MaxInteractionAnimation.h"
 
 class Aunisoma: public PanelContext, public TransitionAnimationCallback {
 public:
-    Aunisoma(Config* config, GradientValueMap** gradients, int numberOfGradients, Sensor** sensors);
+    Aunisoma(Config* config,
+             GradientValueMap* maxAnimationGradient,
+             GradientValueMap** gradients, int numberOfGradients, Sensor** sensors);
 
     int numberOfPanels;
     Sensor** sensors;
@@ -32,10 +35,11 @@ private:
     Panel* panels[20];
     Interaction* interactions_by_source_panel_index[20];
     TransitionAnimation* transitionAnimation;
+    MaxInteractionAnimation* maxInteractionAnimation;
     int current_gradient_index;
     int next_gradient_index;
     int maxGradientIndex;
-    bool transitioned_during_this_max;
+    bool transitioned_during_current_intermediate_state;
     int ticks_since_last_transition;
     float interaction_panel_values[20];
 

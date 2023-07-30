@@ -130,7 +130,7 @@ void loop(void) {
     for (int i = 0; i < number_of_panels; i++) {
         Panel *panel = aunisoma->get_panel_at(i);
         Color color = panel->color;
-        strip.setPixelColor(i, color.red, color.green, color.blue);
+        strip.setPixelColor(i, gamma8[color.red], gamma8[color.green], gamma8[color.blue]);
 /*
     Serial.print(i);
     Serial.print("\t");
