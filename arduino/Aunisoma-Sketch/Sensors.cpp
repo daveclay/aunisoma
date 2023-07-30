@@ -30,12 +30,14 @@ char SET_STATUS = 'S';
 char SET_LIGHTS = 'L';
 char rcvBuffer[1024];  // should be 20 panels * however big messages are
 
-int debounceDelay = 100; // 100ms debounce
+int debounceDelay = 100;  // 100ms debounce
 
 class SensorReading {
 public:
-  SensorReading() {
+  SensorReading(int index) {
+    this->index = index;
   }
+  int index;
   unsigned long lastDebounceTime;
   bool state;
 
@@ -48,19 +50,29 @@ public:
       // delay, so take it as the actual current state:
       if (this->state != active) {
         this->state = active;
+
+        if (active) {
+          Serial.print(this->index);
+          Serial.print(" is active, sensorReadings->lastState: ");
+          Serial.print(lastState);
+          Serial.print(" sensorReadings->state ");
+          Serial.println(state);
+        }
       }
     }
-    
+
     this->lastState = active;
   }
-  bool lastState; // active or not
+  bool lastState;  // active or not
 private:
-
 };
 
-SensorReading sensorReadings[2];
+SensorReading sensorReadings[2] = {
+  SensorReading(0),
+  SensorReading(1)
+};
 
-void send_command(char cmd_byte, char * params) {
+void send_command(char cmd_byte, char* params) {
   // Serial.print("Sending: '");
   // Serial.print(cmd_byte);
   // Serial.print(params);
@@ -87,7 +99,7 @@ bool send_enumerate() {
   return response == "V1V1";
 }
 
-void send_set_lights(char * value) {
+void send_set_lights(char* value) {
   send_command(SET_LIGHTS, value);
 }
 
@@ -120,27 +132,25 @@ void loop() {
   enumerated = true;
   delay(10);
   digitalWrite(LED_BUILTIN, LOW);
-  
-  char colors[] = "030000030000";
+
+  char panel1Colors[6];
+  sprintf(panel1Colors, "%02x%02x%02x", 30, 0, 0);
+  char panel2Colors[6];
+  sprintf(panel2Colors, "%02x%02x%02x", 30, 0, 0);
 
   for (int i = 0; i < 2; i++) {
     bool active = rcvBuffer[i] == '1';
     sensorReadings[i].update(active);
     bool lastState = sensorReadings[i].lastState;
-    bool state = sensorReadings[i].state; 
-
-    if (active) {
-      Serial.print(i);
-      Serial.print(" is active, sensorReadings->lastState: ");
-      Serial.print(lastState);
-      Serial.print(" sensorReadings->state ");
-      Serial.println(state);
-    }
+    bool state = sensorReadings[i].state;
   }
 
   if (sensorReadings[1].state) {
-    strcpy(colors, "FF00303000FF");
-    Serial.println("on");
+    sprintf(panel2Colors, "%02x%02x%02x", 0, 30, 90);
   }
+
+  char colors[12];
+  memcpy(colors, panel1Colors, sizeof(panel1Colors));
+  memcpy(colors + sizeof(panel1Colors), panel2Colors, sizeof(panel2Colors));
   send_set_lights(colors);
 }
