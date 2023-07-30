@@ -28,18 +28,52 @@ void SERCOM1_3_Handler() {
 char ENUMERATE = 'E';
 char SET_STATUS = 'S';
 char SET_LIGHTS = 'L';
-char rcvBuffer[256];  // should be 20 panels * however big messages are
+char rcvBuffer[1024];  // should be 20 panels * however big messages are
 
-void send_command(char cmd_byte, String params) {
+int debounceDelay = 100; // 100ms debounce
+
+class SensorReading {
+public:
+  SensorReading() {
+  }
+  unsigned long lastDebounceTime;
+  bool state;
+
+  void update(bool active) {
+    if (this->lastState != active) {
+      this->lastDebounceTime = millis();
+    }
+    if ((millis() - lastDebounceTime) > debounceDelay) {
+      // whatever the reading is at, it's been there for longer than the debounce
+      // delay, so take it as the actual current state:
+      if (this->state != active) {
+        this->state = active;
+      }
+    }
+    
+    this->lastState = active;
+  }
+  bool lastState; // active or not
+private:
+
+};
+
+SensorReading sensorReadings[2];
+
+void send_command(char cmd_byte, char * params) {
   // Serial.print("Sending: '");
   // Serial.print(cmd_byte);
   // Serial.print(params);
   // Serial.println("'");
 
-  Serial2.print(cmd_byte + params + '\r');
+  Serial2.print(cmd_byte);
+  if (params != NULL) {
+    Serial2.print(params);
+  }
+  Serial2.print('\r');
   Serial2.flush();
 
-  int bytesRead = Serial2.readBytesUntil('\r', rcvBuffer, 256);  // ('\r');
+  int bytesRead = Serial2.readBytesUntil('\r', rcvBuffer, sizeof(rcvBuffer));  // ('\r');
   if (bytesRead > 0) {
     // Serial.print("Received: '");
     // Serial.print(rcvBuffer);
@@ -48,12 +82,12 @@ void send_command(char cmd_byte, String params) {
 }
 
 bool send_enumerate() {
-  send_command(ENUMERATE, "");
+  send_command(ENUMERATE, NULL);
   String response = String(rcvBuffer);
   return response == "V1V1";
 }
 
-void send_set_lights(String value) {
+void send_set_lights(char * value) {
   send_command(SET_LIGHTS, value);
 }
 
@@ -75,11 +109,9 @@ int i = 0;
 bool enumerated = false;
 
 void loop() {
-  memset(rcvBuffer, 0, sizeof(rcvBuffer));
   digitalWrite(LED_BUILTIN, HIGH);
 
   while (!enumerated && !send_enumerate()) {
-    memset(rcvBuffer, 0, sizeof(rcvBuffer));
     digitalWrite(LED_BUILTIN, LOW);
     delay(300);
     digitalWrite(LED_BUILTIN, HIGH);
@@ -89,12 +121,26 @@ void loop() {
   delay(10);
   digitalWrite(LED_BUILTIN, LOW);
   
-  send_set_lights("030000030000");
-  if (rcvBuffer[1] == '1') {
-    send_set_lights("FF00303000FF");
-    Serial.println("on");
-  } else {
+  char colors[] = "030000030000";
 
+  for (int i = 0; i < 2; i++) {
+    bool active = rcvBuffer[i] == '1';
+    sensorReadings[i].update(active);
+    bool lastState = sensorReadings[i].lastState;
+    bool state = sensorReadings[i].state; 
+
+    if (active) {
+      Serial.print(i);
+      Serial.print(" is active, sensorReadings->lastState: ");
+      Serial.print(lastState);
+      Serial.print(" sensorReadings->state ");
+      Serial.println(state);
+    }
   }
-}
 
+  if (sensorReadings[1].state) {
+    strcpy(colors, "FF00303000FF");
+    Serial.println("on");
+  }
+  send_set_lights(colors);
+}
