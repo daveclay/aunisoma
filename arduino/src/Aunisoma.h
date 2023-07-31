@@ -17,7 +17,9 @@ class Aunisoma: public PanelContext, public TransitionAnimationCallback {
 public:
     Aunisoma(Config* config,
              GradientValueMap* maxAnimationGradient,
-             GradientValueMap** gradients, int numberOfGradients, Sensor** sensors);
+             GradientValueMap** gradients,
+             int numberOfGradients,
+             Sensor** sensors);
 
     int numberOfPanels;
     Sensor** sensors;

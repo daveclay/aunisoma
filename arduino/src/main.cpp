@@ -1,7 +1,5 @@
 #include <iostream>
 #include <chrono>
-#include "Arduino.h"
-#include "Aunisoma.h"
 #include "Aunisoma-Sketch.h"
 
 void writeScriptLine(Aunisoma* aunisoma, int i, int duration, int iterations) {

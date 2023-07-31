@@ -1,12 +1,9 @@
 //
 // Created by David Clay on 7/7/23.
 //
-#include "cmath"
 #include "algorithm"
 #include "stdlib.h"
-#include <iostream>
 #include "Arduino.h"
-#include "Aunisoma.h"
 
 int abs(int value) {
     return std::abs(value);
@@ -31,6 +28,42 @@ int random(int max) {
 void delay(int) {
 }
 
+long millis() {
+    return 10000;
+}
+
+void digitalWrite(int pin, int value) {
+}
+
+Uart::Uart() {}
+
+Uart::Uart(const int * sercom, int pinRx, int pinTx, int padRx, int padTx) {
+}
+
+void Uart::IrqHandler() const {
+}
+void Uart::setTimeout(const int time) const {
+}
+
+void Uart::begin(const int baud) const {
+}
+
+void Uart::print(const char s) const {
+}
+
+void Uart::print(const char * s) const {
+}
+
+void Uart::println(const char * s) const {
+}
+
+void Uart::flush() const {
+}
+
+int Uart::readBytesUntil(char stop, char buffer[], int length) const {
+    return 10;
+}
+
 class ArduinoStub {
 public:
     int pins[40];
@@ -42,7 +75,6 @@ public:
 };
 
 ArduinoStub arduinoStub = ArduinoStub();
-
 
 void pinMode(int pin, int mode) {
     // Arduino Stub

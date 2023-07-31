@@ -8,7 +8,11 @@
 
 class Sensor {
 public:
+    Sensor();
     bool active;
+    void update(bool reading);
+    unsigned long lastDebounceTime;
+    bool lastReading;
 };
 
 
