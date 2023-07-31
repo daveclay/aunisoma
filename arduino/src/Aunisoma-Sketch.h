@@ -1,6 +1,3 @@
-#ifndef C_AUNISOMA_AUNISOMA_SKETCH_H
-#define C_AUNISOMA_AUNISOMA_SKETCH_H
-
 #include "SPI.h"
 #include "Arduino.h"         // required before wiring_private.h
 #include "wiring_private.h"  // pinPeripheral() function
@@ -223,5 +220,3 @@ void loop(void) {
 
     sendColors(setLightsBuffer);
 }
-
-#endif

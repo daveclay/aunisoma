@@ -1,5 +1,5 @@
-#include "Adafruit_DotStar.h"
 #include "SPI.h"
+#include "wiring_private.h"  // pinPeripheral() function
 #include "Clock.h"
 #include "Cycle.h"
 #include "Color.h"
@@ -12,14 +12,36 @@
 #include "TransitionAnimation.h"
 #include "Aunisoma.h"
 
-#define NUMPIXELS 20  // Number of LEDs in strip
-#define FIRST_INPUT_PIN 4 // 14 through 54 are PIR pins
+#define NUMBER_OF_PANELS 20  // Number of LEDs in strip
+#define SET_LIGHTS_SIZE_PER_PANEL 6 // number of chars to send the SET_LIGHTS message per panel
 
-Adafruit_DotStar strip(NUMPIXELS, DOTSTAR_BGR);
+Uart Serial2(&sercom1, PIN_SERIAL3_RX, PIN_SERIAL3_TX, PAD_SERIAL3_RX, PAD_SERIAL3_TX);
+void SERCOM1_0_Handler() {
+    Serial2.IrqHandler();
+}
+void SERCOM1_1_Handler() {
+    Serial2.IrqHandler();
+}
+void SERCOM1_2_Handler() {
+    Serial2.IrqHandler();
+}
+void SERCOM1_3_Handler() {
+    Serial2.IrqHandler();
+}
 
-Sensor* sensors[40] = {};
+// Panel Board Protocol:
+char ENUMERATE = 'E';
+char SET_STATUS = 'S';
+char SET_LIGHTS = 'L';
+char TERMINATOR = '\r';
+char responseBuffer[1024]; // should be 20 panels * however big messages are
+char setLightsBuffer[(NUMBER_OF_PANELS * SET_LIGHTS_SIZE_PER_PANEL)];
 
-int number_of_panels = NUMPIXELS;
+bool panelsInitialized = false;
+
+Sensor* sensors[NUMBER_OF_PANELS];
+
+int number_of_panels = NUMBER_OF_PANELS;
 Config config = Config();
 
 GradientValueMap* maxAnimationGradient = new GradientValueMap();
@@ -39,8 +61,76 @@ GradientValueMap* gradients[5] = {
 
 Aunisoma* aunisoma;
 
+int send_command(char cmd_byte, char params[]) {
+    // Serial.print("Sending: '");
+    // Serial.print(cmd_byte);
+    // Serial.print(params);
+    // Serial.println("'");
+
+    Serial2.print(cmd_byte);
+    if (params) {
+        Serial2.print(params);
+    }
+    Serial2.print(TERMINATOR);
+    Serial2.flush();
+
+    return Serial2.readBytesUntil(TERMINATOR, responseBuffer, sizeof(responseBuffer));
+}
+
+bool send_enumerate() {
+    Serial.println("Sending enumerate...");
+    int bytesRead = send_command(ENUMERATE, NULL);
+    if (bytesRead > 0) {
+        // two bytes per panel
+        int activePanels = bytesRead / 2;
+        Serial.print("Initialized ");
+        Serial.print(activePanels);
+        Serial.print(" panels from ");
+        Serial.print(bytesRead);
+        Serial.println(" bytes: ");
+
+        char buf[bytesRead];
+        memcpy(buf, responseBuffer, bytesRead);
+        Serial.println(responseBuffer);
+
+        return true;
+    } else {
+        return false;
+    }
+}
+
+void initializePanels() {
+    digitalWrite(LED_BUILTIN, HIGH);
+
+    while (!panelsInitialized && !send_enumerate()) {
+        digitalWrite(LED_BUILTIN, LOW);
+        delay(300);
+        digitalWrite(LED_BUILTIN, HIGH);
+    }
+
+    panelsInitialized = true;
+}
+
+bool sendColors(char* value) {
+    int bytesRead = send_command(SET_LIGHTS, value);
+    if (bytesRead > 0) {
+        for (int i = 0; i < bytesRead; i++) {
+            bool active = responseBuffer[i] == '1';
+            sensors[i]->update(active);
+        }
+        return true;
+    } else {
+        return false;
+    }
+}
+
 void setup(void) {
     Serial.begin(9600);
+    Serial2.setTimeout(1000);
+    Serial2.begin(230400);
+
+    pinPeripheral(PIN_SERIAL3_RX, PIO_SERCOM);
+    pinPeripheral(PIN_SERIAL3_TX, PIO_SERCOM);
 
     maxAnimationGradient->add_rgb_point(0.00,   255,   0,   0);
     maxAnimationGradient->add_rgb_point(0.02,   255, 127,   0);
@@ -100,48 +190,32 @@ void setup(void) {
 
     config.init();
 
-    for (int i = 0; i < 40; i++) {
-        sensors[i] = new Sensor();
-        pinMode(FIRST_INPUT_PIN + i, INPUT_PULLDOWN);
-    }
-
     aunisoma = new Aunisoma(&config, maxAnimationGradient, gradients, 5, sensors);
-    strip.begin();
+
+    // Give some time for things to start up?
+    delay(3000);
+    initializePanels();
 }
 
-void loop(void) {
-    for (int i = 0; i < 40; i++) {
-        int sensorPin = FIRST_INPUT_PIN + i;
-        int panelActive = digitalRead(sensorPin) == HIGH;
-        sensors[i]->active = panelActive;
-		/*
-		if (panelActive) {
-			Serial.print("Sensor ");
-			Serial.print(i);
-			Serial.print(" reading pin ");
-			Serial.print(sensorPin);
-			Serial.println(" HIGH ");
-		}
-        */
-    }
+char panelColors[SET_LIGHTS_SIZE_PER_PANEL];
 
+void loop(void) {
     aunisoma->event_loop();
 
     for (int i = 0; i < number_of_panels; i++) {
         Panel *panel = aunisoma->get_panel_at(i);
         Color color = panel->color;
-        strip.setPixelColor(i, gamma8[color.red], gamma8[color.green], gamma8[color.blue]);
-/*
-    Serial.print(i);
-    Serial.print("\t");
-    Serial.print(color.red);
-    Serial.print("\t");
-    Serial.print(color.green);
-    Serial.print("\t");
-    Serial.println(color.blue);
-    */
+        sprintf(panelColors,
+                "%02x%02x%02x",
+                gamma8[color.red],
+                gamma8[color.green],
+                gamma8[color.blue]);
+
+        int startIndex = i * SET_LIGHTS_SIZE_PER_PANEL;
+        for (int j = 0; j < 6; j++) {
+            setLightsBuffer[startIndex + j] = panelColors[j];
+        }
     }
-  
-  strip.show();
-  delay(4);
+
+    sendColors(setLightsBuffer);
 }
