@@ -7,18 +7,18 @@
 
 Aunisoma::Aunisoma(Config* config,
                    GradientValueMap* maxAnimationGradient,
-                   GradientValueMap** gradients,
+                   GradientValueMap* gradients,
                    int numberOfGradients,
-                   Sensor** sensors) {
+                   Sensor* sensors) {
     this->config = config;
     this->gradients = gradients;
     this->numberOfGradients = numberOfGradients;
+    this->sensors = sensors;
     this->current_gradient_index = 0;
     this->next_gradient_index = 0;
-    this->currentGradient = this->gradients[this->current_gradient_index];
-    this->maxGradientIndex = this->numberOfGradients - 1;
     this->numberOfPanels = config->number_of_panels;
-    this->sensors = sensors;
+    this->currentGradient = &this->gradients[this->current_gradient_index];
+    this->maxGradientIndex = this->numberOfGradients - 1;
     this->_calculate_next_gradient_index();
     this->_create_panels();
     this->_create_interactions();
@@ -62,7 +62,7 @@ void Aunisoma::_create_interactions() {
 
 void Aunisoma::read_sensors() {
     for (int i = 0; i < this->numberOfPanels; i++) {
-        Sensor* sensor = this->sensors[i];
+        Sensor* sensor = &this->sensors[i];
         bool active = sensor->active;
         this->_handle_panel_sensor(i, active);
     }
@@ -164,7 +164,7 @@ void Aunisoma::event_loop() {
 }
 
 void Aunisoma::_start_transition() {
-    GradientValueMap *gradient = (GradientValueMap *) this->gradients[this->next_gradient_index];
+    GradientValueMap *gradient = &this->gradients[this->next_gradient_index];
     this->transitionAnimation->start(gradient);
 }
 
@@ -175,7 +175,7 @@ GradientValueMap* Aunisoma::getCurrentGradient() {
 void Aunisoma::switch_to_next_gradient() {
     this->current_gradient_index = this->next_gradient_index;
     this->_calculate_next_gradient_index();
-    this->currentGradient = (GradientValueMap*) this->gradients[this->current_gradient_index];
+    this->currentGradient = &this->gradients[this->current_gradient_index];
     this->ticks_since_last_transition = 1;
 }
 
@@ -211,3 +211,4 @@ void Aunisoma::_update_panel(Panel* panel, float total_panel_value) {
         panel->color = color;
     }
 }
+

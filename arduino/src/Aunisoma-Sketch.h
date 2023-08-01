@@ -85,7 +85,6 @@ bool send_enumerate() {
         int activePanels = bytesRead / 2;
         char buf[bytesRead];
         memcpy(buf, responseBuffer, bytesRead);
-        //Serial.println(responseBuffer);
 
         return true;
     } else {
@@ -197,14 +196,11 @@ void setup(void) {
 
 char panelColors[SET_LIGHTS_SIZE_PER_PANEL];
 
-int count = 0;
-
 void loop(void) {
     aunisoma->event_loop();
 
     for (int i = 0; i < number_of_panels; i++) {
         Panel *panel = aunisoma->get_panel_at(i);
-
         Color color = panel->color;
         sprintf(panelColors,
                 "%02x%02x%02x",
@@ -219,6 +215,4 @@ void loop(void) {
     }
 
     sendColors(setLightsBuffer);
-
-    count++;
 }
