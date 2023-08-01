@@ -17,12 +17,12 @@ class Aunisoma: public PanelContext, public TransitionAnimationCallback {
 public:
     Aunisoma(Config* config,
              GradientValueMap* maxAnimationGradient,
-             GradientValueMap** gradients,
+             GradientValueMap* gradients,
              int numberOfGradients,
-             Sensor** sensors);
+             Sensor* sensors);
 
     int numberOfPanels;
-    Sensor** sensors;
+    Sensor* sensors;
 
     Panel* get_panel_at(int);
     void event_loop();
@@ -31,7 +31,7 @@ public:
 
 private:
     Config* config;
-    GradientValueMap** gradients;
+    GradientValueMap* gradients;
     int numberOfGradients;
     GradientValueMap* currentGradient;
     Panel* panels[20];

@@ -40,19 +40,19 @@ char setLightsBuffer[(NUMBER_OF_PANELS * SET_LIGHTS_SIZE_PER_PANEL)];
 
 bool panelsInitialized = false;
 
-Sensor* sensors[NUMBER_OF_PANELS];
+Sensor sensors[NUMBER_OF_PANELS];
 
 int number_of_panels = NUMBER_OF_PANELS;
 Config config = Config();
 
-GradientValueMap* maxAnimationGradient = new GradientValueMap();
-GradientValueMap* initial_gradient = new GradientValueMap();
-GradientValueMap* blue_gradient = new GradientValueMap();
-GradientValueMap* green_gradient = new GradientValueMap();
-GradientValueMap* purple_red_gradient = new GradientValueMap();
-GradientValueMap* green_blue_gradient = new GradientValueMap();
+GradientValueMap maxAnimationGradient = GradientValueMap();
+GradientValueMap initial_gradient = GradientValueMap();
+GradientValueMap blue_gradient = GradientValueMap();
+GradientValueMap green_gradient = GradientValueMap();
+GradientValueMap purple_red_gradient = GradientValueMap();
+GradientValueMap green_blue_gradient = GradientValueMap();
 
-GradientValueMap* gradients[5] = {
+GradientValueMap gradients[5] = {
         initial_gradient,
         blue_gradient,
         purple_red_gradient,
@@ -79,20 +79,13 @@ int send_command(char cmd_byte, char params[]) {
 }
 
 bool send_enumerate() {
-    Serial.println("Sending enumerate...");
     int bytesRead = send_command(ENUMERATE, NULL);
     if (bytesRead > 0) {
         // two bytes per panel
         int activePanels = bytesRead / 2;
-        Serial.print("Initialized ");
-        Serial.print(activePanels);
-        Serial.print(" panels from ");
-        Serial.print(bytesRead);
-        Serial.println(" bytes: ");
-
         char buf[bytesRead];
         memcpy(buf, responseBuffer, bytesRead);
-        Serial.println(responseBuffer);
+        //Serial.println(responseBuffer);
 
         return true;
     } else {
@@ -117,7 +110,7 @@ bool sendColors(char* value) {
     if (bytesRead > 0) {
         for (int i = 0; i < bytesRead; i++) {
             bool active = responseBuffer[i] == '1';
-            sensors[i]->update(active);
+            sensors[i].update(active);
         }
         return true;
     } else {
@@ -133,51 +126,51 @@ void setup(void) {
     pinPeripheral(PIN_SERIAL3_RX, PIO_SERCOM);
     pinPeripheral(PIN_SERIAL3_TX, PIO_SERCOM);
 
-    maxAnimationGradient->add_rgb_point(0.00,   255,   0,   0);
-    maxAnimationGradient->add_rgb_point(0.02,   255, 127,   0);
-    maxAnimationGradient->add_rgb_point(0.20,   255, 255,   0);
-    maxAnimationGradient->add_rgb_point(0.29,   200, 255,   0);
-    maxAnimationGradient->add_rgb_point(0.30,     0, 255,   0);
-    maxAnimationGradient->add_rgb_point(0.31,     0, 255, 127);
-    maxAnimationGradient->add_rgb_point(0.40,     0, 255, 200);
-    maxAnimationGradient->add_rgb_point(0.45,     0, 255, 255);
-    maxAnimationGradient->add_rgb_point(0.59,     0, 120, 255);
-    maxAnimationGradient->add_rgb_point(0.60,     0,   0, 255);
-    maxAnimationGradient->add_rgb_point(0.61,   160,   0, 255);
-    maxAnimationGradient->add_rgb_point(0.80,   255,   0, 255);
-    maxAnimationGradient->add_rgb_point(0.80,   255,   0, 255);
-    maxAnimationGradient->add_rgb_point(0.89,   255,   0, 200);
-    maxAnimationGradient->add_rgb_point(1.00,   255,   0,   0);
+    maxAnimationGradient.add_rgb_point(0.00,   255,   0,   0);
+    maxAnimationGradient.add_rgb_point(0.02,   255, 127,   0);
+    maxAnimationGradient.add_rgb_point(0.20,   255, 255,   0);
+    maxAnimationGradient.add_rgb_point(0.29,   200, 255,   0);
+    maxAnimationGradient.add_rgb_point(0.30,     0, 255,   0);
+    maxAnimationGradient.add_rgb_point(0.31,     0, 255, 127);
+    maxAnimationGradient.add_rgb_point(0.40,     0, 255, 200);
+    maxAnimationGradient.add_rgb_point(0.45,     0, 255, 255);
+    maxAnimationGradient.add_rgb_point(0.59,     0, 120, 255);
+    maxAnimationGradient.add_rgb_point(0.60,     0,   0, 255);
+    maxAnimationGradient.add_rgb_point(0.61,   160,   0, 255);
+    maxAnimationGradient.add_rgb_point(0.80,   255,   0, 255);
+    maxAnimationGradient.add_rgb_point(0.80,   255,   0, 255);
+    maxAnimationGradient.add_rgb_point(0.89,   255,   0, 200);
+    maxAnimationGradient.add_rgb_point(1.00,   255,   0,   0);
 
-    initial_gradient->add_rgb_point(0.0, 3, 0, 0);
-    initial_gradient->add_rgb_point(.4, 255, 0, 0);
-    initial_gradient->add_rgb_point(1.0, 255, 255, 0);
-    initial_gradient->add_rgb_point(1.6, 0, 255, 255);
-    initial_gradient->add_rgb_point(3, 0, 255, 255);
+    initial_gradient.add_rgb_point(0.0, 3, 0, 0);
+    initial_gradient.add_rgb_point(.4, 255, 0, 0);
+    initial_gradient.add_rgb_point(1.0, 255, 255, 0);
+    initial_gradient.add_rgb_point(1.6, 0, 255, 255);
+    initial_gradient.add_rgb_point(3, 0, 255, 255);
 
-    blue_gradient->add_rgb_point(0.0, 0, 0, 10);
-    blue_gradient->add_rgb_point(.4, 0, 0, 255);
-    blue_gradient->add_rgb_point(.8, 255, 0, 255);
-    blue_gradient->add_rgb_point(2, 255, 255, 0);
-    blue_gradient->add_rgb_point(3, 255, 255, 0);
+    blue_gradient.add_rgb_point(0.0, 0, 0, 10);
+    blue_gradient.add_rgb_point(.4, 0, 0, 255);
+    blue_gradient.add_rgb_point(.8, 255, 0, 255);
+    blue_gradient.add_rgb_point(2, 255, 255, 0);
+    blue_gradient.add_rgb_point(3, 255, 255, 0);
 
-    green_gradient->add_rgb_point(0.0, 0, 10, 0);
-    green_gradient->add_rgb_point(.4, 0, 255, 0);
-    green_gradient->add_rgb_point(.8, 255, 255, 0);
-    green_gradient->add_rgb_point(1.5, 255, 0, 255);
-    green_gradient->add_rgb_point(3, 255, 0, 255);
+    green_gradient.add_rgb_point(0.0, 0, 10, 0);
+    green_gradient.add_rgb_point(.4, 0, 255, 0);
+    green_gradient.add_rgb_point(.8, 255, 255, 0);
+    green_gradient.add_rgb_point(1.5, 255, 0, 255);
+    green_gradient.add_rgb_point(3, 255, 0, 255);
 
-    purple_red_gradient->add_rgb_point(0,   1,    0,   1);
-    purple_red_gradient->add_rgb_point(.4, 255,   0, 255);
-    purple_red_gradient->add_rgb_point(.85,  255,   0,   0);
-    purple_red_gradient->add_rgb_point(1.2,  255, 255,   0);
-    purple_red_gradient->add_rgb_point(3,    0, 255,   0);
+    purple_red_gradient.add_rgb_point(0,   1,    0,   1);
+    purple_red_gradient.add_rgb_point(.4, 255,   0, 255);
+    purple_red_gradient.add_rgb_point(.85,  255,   0,   0);
+    purple_red_gradient.add_rgb_point(1.2,  255, 255,   0);
+    purple_red_gradient.add_rgb_point(3,    0, 255,   0);
 
-    green_blue_gradient->add_rgb_point(0,    0,   3,   0);
-    green_blue_gradient->add_rgb_point(.3,   0, 255,   0);
-    green_blue_gradient->add_rgb_point(1,    0, 255, 255);
-    green_blue_gradient->add_rgb_point(2,    0,   0, 255);
-    green_blue_gradient->add_rgb_point(3,  255,   0, 255);
+    green_blue_gradient.add_rgb_point(0,    0,   3,   0);
+    green_blue_gradient.add_rgb_point(.3,   0, 255,   0);
+    green_blue_gradient.add_rgb_point(1,    0, 255, 255);
+    green_blue_gradient.add_rgb_point(2,    0,   0, 255);
+    green_blue_gradient.add_rgb_point(3,  255,   0, 255);
 
     config.number_of_panels = number_of_panels;
     config.reverberation_distance_range = new Range(2, 5);
@@ -191,7 +184,7 @@ void setup(void) {
 
     config.init();
 
-    aunisoma = new Aunisoma(&config, maxAnimationGradient, gradients, 5, sensors);
+    aunisoma = new Aunisoma(&config, &maxAnimationGradient, gradients, 5, sensors);
 
     // Give some time for things to start up?
     delay(3000);
@@ -200,11 +193,14 @@ void setup(void) {
 
 char panelColors[SET_LIGHTS_SIZE_PER_PANEL];
 
+int count = 0;
+
 void loop(void) {
     aunisoma->event_loop();
 
     for (int i = 0; i < number_of_panels; i++) {
         Panel *panel = aunisoma->get_panel_at(i);
+
         Color color = panel->color;
         sprintf(panelColors,
                 "%02x%02x%02x",
@@ -219,4 +215,6 @@ void loop(void) {
     }
 
     sendColors(setLightsBuffer);
+
+    count++;
 }

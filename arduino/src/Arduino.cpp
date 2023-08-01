@@ -4,6 +4,18 @@
 #include "algorithm"
 #include "stdlib.h"
 #include "Arduino.h"
+#include <iostream>
+
+char out[1024];
+int outIndex = 0;
+char in[1024];
+char outPanelColors[6];
+int panelColorLengthToRead = 6;
+char currentCommand;
+char lights[21] = "00000000000000000000";
+
+int iterations = 100000;
+int iteration = 0;
 
 int abs(int value) {
     return std::abs(value);
@@ -29,13 +41,45 @@ void delay(int) {
 }
 
 long millis() {
-    return 10000;
+    return iteration;
 }
 
 void digitalWrite(int pin, int value) {
 }
 
-Uart::Uart() {}
+void writeScriptLine(char *colors) {
+    std::cout << "\t{ \"iteration\": " << iteration << ",";
+    std::cout << "\"panels\": [\n";
+
+    for (int i = 0; i < 120; i += panelColorLengthToRead) {
+        int panelColorStartIndex = i; // 6 chars per panel, 2 chars per color
+        char *start = colors + panelColorStartIndex;
+        char *end = start + panelColorLengthToRead;
+        std::copy(start, end, outPanelColors);
+
+        int index = i / panelColorLengthToRead;
+        char red[] = {outPanelColors[0], outPanelColors[1], '\0' };
+        char green[] = {outPanelColors[2], outPanelColors[3], '\0' };
+        char blue[] = {outPanelColors[4], outPanelColors[5], '\0' };
+
+        std::cout << "\t\t{ \"index\": " << index << ", \"red\": \"" << red << "\", \"green\": \"" << green << "\", \"blue\": \"" << blue << "\"}";
+        if (i < 114) {
+            std::cout << ",";
+        }
+        std::cout << "\n";
+    }
+
+    std::cout << "\t]\n\t}";
+
+    if (iteration < iterations - 1) {
+        std::cout << ",";
+    }
+
+    std::cout << "\n";
+}
+
+Uart::Uart() {
+}
 
 Uart::Uart(const int * sercom, int pinRx, int pinTx, int padRx, int padTx) {
 }
@@ -48,10 +92,42 @@ void Uart::setTimeout(const int time) const {
 void Uart::begin(const int baud) const {
 }
 
-void Uart::print(const char s) const {
+void Uart::print(const char c) const {
+    if (c == 'E') {
+        currentCommand = c;
+    } else if (c == 'L') {
+        currentCommand = c;
+    } else if (c == '\r') {
+        if (currentCommand == 'L') {
+            writeScriptLine(out);
+            if (iteration > 2123 && iteration < 5000) {
+                strcpy(in, "11111111111111111111");
+            } else {
+                int mod = iteration % 500;
+                if (mod == 0) {
+                    int numPanels = 1 + (std::rand() % 10); // 0 to 6
+                    for (int j = 0; j < numPanels; j++) {
+                        int panel = std::rand() % 20; // 0 through 19
+                        char active = ((std::rand() % 10) > 3) ? '1' : '0';
+                        lights[panel] = active;
+                    }
+                }
+                strcpy(in, lights);
+                // std::cout << in << '\n';
+                // std::cout.flush();
+            }
+            iteration++;
+        } else if (currentCommand == 'E') {
+            strcpy(in, "V1V1V1V1V1V1V1V1V1V1V1V1V1V1V1V1V1V1V1V1");
+        }
+    } else {
+        out[outIndex] = c;
+        outIndex++;
+    }
 }
 
 void Uart::print(const char * s) const {
+    strcpy(out, s);
 }
 
 void Uart::println(const char * s) const {
@@ -61,30 +137,13 @@ void Uart::flush() const {
 }
 
 int Uart::readBytesUntil(char stop, char buffer[], int length) const {
-    return 10;
-}
-
-class ArduinoStub {
-public:
-    int pins[40];
-    ArduinoStub() {
-        for (int i = 0; i < 40; i++) {
-            pins[i] = 0;
-        }
+    if (currentCommand == 'E') {
+        strcpy(buffer, in);
+        return 40;
+    } else if (currentCommand == 'L') {
+        strcpy(buffer, in);
+        return 20;
+    } else {
+        return 0;
     }
-};
-
-ArduinoStub arduinoStub = ArduinoStub();
-
-void pinMode(int pin, int mode) {
-    // Arduino Stub
-}
-
-int digitalRead(int pin) {
-    return arduinoStub.pins[pin];
-}
-
-void setPIRPinSensor(int panelIndex, int pinValue) {
-    int sensorIndex = panelIndex * 2;
-    arduinoStub.pins[sensorIndex] = pinValue;
 }

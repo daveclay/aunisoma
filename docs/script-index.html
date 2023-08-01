@@ -125,9 +125,9 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
 
     function colorToHexString(color) {
       return "#"
-        + color.red.toString(16).padStart(2, "0")
-        + color.green.toString(16).padStart(2, "0")
-        + color.blue.toString(16).padStart(2, "0");
+        + color.red
+        + color.green
+        + color.blue;
     }
 
     class ScriptRunner {
