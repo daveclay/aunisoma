@@ -106,9 +106,9 @@ void initializePanels() {
 
 bool sendColors(char* value) {
     char hack[13];
-    char *start = value;
-    char *end = value + 12;
-    std::copy(start, end, hack);
+    for (int i = 0; i < 12; i++) {
+        hack[i] = value[i];
+    }
     int bytesRead = send_command(SET_LIGHTS, hack);
     if (bytesRead > 0) {
         for (int i = 0; i < bytesRead; i++) {
