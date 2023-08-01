@@ -210,9 +210,9 @@ void loop(void) {
         Color color = panel->color;
         sprintf(panelColors,
                 "%02x%02x%02x",
-                gamma8[color.red],
-                gamma8[color.green],
-                gamma8[color.blue]);
+                gamma_lut[color.red],
+                gamma_lut[color.green],
+                gamma_lut[color.blue]);
 
         int startIndex = i * SET_LIGHTS_SIZE_PER_PANEL;
         for (int j = 0; j < 6; j++) {
