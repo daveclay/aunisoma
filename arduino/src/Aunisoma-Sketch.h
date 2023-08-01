@@ -106,7 +106,11 @@ void initializePanels() {
 }
 
 bool sendColors(char* value) {
-    int bytesRead = send_command(SET_LIGHTS, value);
+    char hack[13];
+    char *start = value;
+    char *end = value + 12;
+    std::copy(start, end, hack);
+    int bytesRead = send_command(SET_LIGHTS, hack);
     if (bytesRead > 0) {
         for (int i = 0; i < bytesRead; i++) {
             bool active = responseBuffer[i] == '1';
