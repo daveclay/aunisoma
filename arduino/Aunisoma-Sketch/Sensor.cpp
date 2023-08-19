@@ -3,7 +3,7 @@
 //
 
 #include "Sensor.h"
-#define DEBOUNCE_PIR_DELAY 100 // 100ms debounce
+#define DEBOUNCE_PIR_DELAY 200 // ms debounce
 #include "Arduino.h"
 
 Sensor::Sensor() {
@@ -19,6 +19,13 @@ void Sensor::update(bool reading) {
         // delay, so take it as the actual current state:
         if (this->active != reading) {
             this->active = reading;
+            // Serial.print(this->panelIndex);
+            // Serial.print(" is ");
+            // if (this->active) {
+            //   Serial.println("active!");
+            // } else {
+            //   Serial.println("idle.");
+            // }
         }
     }
 
