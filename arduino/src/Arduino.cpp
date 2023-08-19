@@ -44,6 +44,9 @@ long millis() {
     return iteration;
 }
 
+void pinMode(int pin, int mode) {
+}
+
 void digitalWrite(int pin, int value) {
 }
 

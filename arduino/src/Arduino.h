@@ -14,6 +14,7 @@ const int PIO_SERCOM = 5;
 
 const int sercom1 = 0;
 const int LED_BUILTIN = 0;
+const int OUTPUT = 0;
 
 int abs(int a);
 int min(int a, int b);

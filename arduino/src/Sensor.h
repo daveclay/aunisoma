@@ -9,6 +9,7 @@
 class Sensor {
 public:
     Sensor();
+    int panelIndex;
     bool active;
     void update(bool reading);
     unsigned long lastDebounceTime;
