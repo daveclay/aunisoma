@@ -105,11 +105,7 @@ void initializePanels() {
 }
 
 bool sendColors(char* value) {
-    char hack[13];
-    for (int i = 0; i < 12; i++) {
-        hack[i] = value[i];
-    }
-    int bytesRead = send_command(SET_LIGHTS, hack);
+    int bytesRead = send_command(SET_LIGHTS, value);
     if (bytesRead > 0) {
         for (int i = 0; i < bytesRead; i++) {
             bool active = responseBuffer[i] == '1';
@@ -203,10 +199,10 @@ void loop(void) {
         Panel *panel = aunisoma->get_panel_at(i);
         Color color = panel->color;
         sprintf(panelColors,
-                "%02x%02x%02x",
-                gamma_lut[color.red],
-                gamma_lut[color.green],
-                gamma_lut[color.blue]);
+                "%02X%02X%02X",
+                color.red,
+                color.green,
+                color.blue);
 
         int startIndex = i * SET_LIGHTS_SIZE_PER_PANEL;
         for (int j = 0; j < 6; j++) {

@@ -15,15 +15,18 @@ public:
     MaxInteractionAnimation(int numberOfPanels, Panel** panels, GradientValueMap* gradient);
     bool active;
     int transitionTicks;
+    bool hasTransitionedIn;
     bool hasTransitionedOut;
     Color panelColorByPanelIndex[20];
 
     void value(float value, CycleDirection direction);
     void start();
     void update();
-    int get_transition_amount();
+    float get_transition_amount();
     Color get_color(Panel* panel);
-    void updateTransition();
+    void updateTransitionOut();
+
+    void startTransitionOut();
 
 private:
     int numberOfPanels;

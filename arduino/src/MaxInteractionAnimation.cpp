@@ -19,6 +19,7 @@ MaxInteractionAnimation::MaxInteractionAnimation(int numberOfPanels,
     this->active = 0;
     this->transitionTicks = 0;
     this->transitionDuration = 100;
+    this->hasTransitionedIn = false;
     this->hasTransitionedOut = true;
 };
 
@@ -29,7 +30,10 @@ void MaxInteractionAnimation::value(float value, CycleDirection direction) {
 void MaxInteractionAnimation::start() {
         this->transitionTicks = -1;
         this->hasTransitionedOut = true;
+        this->hasTransitionedIn = false;
         for (int i = 0; i < this->numberOfPanels; i++) {
+            // TODO: while this keeps the current color at the _start_ of max animation, it may not be the color we use _after_ this max animation is done.
+            // TODO: ideally, we just defer to what the algorithm is spitting out rather than a static color.
             this->panelColorByPanelIndex[i] = this->panels[i]->color;
         }
         this->cycle->restart();
@@ -38,14 +42,29 @@ void MaxInteractionAnimation::start() {
 
 void MaxInteractionAnimation::update() {
     this->cycle->next();
-    this->transitionTicks += 1;
+    if (!this->hasTransitionedIn) {
+        this->transitionTicks += 1;
+        if (this->transitionTicks > this->transitionDuration) {
+            this->hasTransitionedIn = true;
+            this->transitionTicks = -1;
+        }
+    }
 }
 
-int MaxInteractionAnimation::get_transition_amount() {
-    return this->transitionTicks / this->transitionDuration;
+float MaxInteractionAnimation::get_transition_amount() {
+    return (float) this->transitionTicks / (float) this->transitionDuration;
 }
 
-void MaxInteractionAnimation::updateTransition() {
+void MaxInteractionAnimation::startTransitionOut() {
+    this->active = false;
+    // note that we need to transition in next time
+    this->hasTransitionedIn = false;
+    // indicate that the max interaction should transition out
+    this->hasTransitionedOut = false;
+    this->transitionTicks = 0;
+}
+
+void MaxInteractionAnimation::updateTransitionOut() {
     this->transitionTicks += 1;
     this->hasTransitionedOut = this->transitionTicks >= this->transitionDuration;
 }
@@ -60,15 +79,18 @@ Color MaxInteractionAnimation::get_color(Panel* panel) {
 
         Color color = this->getColorForPanelAndValue(panel, value);
 
-        this->panelColorByPanelIndex[panel->index] = color;
+        if (this->hasTransitionedIn) {
+            this->panelColorByPanelIndex[panel->index] = color;
+        }
         return color;
 }
 
 Color MaxInteractionAnimation::getColorForPanelAndValue(Panel* panel, float value) {
     Color maxColor = this->gradient->getColorForValue(value);
-    if (this->transitionTicks < this->transitionDuration) {
-        Color fromColor = this->panelColorByPanelIndex[panel->index];
-        return fromColor.interpolate(maxColor, this->get_transition_amount());
+    if (!this->hasTransitionedIn) {
+        Color fromColor = this->panelColorByPanelIndex[panel->index]; // TODO: this was the color before we started; not necessarily the color we're going to?
+        float transitionAmount = this->get_transition_amount();
+        return fromColor.interpolate(maxColor, transitionAmount);
     } else {
         return maxColor;
     }

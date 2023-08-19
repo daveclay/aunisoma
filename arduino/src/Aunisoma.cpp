@@ -145,21 +145,22 @@ void Aunisoma::event_loop() {
         }
 
         if (this->maxInteractionAnimation->active) {
-            this->maxInteractionAnimation->active = false;
-            // indicate that the max interaction should transition out
-            this->maxInteractionAnimation->hasTransitionedOut = false;
-            this->maxInteractionAnimation->transitionTicks = 0;
+            this->maxInteractionAnimation->startTransitionOut();
         }
     }
 
     if (this->maxInteractionAnimation->active) {
+        // Note: only when the max interaction is active does this call update().
+        // That logic covers transitioning in and steady-state running of the max animation.
+        // Transitioning _out_ has a separate handler below.
         this->maxInteractionAnimation->update();
     } else if (this->transitionAnimation->active) {
         this->transitionAnimation->update();
     }
     this->_update_panels();
     if (!this->maxInteractionAnimation->hasTransitionedOut) {
-        this->maxInteractionAnimation->updateTransition();
+        // Note: the max interaction is no longer active, so this is here to transition out of the max animation.
+        this->maxInteractionAnimation->updateTransitionOut();
     }
 }
 
