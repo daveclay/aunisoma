@@ -100,29 +100,30 @@ void Uart::print(const char c) const {
     } else if (c == '\r') {
         if (currentCommand == 'L') {
             writeScriptLine(out);
+            int mod = iteration % 500;
+            if (mod == 0) {
+                int numPanels = 1 + (std::rand() % 10); // 0 to 6
+                for (int j = 0; j < numPanels; j++) {
+                    int panel = std::rand() % 20; // 0 through 19
+                    char active = ((std::rand() % 10) > 3) ? '1' : '0';
+                    lights[panel] = active;
+                }
+            }
+            strcpy(in, lights);
+
+            /*
             if (iteration >= 3600) {
                 strcpy(in, "10000000000000100001");
             } else if (iteration >= 2600) {
                 strcpy(in, "11011011111111111111");
             } else if (iteration >= 1600) {
-                strcpy(in, "00011010000000001110");
-                /*
-                int mod = iteration % 500;
-                if (mod == 0) {
-                    int numPanels = 1 + (std::rand() % 10); // 0 to 6
-                    for (int j = 0; j < numPanels; j++) {
-                        int panel = std::rand() % 20; // 0 through 19
-                        char active = ((std::rand() % 10) > 3) ? '1' : '0';
-                        lights[panel] = active;
-                    }
-                }
-                strcpy(in, lights);
-                 */
+                // strcpy(in, "00011010000000001110");
             } else if (iteration > 500 && iteration < 1600) {
                 strcpy(in, "11011011111111111111");
             } else {
                 strcpy(in, "00000000001000010000");
             }
+            */
             iteration++;
         } else if (currentCommand == 'E') {
             strcpy(in, "V1V1V1V1V1V1V1V1V1V1V1V1V1V1V1V1V1V1V1V1");
