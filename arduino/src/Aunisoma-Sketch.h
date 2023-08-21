@@ -185,9 +185,9 @@ void setup(void) {
   // how long to wait to trigger a neighbor Panel to reverberate
   config.reverberation_panel_delay_ticks = 20;
   config.trigger_panel_animation_loop_duration_ticks_range = new Range(220, 300);
-  config.max_interaction_threshold_percent = .5;
-  config.intermediate_interaction_threshold_percent = .3;
-  config.min_max_interaction_gradient_transition_duration = 5000;
+  config.max_interaction_threshold_percent = .7;
+  config.intermediate_interaction_threshold_percent = .35;
+  config.min_max_interaction_gradient_transition_duration = 3000;
   config.odds_for_max_interaction_gradient_transition = 90;
 
   config.init();
@@ -211,9 +211,9 @@ void loop(void) {
       Color color = panel->color;
       sprintf(panelColors,
               "%02x%02x%02x",
-              color.red,
-              color.green,
-              color.blue);
+              gamma_lut[color.red],
+              gamma_lut[color.green],
+              gamma_lut[color.blue]);
     int startIndex = i * SET_LIGHTS_SIZE_PER_PANEL;
     for (int j = 0; j < 6; j++) {
       setLightsBuffer[startIndex + j] = panelColors[j];
