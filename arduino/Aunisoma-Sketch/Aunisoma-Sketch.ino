@@ -1,4 +1,5 @@
 #include "SPI.h"
+#include "Arduino.h"         // required before wiring_private.h
 #include "wiring_private.h"  // pinPeripheral() function
 #include "Clock.h"
 #include "Cycle.h"
@@ -36,7 +37,6 @@ char SET_LIGHTS = 'L';
 char TERMINATOR = '\r';
 char responseBuffer[512];  // should be 20 panels * however big messages are
 char setLightsBuffer[(NUMBER_OF_PANELS * SET_LIGHTS_SIZE_PER_PANEL)];
-bool panelsInitialized = false;
 
 Sensor sensors[NUMBER_OF_PANELS];
 
@@ -102,14 +102,13 @@ bool send_enumerate() {
 void initializePanels() {
   digitalWrite(LED_BUILTIN, HIGH);
 
-  while (!panelsInitialized && !send_enumerate()) {
+  while (!send_enumerate()) {
     digitalWrite(LED_BUILTIN, LOW);
-    delay(500);
+    delay(200);
     digitalWrite(LED_BUILTIN, HIGH);
-    delay(500);
   }
 
-  panelsInitialized = true;
+  digitalWrite(LED_BUILTIN, LOW);
 }
 
 bool sendColors(char* value) {
@@ -203,9 +202,8 @@ void setup(void) {
 }
 
 char panelColors[SET_LIGHTS_SIZE_PER_PANEL];
-
+int iterationCount = 0;
 void loop(void) {
-  long start = millis();
   aunisoma->event_loop();
 
   for (int i = 0; i < NUMBER_OF_PANELS; i++) {
@@ -223,6 +221,10 @@ void loop(void) {
   }
 
   sendColors(setLightsBuffer);
+  iterationCount++;
 
-  Serial.println(millis() - start);
+  if (iterationCount == 60000) {
+    initializePanels();
+    iterationCount = 0;
+  }
 }
