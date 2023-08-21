@@ -124,7 +124,7 @@ void Aunisoma::event_loop() {
                 if (this->transitioned_during_current_intermediate_state) {
                     this->ticks_since_last_transition += 1;
                     if (this->ticks_since_last_transition > config->min_max_interaction_gradient_transition_duration
-                        && maybe(config->odds_for_max_interaction_gradient_transition)) {
+                        && maybe(config->odds_for_interaction_gradient_transition)) {
                         this->_start_transition();
                         this->ticks_since_last_transition = 0;
                     }

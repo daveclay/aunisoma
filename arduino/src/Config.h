@@ -19,7 +19,7 @@ public:
     float max_interaction_threshold_percent;
     float intermediate_interaction_threshold_percent;
     int min_max_interaction_gradient_transition_duration;
-    int odds_for_max_interaction_gradient_transition;
+    int odds_for_interaction_gradient_transition;
 
     Config();
 

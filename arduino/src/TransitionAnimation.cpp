@@ -3,6 +3,7 @@
 //
 
 #include "TransitionAnimation.h"
+#include "Maths.h"
 
 TransitionAnimation::TransitionAnimation(int durationTicks, TransitionAnimationCallback* transitionAnimationCallback) {
     this->transitionAnimationCallback = transitionAnimationCallback;
@@ -45,7 +46,14 @@ Color TransitionAnimation::get_color(float panel_value) {
     Color from_color = current_gradient->getColorForValue(panel_value);
     Color to_color = this->target_gradient->getColorForValue(panel_value);
 
-    Color color = from_color.interpolate(to_color, this->current_value);
+    float colorDistance = from_color.distance(to_color);
+    float interpolationValue = this->current_value;
+    if (colorDistance < .1) {
+        int ticks = this->cycle->clock->ticks;
+        int duration = this->cycle->duration_ticks;
+        int scaledTicks = interpolateValue(ticks, duration, (float) 1 - colorDistance);
+        interpolationValue = (float) scaledTicks / (float) duration;
+    }
 
-    return color;
+    return from_color.interpolate(to_color, interpolationValue);
 }

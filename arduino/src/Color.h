@@ -34,6 +34,7 @@ public:
 
     Color(int red = 0, int green = 0, int blue = 0);
     Color interpolate(Color color, float amount) const;
+    float distance(Color color);
 };
 
 #endif //C_AUNISOMA_COLOR_H
