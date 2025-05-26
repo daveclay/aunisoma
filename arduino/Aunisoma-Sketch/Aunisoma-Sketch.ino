@@ -13,7 +13,10 @@
 #include "TransitionAnimation.h"
 #include "Aunisoma.h"
 
-#define NUMBER_OF_PANELS 18          //
+char panel_ids[] = "241B251E141128201521181F221D161A12171319";
+// char panel_ids[] = "0E";
+
+#define NUMBER_OF_PANELS 20
 #define SET_LIGHTS_SIZE_PER_PANEL 6  // number of chars to send the SET_LIGHTS message per panel
 
 Uart Serial2(&sercom1, PIN_SERIAL3_RX, PIN_SERIAL3_TX, PAD_SERIAL3_RX, PAD_SERIAL3_TX);
@@ -34,7 +37,8 @@ void SERCOM1_3_Handler() {
 char ENUMERATE = 'E';
 char SET_STATUS = 'S';
 char SET_LIGHTS = 'L';
-char TERMINATOR = '\r';
+char MAP_PANELS = 'M';
+char TERMINATOR = '\n';
 char responseBuffer[512];  // should be 20 panels * however big messages are
 char setLightsBuffer[(NUMBER_OF_PANELS * SET_LIGHTS_SIZE_PER_PANEL)];
 
@@ -60,7 +64,8 @@ GradientValueMap gradients[5] = {
 Aunisoma* aunisoma;
 
 int send_command(char cmd_byte, char params[]) {
-  // Serial.print("Sending: '");
+  // Serial.print("Sending ");
+  // Serial.print(" bytes: '");
   // Serial.print(cmd_byte);
   // Serial.print(params);
   // Serial.println("'");
@@ -76,17 +81,17 @@ int send_command(char cmd_byte, char params[]) {
 }
 
 bool send_enumerate() {
-  Serial.println("Sending enumerate...");
+  // Serial.println("Sending enumerate...");
   int bytesRead = send_command(ENUMERATE, NULL);
   if (bytesRead > 0) {
     // two bytes per panel
     int activePanels = bytesRead / 2;
-    Serial.print("Initialized ");
-    Serial.print(activePanels);
-    Serial.print(" panels from ");
-    Serial.print(bytesRead);
-    Serial.print(" bytes: ");
-    Serial.println(responseBuffer);
+    // Serial.print("Initialized ");
+    // Serial.print(activePanels);
+    // Serial.print(" panels from ");
+    // Serial.print(bytesRead);
+    // Serial.print(" bytes: ");
+    // Serial.println(responseBuffer);
     for (int i = 0; i < bytesRead; i += 2) {
       if (responseBuffer[i] != 'V') {
         return false;
@@ -99,25 +104,33 @@ bool send_enumerate() {
   }
 }
 
+bool map_panels() {
+  int bytesRead = send_command(MAP_PANELS, panel_ids);
+  if (bytesRead > 0) {
+    // Serial.println(responseBuffer);
+    return true;
+  }
+  return false;
+}
+
 void initializePanels() {
   digitalWrite(LED_BUILTIN, HIGH);
-
-  while (!send_enumerate()) {
+  while (!map_panels()) {
     digitalWrite(LED_BUILTIN, LOW);
-    delay(200);
+    delay(500);
     digitalWrite(LED_BUILTIN, HIGH);
   }
-
   digitalWrite(LED_BUILTIN, LOW);
 }
 
-bool sendColors(char* value) {
+bool sendColors(char value[]) {
   int bytesRead = send_command(SET_LIGHTS, value);
   if (bytesRead > 0) {
-      for (int i = 0; i < bytesRead; i++) {
-        bool active = responseBuffer[i] == '1';
-        sensors[(NUMBER_OF_PANELS - 1) - i].update(active);
-      }
+    // Serial.println(responseBuffer);
+    for (int i = 3; i < bytesRead; i++) {
+      bool active = responseBuffer[i] == '1' || responseBuffer[i] == '2' || responseBuffer[i] == '3';
+      sensors[(NUMBER_OF_PANELS - 1) - i].update(active);
+    }
     return true;
   } else {
     return false;
@@ -125,7 +138,7 @@ bool sendColors(char* value) {
 }
 
 void setup(void) {
-  Serial.begin(9600);
+  // Serial.begin(9600);
   Serial2.setTimeout(1000);
   Serial2.begin(230400);
 
@@ -202,29 +215,30 @@ void setup(void) {
 }
 
 char panelColors[SET_LIGHTS_SIZE_PER_PANEL];
+
 int iterationCount = 0;
 void loop(void) {
   aunisoma->event_loop();
 
+  setLightsBuffer[0] = '\0';
   for (int i = 0; i < NUMBER_OF_PANELS; i++) {
-      Panel* panel = aunisoma->get_panel_at(i);
-      Color color = panel->color;
-      sprintf(panelColors,
-              "%02x%02x%02x",
-              color.red,
-              color.green,
-              color.blue);
+    Panel* panel = aunisoma->get_panel_at(i);
+    Color color = panel->color;
+    sprintf(panelColors,
+            "%02x%02x%02x",
+            color.red,
+            color.green,
+            color.blue);
     int startIndex = i * SET_LIGHTS_SIZE_PER_PANEL;
-    for (int j = 0; j < 6; j++) {
-      setLightsBuffer[startIndex + j] = panelColors[j];
-    }
+    strcat(setLightsBuffer, panelColors);
   }
 
   sendColors(setLightsBuffer);
+
   iterationCount++;
 
   if (iterationCount == 60000) {
-    initializePanels();
+    //initializePanels();
     iterationCount = 0;
   }
 }
