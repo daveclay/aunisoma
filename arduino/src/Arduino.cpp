@@ -102,9 +102,7 @@ void Uart::print(const char c) const {
     } else if (c == '\n') {
         if (currentCommand == 'L') {
             writeScriptLine(out);
-
-            /*
-            int mod = iteration % 500;
+            int mod = iteration % 20;
             if (mod == 0) {
                 int numPanels = 1 + (std::rand() % 10); // 0 to 6
                 for (int j = 0; j < numPanels; j++) {
@@ -114,19 +112,18 @@ void Uart::print(const char c) const {
                 }
             }
             strcpy(in, lights);
-            */
-
-            if (iteration >= 3600) {
-                strcpy(in, "10000000000110101101");
-            } else if (iteration >= 2600) {
-                strcpy(in, "11011011110000001111");
-            } else if (iteration >= 800) {
-                strcpy(in, "00000000000001100010");
-            } else if (iteration > 2 && iteration < 1000) {
-                strcpy(in, "11011010000110101110");
-            } else {
-                strcpy(in, "00000000001000010000");
-            }
+            //
+            // if (iteration >= 3600) {
+            //     strcpy(in, "10000000000110101101");
+            // } else if (iteration >= 2600) {
+            //     strcpy(in, "11011011110000001111");
+            // } else if (iteration >= 800) {
+            //     strcpy(in, "00000000000001100010");
+            // } else if (iteration > 2 && iteration < 1000) {
+            //     strcpy(in, "11011010000110101110");
+            // } else {
+            //     strcpy(in, "00000000001000010000");
+            // }
             iteration++;
         } else if (currentCommand == 'M') {
             // 1F22201213191E111A1D21152425171B18281614
