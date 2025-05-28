@@ -14,7 +14,6 @@ int panelColorLengthToRead = 6;
 char currentCommand;
 char lights[21] = "00000000000000000000";
 
-int iterations = 100000;
 int iteration = 0;
 
 int abs(int value) {
@@ -74,7 +73,7 @@ void writeScriptLine(char *colors) {
 
     std::cout << "\t]\n\t}";
 
-    if (iteration < iterations - 1) {
+    if (iteration < ITERATIONS - 1) {
         std::cout << ",";
     }
 
@@ -100,7 +99,7 @@ void Uart::print(const char c) const {
         currentCommand = c;
     } else if (c == 'L') {
         currentCommand = c;
-    } else if (c == '\r') {
+    } else if (c == '\n') {
         if (currentCommand == 'L') {
             writeScriptLine(out);
 
@@ -121,16 +120,16 @@ void Uart::print(const char c) const {
                 strcpy(in, "10000000000110101101");
             } else if (iteration >= 2600) {
                 strcpy(in, "11011011110000001111");
-            } else if (iteration >= 1600) {
+            } else if (iteration >= 800) {
                 strcpy(in, "00000000000001100010");
-            } else if (iteration > 500 && iteration < 1600) {
+            } else if (iteration > 2 && iteration < 1000) {
                 strcpy(in, "11011010000110101110");
             } else {
                 strcpy(in, "00000000001000010000");
             }
             iteration++;
-        } else if (currentCommand == 'E') {
-            strcpy(in, "V1V1V1V1V1V1V1V1V1V1V1V1V1V1V1V1V1V1V1V1");
+        } else if (currentCommand == 'M') {
+            strcpy(in, "OK 00000000000000000000");
         }
     } else {
         out[outIndex] = c;
@@ -149,7 +148,7 @@ void Uart::flush() const {
 }
 
 int Uart::readBytesUntil(char stop, char buffer[], int length) const {
-    if (currentCommand == 'E') {
+    if (currentCommand == 'M') {
         strcpy(buffer, in);
         return 40;
     } else if (currentCommand == 'L') {

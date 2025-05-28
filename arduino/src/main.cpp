@@ -10,9 +10,7 @@ int main() {
     using namespace std::chrono;
     std::cout << "[\n";
 
-    int iterations = 100000;
-
-    for (int i = 0; i < iterations; i++) {
+    for (int i = 0; i < ITERATIONS; i++) {
         loop();
     }
 

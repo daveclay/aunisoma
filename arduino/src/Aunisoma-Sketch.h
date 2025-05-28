@@ -13,7 +13,10 @@
 #include "TransitionAnimation.h"
 #include "Aunisoma.h"
 
-#define NUMBER_OF_PANELS 18          //
+char panel_ids[] = "1F22201213191E111A1D21152425171B18281614";
+// char panel_ids[] = "0E";
+
+#define NUMBER_OF_PANELS 20
 #define SET_LIGHTS_SIZE_PER_PANEL 6  // number of chars to send the SET_LIGHTS message per panel
 
 Uart Serial2(&sercom1, PIN_SERIAL3_RX, PIN_SERIAL3_TX, PAD_SERIAL3_RX, PAD_SERIAL3_TX);
@@ -34,9 +37,10 @@ void SERCOM1_3_Handler() {
 char ENUMERATE = 'E';
 char SET_STATUS = 'S';
 char SET_LIGHTS = 'L';
-char TERMINATOR = '\r';
+char MAP_PANELS = 'M';
+char TERMINATOR = '\n';
 char responseBuffer[512];  // should be 20 panels * however big messages are
-char setLightsBuffer[(NUMBER_OF_PANELS * SET_LIGHTS_SIZE_PER_PANEL)];
+char panel_colors[(NUMBER_OF_PANELS * SET_LIGHTS_SIZE_PER_PANEL)];
 
 Sensor sensors[NUMBER_OF_PANELS];
 
@@ -60,7 +64,8 @@ GradientValueMap gradients[5] = {
 Aunisoma* aunisoma;
 
 int send_command(char cmd_byte, char params[]) {
-  // Serial.print("Sending: '");
+  // Serial.print("Sending ");
+  // Serial.print(" bytes: '");
   // Serial.print(cmd_byte);
   // Serial.print(params);
   // Serial.println("'");
@@ -76,17 +81,17 @@ int send_command(char cmd_byte, char params[]) {
 }
 
 bool send_enumerate() {
-  Serial.println("Sending enumerate...");
+  // Serial.println("Sending enumerate...");
   int bytesRead = send_command(ENUMERATE, NULL);
   if (bytesRead > 0) {
     // two bytes per panel
     int activePanels = bytesRead / 2;
-    Serial.print("Initialized ");
-    Serial.print(activePanels);
-    Serial.print(" panels from ");
-    Serial.print(bytesRead);
-    Serial.print(" bytes: ");
-    Serial.println(responseBuffer);
+    // Serial.print("Initialized ");
+    // Serial.print(activePanels);
+    // Serial.print(" panels from ");
+    // Serial.print(bytesRead);
+    // Serial.print(" bytes: ");
+    // Serial.println(responseBuffer);
     for (int i = 0; i < bytesRead; i += 2) {
       if (responseBuffer[i] != 'V') {
         return false;
@@ -99,25 +104,34 @@ bool send_enumerate() {
   }
 }
 
+bool map_panels() {
+  int bytesRead = send_command(MAP_PANELS, panel_ids);
+  if (bytesRead > 0) {
+    // Serial.println(responseBuffer);
+    return true;
+  }
+  return false;
+}
+
 void initializePanels() {
   digitalWrite(LED_BUILTIN, HIGH);
-
-  while (!send_enumerate()) {
+  while (!map_panels()) {
     digitalWrite(LED_BUILTIN, LOW);
-    delay(200);
+    delay(500);
     digitalWrite(LED_BUILTIN, HIGH);
   }
-
   digitalWrite(LED_BUILTIN, LOW);
 }
 
-bool sendColors(char* value) {
+bool sendColors(char value[]) {
   int bytesRead = send_command(SET_LIGHTS, value);
   if (bytesRead > 0) {
-      for (int i = 0; i < bytesRead; i++) {
-        bool active = responseBuffer[i] == '1';
-        sensors[(NUMBER_OF_PANELS - 1) - i].update(active);
-      }
+    // Serial.println(responseBuffer);
+    for (int i = 3; i < bytesRead; i++) {
+      bool active = responseBuffer[i] == '1' || responseBuffer[i] == '2' || responseBuffer[i] == '3';
+      int panel_index = i - 3;
+      sensors[panel_index].update(active);
+    }
     return true;
   } else {
     return false;
@@ -125,7 +139,7 @@ bool sendColors(char* value) {
 }
 
 void setup(void) {
-  Serial.begin(9600);
+//   Serial.begin(9600);
   Serial2.setTimeout(1000);
   Serial2.begin(230400);
 
@@ -139,13 +153,13 @@ void setup(void) {
   maxAnimationGradient.add_rgb_point(0.20, 255, 255, 0);
   maxAnimationGradient.add_rgb_point(0.29, 200, 255, 0);
   maxAnimationGradient.add_rgb_point(0.30, 0, 255, 0);
-  maxAnimationGradient.add_rgb_point(0.31, 0, 255, 127);
+  maxAnimationGradient.add_rgb_point(0.37, 0, 255, 127);
   maxAnimationGradient.add_rgb_point(0.40, 0, 255, 200);
   maxAnimationGradient.add_rgb_point(0.45, 0, 255, 255);
-  maxAnimationGradient.add_rgb_point(0.59, 0, 120, 255);
+  maxAnimationGradient.add_rgb_point(0.52, 0, 120, 255);
   maxAnimationGradient.add_rgb_point(0.60, 0, 0, 255);
-  maxAnimationGradient.add_rgb_point(0.61, 160, 0, 255);
-  maxAnimationGradient.add_rgb_point(0.80, 255, 0, 255);
+  maxAnimationGradient.add_rgb_point(0.65, 160, 0, 255);
+  maxAnimationGradient.add_rgb_point(0.70, 255, 0, 255);
   maxAnimationGradient.add_rgb_point(0.80, 255, 0, 255);
   maxAnimationGradient.add_rgb_point(0.89, 255, 0, 200);
   maxAnimationGradient.add_rgb_point(1.00, 255, 0, 0);
@@ -201,30 +215,33 @@ void setup(void) {
   initializePanels();
 }
 
-char panelColors[SET_LIGHTS_SIZE_PER_PANEL];
+// + 1 for \0 terminated, which snprintf wants
+char current_panel_color[(SET_LIGHTS_SIZE_PER_PANEL + 1)];
+
 int iterationCount = 0;
+
 void loop(void) {
   aunisoma->event_loop();
 
+  panel_colors[0] = '\0';
   for (int i = 0; i < NUMBER_OF_PANELS; i++) {
-      Panel* panel = aunisoma->get_panel_at(i);
-      Color color = panel->color;
-      sprintf(panelColors,
-              "%02x%02x%02x",
-              gamma_lut[color.red],
-              gamma_lut[color.green],
-              gamma_lut[color.blue]);
-    int startIndex = i * SET_LIGHTS_SIZE_PER_PANEL;
-    for (int j = 0; j < 6; j++) {
-      setLightsBuffer[startIndex + j] = panelColors[j];
-    }
+    Panel* panel = aunisoma->get_panel_at(i);
+    Color color = panel->color;
+    snprintf(current_panel_color,
+             SET_LIGHTS_SIZE_PER_PANEL + 1,
+            "%02x%02x%02x",
+            color.red,
+            color.green,
+            color.blue);
+    strcat(panel_colors, current_panel_color);
   }
 
-  sendColors(setLightsBuffer);
+  sendColors(panel_colors);
+
   iterationCount++;
 
   if (iterationCount == 60000) {
-    initializePanels();
+    //initializePanels();
     iterationCount = 0;
   }
 }

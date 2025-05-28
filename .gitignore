@@ -1,6 +1,8 @@
 .idea
+.vscode
 .gradle
 build
+**/.DS_Store
 
 python/__pycache__/
 

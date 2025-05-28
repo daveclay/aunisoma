@@ -6,6 +6,8 @@
 #define C_AUNISOMA_ARDUINO_H
 #include <cmath>
 
+const int ITERATIONS = 3000;
+
 const int PIN_SERIAL3_RX = 1;
 const int PIN_SERIAL3_TX = 2;
 const int PAD_SERIAL3_RX = 3;
