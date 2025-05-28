@@ -16,6 +16,9 @@
 char panel_ids[] = "1F22201213191E111A1D21152425171B18281614";
 // char panel_ids[] = "0E";
 
+char FAILED_MAPPING_COLORS[] = "C80000C80000C80000C80000C80000C80000C80000C80000C80000C80000C80000C80000C80000C80000C80000C80000C80000C80000C80000C80000";
+char RAINBOW_COLORS[] = "FF0000FF4D00FF9900FFE600CCFF0080FF0033FF0000FF1A00FF6600FFB300FFFF00B2FF0066FF0019FF3300FF8000FFCC00FFFF00E5FF0099FF004C";
+
 #define NUMBER_OF_PANELS 20
 #define SET_LIGHTS_SIZE_PER_PANEL 6  // number of chars to send the SET_LIGHTS message per panel
 
@@ -104,10 +107,15 @@ bool send_enumerate() {
   }
 }
 
+bool failed_mapping_flag = false;
+
 bool map_panels() {
   int bytesRead = send_command(MAP_PANELS, panel_ids);
   if (bytesRead > 0) {
-    // Serial.println(responseBuffer);
+    int success = strcmp(responseBuffer, "OK");
+    if (success < 0) {
+      failed_mapping_flag = true;
+    }
     return true;
   }
   return false;
@@ -123,10 +131,11 @@ void initializePanels() {
   digitalWrite(LED_BUILTIN, LOW);
 }
 
-bool sendColors(char value[]) {
+bool send_colors(char value[]) {
   int bytesRead = send_command(SET_LIGHTS, value);
   if (bytesRead > 0) {
     // Serial.println(responseBuffer);
+    // 3 - skip "OK " and get to the PIRs
     for (int i = 3; i < bytesRead; i++) {
       bool active = responseBuffer[i] == '1' || responseBuffer[i] == '2' || responseBuffer[i] == '3';
       int panel_index = i - 3;
@@ -139,7 +148,7 @@ bool sendColors(char value[]) {
 }
 
 void setup(void) {
-  //   Serial.begin(9600);
+//   Serial.begin(9600);
   Serial2.setTimeout(1000);
   Serial2.begin(230400);
 
@@ -197,11 +206,11 @@ void setup(void) {
   config.number_of_panels = NUMBER_OF_PANELS;
   config.reverberation_distance_range = new Range(2, 5);
   // how long to wait to trigger a neighbor Panel to reverberate
-  config.reverberation_panel_delay_ticks = 10;
-  config.trigger_panel_animation_loop_duration_ticks_range = new Range(20, 80);
-  config.max_interaction_threshold_percent = .9;
-  config.intermediate_interaction_threshold_percent = .4;
-  config.min_max_interaction_gradient_transition_duration = 100;
+  config.reverberation_panel_delay_ticks = 20;
+  config.trigger_panel_animation_loop_duration_ticks_range = new Range(220, 300);
+  config.max_interaction_threshold_percent = .7;
+  config.intermediate_interaction_threshold_percent = .35;
+  config.min_max_interaction_gradient_transition_duration = 3000;
   config.odds_for_max_interaction_gradient_transition = 90;
 
   config.init();
@@ -221,22 +230,27 @@ char current_panel_color[(SET_LIGHTS_SIZE_PER_PANEL + 1)];
 int iterationCount = 0;
 
 void loop(void) {
-  aunisoma->event_loop();
+  if (failed_mapping_flag) {
+    delay(500);
+    send_colors(FAILED_MAPPING_COLORS);
+  } else {
+    aunisoma->event_loop();
 
-  panel_colors[0] = '\0';
-  for (int i = 0; i < NUMBER_OF_PANELS; i++) {
-    Panel* panel = aunisoma->get_panel_at(i);
-    Color color = panel->color;
-    snprintf(current_panel_color,
-             SET_LIGHTS_SIZE_PER_PANEL + 1,
-            "%02x%02x%02x",
-            color.red,
-            color.green,
-            color.blue);
-    strcat(panel_colors, current_panel_color);
+    panel_colors[0] = '\0';
+    for (int i = 0; i < NUMBER_OF_PANELS; i++) {
+      Panel* panel = aunisoma->get_panel_at(i);
+      Color color = panel->color;
+      snprintf(current_panel_color,
+               SET_LIGHTS_SIZE_PER_PANEL + 1,
+              "%02x%02x%02x",
+              color.red,
+              color.green,
+              color.blue);
+      strcat(panel_colors, current_panel_color);
+    }
+
+    send_colors(panel_colors);
   }
-
-  sendColors(panel_colors);
 
   iterationCount++;
 

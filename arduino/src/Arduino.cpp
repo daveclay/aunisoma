@@ -129,7 +129,9 @@ void Uart::print(const char c) const {
             }
             iteration++;
         } else if (currentCommand == 'M') {
-            strcpy(in, "OK 00000000000000000000");
+            // 1F22201213191E111A1D21152425171B18281614
+            strcmp(in, "FAILED 1D2416");
+            // strcpy(in, "OK 00000000000000000000");
         }
     } else {
         out[outIndex] = c;
