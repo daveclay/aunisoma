@@ -241,6 +241,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /******************************************************************
    * SingleGradientValueMap
+   * Defines a single color value gradient
    *****************************************************************/
 
   class SingleGradientValueMap {
@@ -272,7 +273,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
 
-    getGradientValuePointsForValue(value) {
+        getGradientValuePointsForValue(value) {
       let lowerPoint = null;
       let matchingPointsForValue = null;
       for (let i = 0; i < this.gradientValuePoints.length; i++) {
@@ -315,10 +316,11 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /******************************************************************
-   * GradientValueMap
+   * LinearGradientValueMap
+   * defines a single-value RGB gradient
    *****************************************************************/
 
-  class GradientValueMap {
+  class LinearGradientValueMap {
 
     constructor() {
       this.redMap = new SingleGradientValueMap();
@@ -409,7 +411,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-
   /******************************************************************
    * Range
    *****************************************************************/
@@ -427,6 +428,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /******************************************************************
    * Clock
+   * Stores a constant incrementing tick count used to determine
+   * durations and make timing calculations. update() must be called
+   * after calling start() or restart() to get the first tick.
    *****************************************************************/
 
   class Clock {
@@ -435,13 +439,17 @@ document.addEventListener("DOMContentLoaded", () => {
       this.ticks = -1;
     }
 
+    start() {
+      this.running = true;
+    }
+
+    pause() {
+      this.running = false;
+    }
+
     stop() {
       this.running = false;
       this.ticks = -1;
-    }
-
-    start() {
-      this.running = true;
     }
 
     restart() {
@@ -449,7 +457,7 @@ document.addEventListener("DOMContentLoaded", () => {
       this.ticks = -1;
     }
 
-    next() {
+    update() {
       if (!this.running) {
         return;
       }
@@ -460,10 +468,21 @@ document.addEventListener("DOMContentLoaded", () => {
         this.ticks += 1;
       }
     }
+
+    isPaused() {
+      return !this.running && this.ticks > -1;
+    }
+
+    isStopped() {
+      return !this.running && this.ticks < 0;
+    }
   }
 
   /******************************************************************
    * Cycle
+   * An LFO-like utility that provides a continuously changing value.
+   * May be set to a one-shot. Can be started, paused, and stopped.
+   * Also provides a release to provide a smooth return to 0.
    *****************************************************************/
   const CYCLE_DIRECTION_UP = 1;
   const CYCLE_DIRECTION_DOWN = 2;
@@ -475,58 +494,79 @@ document.addEventListener("DOMContentLoaded", () => {
 
     constructor(duration_ticks,
                 oneShot,
-                cycleType,
-                cycleHandler) {
+                cycleType) {
       this.duration_ticks = 0;
       this.oneShot = false;
       this.cycleType;
-      this.cycleHandler;
+      this.running;
       this.clock;
-      this.iterations = 0;
+      this.current_value;
+      this.iterations;
 
       this.duration_ticks = duration_ticks;
       this.oneShot = oneShot;
       this.cycleType = cycleType;
-      this.cycleHandler = cycleHandler;
       this.clock = new Clock();
+      this.running = false;
       this.iterations = 0;
+      this.current_value = 0;
     }
 
-    next() {
-      if (this.clock.ticks > -1 && this.clock.ticks >= this.duration_ticks) {
-        this.iterations += 1;
-        if (!this.oneShot) {
-          this.clock.restart();
-        }
-      }
-      if (this.iterations > 0 && this.oneShot) {
+    /**
+     * Starts the cycle (does nothing if already started).
+     */
+    start() {
+      this.running = true;
+      this.clock.start(); // TODO: or restart? depends on where the clock is at, and if this cycle is "halted" at 0 and stopped its clock
+    }
+
+    /**
+     * Stops the cycle from iterating, triggering the release.
+     */
+    stop() {
+      this.running = false;
+    }
+
+    /**
+     * Update this Cycle to the next iteration of its clock. Even if
+     * a Cycle is stopped, it may have a release duration.
+     */
+    update() {
+      // always update the clock. If it's stopped, it's a no-op, otherwise ensures
+      // the click is up-to-date before doing any calculations.
+      this.clock.update();
+
+      if (this.clock.isStopped()) {
+        // if this cycle has stopped - it's no longer actively cycling, nor is it in the release state,
+        // there's nothing to do.
         return;
       }
 
-      this.clock.next();
+      if (this.clock.ticks > 0 && this.clock.ticks % this.duration_ticks == 0) {
+        // we've hit run the entire duration length. Increment the number
+        // of iterations.
+        this.iterations += 1;
+
+        if (this.oneShot) {
+          // If this is a one-shot, the Cycle is done.
+          // Stop the clock, and return.
+          this.clock.stop();
+          return;
+        }
+      }
+
       let looping_elapsed_duration = this.clock.ticks % this.duration_ticks;
 
       if (this.cycleType == CYCLE_TYPE_UP) {
-        let current_value = looping_elapsed_duration / this.duration_ticks;
-        this.cycleHandler.value(current_value, CYCLE_DIRECTION_UP);
+        this.current_value = looping_elapsed_duration / this.duration_ticks;
       } else {
         let half_animation_loop_duration_ticks = round(this.duration_ticks / 2);
         if (looping_elapsed_duration < half_animation_loop_duration_ticks) {
-          let current_value = looping_elapsed_duration / half_animation_loop_duration_ticks;
-          this.cycleHandler.value(current_value, CYCLE_DIRECTION_UP);
+          this.current_value = looping_elapsed_duration / half_animation_loop_duration_ticks;
         } else {
-          let current_value = (this.duration_ticks - looping_elapsed_duration) / half_animation_loop_duration_ticks;
-          this.cycleHandler.value(current_value, CYCLE_DIRECTION_DOWN);
+          this.current_value = (this.duration_ticks - looping_elapsed_duration) / half_animation_loop_duration_ticks;
         }
       }
-    }
-
-    start() {
-      this.clock.start();
-    }
-
-    stop() {
-      this.clock.stop();
     }
 
     jumpToDownCycle() {
@@ -552,6 +592,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  /******************************************************************
+   * Config
+   *****************************************************************/
   class Config {
     constructor() {
     }
@@ -571,6 +614,54 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  /******************************************************************
+   * Interaction
+   * Manages the relationship between a Sensor and a single Cycle
+   * (LFO) that will drive colors from the current gradient.
+   *****************************************************************/
+  class Interaction {
+    // one per sensor!
+    constructor() {
+      this.currentValue;
+      this.cycle;
+      this.active;
+
+      this.active = false;
+      this.cycle = new Cycle(100,
+        false,
+        CYCLE_TYPE_UP,
+        this);
+    }
+
+    update(active) {
+      if (this.active && !active) {
+        // interaction was active, and now is not.
+        this.active = false;
+        this.cycle.stop();
+      } else if (!this.active && active)  {
+        // interaction was not active, and now is
+        this.active = true;
+        this.cycle.start();
+      }
+      // no matter if it's stopped or not, we're updating its tick
+      this.cycle.update();
+    }
+
+    start() {
+      this.cycle.start();
+    }
+
+    stop() {
+      // keeping it simple: this just stops the cycle and resets it.
+      // When the interaction stops, the LFO stops running and will start from 0 again (or should it
+      // keep going from where it left off? No let the smoothing function manage it?)
+      this.cycle.stop();
+    }
+  }
+
+  /******************************************************************
+   * Panel
+   *****************************************************************/
   class Panel {
     constructor(index) {
       this.index;
@@ -581,6 +672,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  /******************************************************************
+   * Aunisoma
+   *****************************************************************/
   class Aunisoma {
     constructor(config, sensors) {
       this.numberOfPanels;
@@ -607,6 +701,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     event_loop() {
+      // interactions
     }
   }
 
@@ -644,20 +739,17 @@ document.addEventListener("DOMContentLoaded", () => {
   /******************************************************************
    * Aunisoma-Sketch.ino
    *****************************************************************/
-
-  const FIRST_INPUT_PIN = 4 // 14 through 54 are PIR pins
-
   let sensors = [];
 
   let number_of_panels = 20;
   let config = new Config();
 
-  let maxAnimationGradient = new GradientValueMap();
-  let initial_gradient = new GradientValueMap();
-  let blue_gradient = new GradientValueMap();
-  let green_gradient = new GradientValueMap();
-  let purple_red_gradient = new GradientValueMap();
-  let green_blue_gradient = new GradientValueMap();
+  let maxAnimationGradient = new LinearGradientValueMap();
+  let initial_gradient = new LinearGradientValueMap();
+  let blue_gradient = new LinearGradientValueMap();
+  let green_gradient = new LinearGradientValueMap();
+  let purple_red_gradient = new LinearGradientValueMap();
+  let green_blue_gradient = new LinearGradientValueMap();
 
   let gradients = [
     initial_gradient,
@@ -839,7 +931,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const REVERBERATION_INFO_TEMPLATE_ELEMENT = document.getElementById("reverberationInfoTemplate");
   const PANEL_REVERBERATION_INFO_TEMPLATE_ELEMENT = document.getElementById("panelReverberationInfoTemplate");
 
-  function renderGradient(name, gradient, max) {
+  function renderLinearGradient(name, gradient, max) {
     let rgbGradientElement = clone(GRADIENT_TEMPLATE_ELEMENT);
     let hslGradientElement = clone(GRADIENT_TEMPLATE_ELEMENT);
 
@@ -946,13 +1038,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
   setup();
 
-  renderGradient("max_gradient", maxAnimationGradient,1);
-  renderGradient("initial_gradient", initial_gradient);
-  renderGradient("blue_gradient", blue_gradient);
-  renderGradient("green_gradient", green_gradient);
-  renderGradient("purple_red_gradient", purple_red_gradient);
-  renderGradient("green_blue_gradient", green_blue_gradient);
+  renderLinearGradient("max_gradient", maxAnimationGradient,1);
+  renderLinearGradient("initial_gradient", initial_gradient);
+  renderLinearGradient("blue_gradient", blue_gradient);
+  renderLinearGradient("green_gradient", green_gradient);
+  renderLinearGradient("purple_red_gradient", purple_red_gradient);
+  renderLinearGradient("green_blue_gradient", green_blue_gradient);
 
+  const testCycle = new Cycle(100, true, CYCLE_TYPE_UP_AND_DOWN);
+  testCycle.start();
+  for (let i = 0; i < 200; i++) {
+    testCycle.update();
+    console.log(testCycle.current_value, testCycle.clock.ticks);
+  }
 
   const mainRunInterval = setInterval(() => {
     currentAmps = 0;
