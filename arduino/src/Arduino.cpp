@@ -49,8 +49,9 @@ void pinMode(int pin, int mode) {
 void digitalWrite(int pin, int value) {
 }
 
-void writeScriptLine(char *colors) {
-    std::cout << "\t{ \"iteration\": " << iteration << ",";
+void writeScriptLine(char *colors, char *interactions) {
+    std::cout << "\t{ \"iteration\": " << iteration << ", ";
+    std::cout << "\"interactions\": \"" << interactions << "\", ";
     std::cout << "\"panels\": [\n";
 
     for (int i = 0; i < 120; i += panelColorLengthToRead) {
@@ -101,7 +102,7 @@ void Uart::print(const char c) const {
         currentCommand = c;
     } else if (c == '\n') {
         if (currentCommand == 'L') {
-            writeScriptLine(out);
+            writeScriptLine(out, in);
             int mod = iteration % 20;
             if (mod == 0) {
                 int numPanels = 1 + (std::rand() % 10); // 0 to 6

@@ -195,15 +195,16 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
           this.step = this.script[this.iteration];
           STEP_ELEMENT.innerText = "running step " + this.iteration + " of " + this.script.length;
           JUMP_TO_STEP_INPUT.value = this.iteration;
-          this.update(this.step.panels);
+          this.update(this.step.panels, this.step.interactions);
       }
 
-      update(panels) {
+      update(panels, interactions) {
         let totalAmps = 0;
         panels.forEach(panel => {
           let index = panel.index;
           let panelUI = this.panelUIs[index]
           panelUI.setColor(panel);
+          panelUI.setActive(interactions.charAt(index) !== "0");
           totalAmps += panelUI.amps;
         });
 
@@ -239,8 +240,8 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
         this.amps = 0;
       }
 
-      setValue(currentValue) {
-        this.panelInfoElement.innerHTML = (this.active ? "active" : "&nbsp;") + "<br/>" + currentValue;
+      setActive(active) {
+        this.panelInfoElement.innerHTML = (active ? "active" : "&nbsp;");
       }
 
       setColor(color) {
