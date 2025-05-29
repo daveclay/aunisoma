@@ -484,9 +484,6 @@ document.addEventListener("DOMContentLoaded", () => {
    * May be set to a one-shot. Can be started, paused, and stopped.
    * Also provides a release to provide a smooth return to 0.
    *****************************************************************/
-  const CYCLE_DIRECTION_UP = 1;
-  const CYCLE_DIRECTION_DOWN = 2;
-
   const CYCLE_TYPE_UP = 1;
   const CYCLE_TYPE_UP_AND_DOWN = 2;
 
@@ -498,7 +495,6 @@ document.addEventListener("DOMContentLoaded", () => {
       this.duration_ticks = 0;
       this.oneShot = false;
       this.cycle_type;
-      this.current_cycle_direction;
       this.running;
       this.release_phase;
       this.clock;
@@ -508,7 +504,6 @@ document.addEventListener("DOMContentLoaded", () => {
       this.duration_ticks = duration_ticks;
       this.oneShot = oneShot;
       this.cycle_type = cycle_type;
-      this.current_cycle_direction = CYCLE_DIRECTION_UP;
       this.clock = new Clock();
       this.running = false;
       this.release_phase = false;
@@ -585,17 +580,11 @@ document.addEventListener("DOMContentLoaded", () => {
         this.current_value = looping_elapsed_duration / this.duration_ticks;
       } else {
         let half_animation_loop_duration_ticks = round(this.duration_ticks / 2);
-        if (looping_elapsed_duration < half_animation_loop_duration_ticks) {
+        if (looping_elapsed_duration <= half_animation_loop_duration_ticks) {
           this.current_value = looping_elapsed_duration / half_animation_loop_duration_ticks;
         } else {
-          this.current_value = (this.duration_ticks - looping_elapsed_duration) / half_animation_loop_duration_ticks;
+          this.current_value = (this.duration_ticks - 1 - looping_elapsed_duration) / half_animation_loop_duration_ticks;
         }
-      }
-    }
-
-    jumpToDownCycle() {
-      if (this.duration_ticks >= this.clock.ticks) {
-        this.clock.ticks = max(0, this.duration_ticks - this.clock.ticks);
       }
     }
 
@@ -603,10 +592,16 @@ document.addEventListener("DOMContentLoaded", () => {
       if (new_duration_ticks) {
         this.duration_ticks = new_duration_ticks;
       }
+      this.release_phase = false;
       this.iterations = 0;
       this.clock.restart();
     }
 
+    /**
+     * Returns true if the cycle is at its "zero" point. The current_value may
+     * not hit 0 due to the math calculating ticks vs duration at 0 ticks.
+     * @returns {boolean}
+     */
     isAtZeroPoint() {
       return this.clock.ticks < 0 || (this.clock.ticks % this.duration_ticks == 0);
     }
@@ -1069,14 +1064,11 @@ document.addEventListener("DOMContentLoaded", () => {
   renderLinearGradient("purple_red_gradient", purple_red_gradient);
   renderLinearGradient("green_blue_gradient", green_blue_gradient);
 
-  const testCycle = new Cycle(100, true, CYCLE_TYPE_UP_AND_DOWN);
+  const testCycle = new Cycle(100, false, CYCLE_TYPE_UP_AND_DOWN);
   testCycle.start();
-  for (let i = 0; i < 200; i++) {
+  for (let i = 0; i < 300; i++) {
     testCycle.update();
-    if (i == 49) {
-      testCycle.release();
-    }
-    console.log(testCycle.current_value, testCycle.clock.ticks);
+    console.log(testCycle.current_value, testCycle.clock.ticks, testCycle.isAtZeroPoint());
   }
 
   const mainRunInterval = setInterval(() => {
