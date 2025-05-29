@@ -494,20 +494,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
     constructor(duration_ticks,
                 oneShot,
-                cycleType) {
+                cycle_type) {
       this.duration_ticks = 0;
       this.oneShot = false;
-      this.cycleType;
+      this.cycle_type;
+      this.current_cycle_direction;
       this.running;
+      this.release_phase;
       this.clock;
       this.current_value;
       this.iterations;
 
       this.duration_ticks = duration_ticks;
       this.oneShot = oneShot;
-      this.cycleType = cycleType;
+      this.cycle_type = cycle_type;
+      this.current_cycle_direction = CYCLE_DIRECTION_UP;
       this.clock = new Clock();
       this.running = false;
+      this.release_phase = false;
       this.iterations = 0;
       this.current_value = 0;
     }
@@ -521,10 +525,28 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     /**
-     * Stops the cycle from iterating, triggering the release.
+     * Stops the cycle from running - does not "release" it!
      */
     stop() {
       this.running = false;
+    }
+
+    /**
+     * Triggers the "release" phase of the cycle, dropping the
+     * value down to its minimum which will then stop the cycle.
+     */
+    release() {
+      this.release_phase = true;
+      if (this.clock.ticks < (this.duration_ticks / 2)) {
+        // If we're on the rising side of the cycle, jump the clock ticks
+        // to the next down cycle at the same point: if we're at tick 23
+        // of a duration of 100, then we're jumping to clock tick 67
+        // (100 - 23) and continuing on to finish the remaining duration
+        // cycle of 100.
+        //
+        // If we're on the falling side of the cycle, just let it finish
+        this.clock.ticks = max(0, this.clock.ticks = this.duration_ticks - this.clock.ticks % this.duration_ticks);
+      }
     }
 
     /**
@@ -547,9 +569,10 @@ document.addEventListener("DOMContentLoaded", () => {
         // of iterations.
         this.iterations += 1;
 
-        if (this.oneShot) {
-          // If this is a one-shot, the Cycle is done.
+        if (this.oneShot || this.release_phase) {
+          // If this is a one-shot or the "release" is done, the Cycle is done.
           // Stop the clock, and return.
+          this.release_phase = false;
           this.clock.stop();
           return;
         }
@@ -557,7 +580,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
       let looping_elapsed_duration = this.clock.ticks % this.duration_ticks;
 
-      if (this.cycleType == CYCLE_TYPE_UP) {
+      if (this.cycle_type == CYCLE_TYPE_UP) {
+        // if the cycle type is CYCLE_TYPE_UP, it only increments
         this.current_value = looping_elapsed_duration / this.duration_ticks;
       } else {
         let half_animation_loop_duration_ticks = round(this.duration_ticks / 2);
@@ -1049,6 +1073,9 @@ document.addEventListener("DOMContentLoaded", () => {
   testCycle.start();
   for (let i = 0; i < 200; i++) {
     testCycle.update();
+    if (i == 49) {
+      testCycle.release();
+    }
     console.log(testCycle.current_value, testCycle.clock.ticks);
   }
 
