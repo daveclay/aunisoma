@@ -21,7 +21,7 @@ char FAILED_MAPPING_COLORS[] = "C80000C80000C80000C80000C80000C80000C80000C80000
 char RAINBOW_COLORS[] = "FF0000FF4D00FF9900FFE600CCFF0080FF0033FF0000FF1A00FF6600FFB300FFFF00B2FF0066FF0019FF3300FF8000FFCC00FFFF00E5FF0099FF004C";
 
 #define NUMBER_OF_PANELS 20
-#define SET_LIGHTS_SIZE_PER_PANEL 6  // number of chars to send the SET_LIGHTS message per panel
+#define SIZE_OF_COLOR 6  // number of chars to send the SET_LIGHTS message per panel
 
 Uart Serial2(&sercom1, PIN_SERIAL3_RX, PIN_SERIAL3_TX, PAD_SERIAL3_RX, PAD_SERIAL3_TX);
 void SERCOM1_0_Handler() {
@@ -44,7 +44,7 @@ char SET_LIGHTS = 'L';
 char MAP_PANELS = 'M';
 char TERMINATOR = '\n';
 char responseBuffer[512];  // should be 20 panels * however big messages are
-char panel_colors[(NUMBER_OF_PANELS * SET_LIGHTS_SIZE_PER_PANEL)];
+char panel_colors[(NUMBER_OF_PANELS * SIZE_OF_COLOR)];
 
 Sensor sensors[NUMBER_OF_PANELS];
 
@@ -226,7 +226,7 @@ void setup(void) {
 }
 
 // + 1 for \0 terminated, which snprintf wants
-char current_panel_color[(SET_LIGHTS_SIZE_PER_PANEL + 1)];
+char current_panel_color[(SIZE_OF_COLOR + 1)];
 
 int iterationCount = 0;
 
@@ -244,17 +244,20 @@ void loop(void) {
   } else {
     aunisoma->event_loop();
 
-    panel_colors[0] = '\0';
+    //panel_colors[0] = '\0';
     for (int i = 0; i < NUMBER_OF_PANELS; i++) {
       Panel* panel = aunisoma->get_panel_at(i);
       Color color = panel->color;
       snprintf(current_panel_color,
-               SET_LIGHTS_SIZE_PER_PANEL + 1,
+               SIZE_OF_COLOR + 1,
               "%02x%02x%02x",
               color.red,
               color.green,
               color.blue);
-      strcat(panel_colors, current_panel_color);
+      for (int j = 0; j < 7; j++) {
+        panel_colors[(i * SIZE_OF_COLOR) + j] = current_panel_color[j];
+      }
+      // strcat(panel_colors, current_panel_color);
     }
 
     send_colors(panel_colors);
