@@ -205,10 +205,10 @@ void setup(void) {
   green_blue_gradient.add_rgb_point(3, 255, 0, 255);
 
   config.number_of_panels = NUMBER_OF_PANELS;
-  config.reverberation_distance_range = new Range(2, 5);
+  config.reverberation_distance_range = new Range(3, 3);
   // how long to wait to trigger a neighbor Panel to reverberate
   config.reverberation_panel_delay_ticks = 20;
-  config.trigger_panel_animation_loop_duration_ticks_range = new Range(220, 300);
+  config.trigger_panel_animation_loop_duration_ticks_range = new Range(220, 220);
   config.max_interaction_threshold_percent = .7;
   config.intermediate_interaction_threshold_percent = .35;
   config.min_max_interaction_gradient_transition_duration = 3000;

@@ -3,7 +3,7 @@
 //
 
 #include "Sensor.h"
-#define DEBOUNCE_PIR_DELAY 200 // ms debounce
+#define DEBOUNCE_PIR_DELAY 2000 // ms debounce
 #include "Arduino.h"
 
 Sensor::Sensor() {

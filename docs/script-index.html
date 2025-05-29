@@ -166,7 +166,7 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
       }
 
       _runInterval() {
-          this.interval = setInterval(() => this.runNextStep(), 4);
+          this.interval = setInterval(() => this.runNextStep(), 50);
       }
 
       runPreviousStep() {
@@ -203,8 +203,9 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
         panels.forEach(panel => {
           let index = panel.index;
           let panelUI = this.panelUIs[index]
-          panelUI.setColor(panel);
-          panelUI.setActive(interactions.charAt(index) !== "0");
+          panelUI.color = panel;
+          panelUI.active = interactions.charAt(index) !== "0";
+          panelUI.update();
           totalAmps += panelUI.amps;
         });
 
@@ -238,15 +239,15 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
         this.panelInfoElement = this.panelContainerElement.getElementsByClassName("panelInfo")[0];
         this.panelElement = this.panelContainerElement.getElementsByClassName("panel")[0];
         this.amps = 0;
+        this.active = false;
+        this.color = "000000";
       }
 
-      setActive(active) {
-        this.panelInfoElement.innerHTML = (active ? "active" : "&nbsp;");
-      }
-
-      setColor(color) {
-        this.panelElement.style.backgroundColor = colorToHexString(color);
-        this.amps = getPowerDrawAmps(color)
+      update() {
+        let backgroundColor = colorToHexString(this.color);
+        this.panelElement.style.backgroundColor = backgroundColor;
+        this.panelInfoElement.innerHTML = (this.active ? "active" : "&nbsp;") + ` ${backgroundColor}`;
+        this.amps = getPowerDrawAmps(this.color);
       }
     }
 

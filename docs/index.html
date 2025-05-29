@@ -1109,9 +1109,33 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  DEBOUNCE_PIR_DELAY = 20; // ms debounce
   class Sensor {
+
     constructor() {
+      this.active;
+      this.lastDebounceTime;
+      this.lastReading;
+
       this.active = false;
+      this.lastDebounceTime = -1;
+      this.lastReading = false;
+    }
+
+    update(reading) {
+      let currentMillis = millis();
+      if (this.lastReading != reading) {
+        this.lastDebounceTime = currentMillis;
+      }
+      if ((currentMillis - this.lastDebounceTime) > DEBOUNCE_PIR_DELAY) {
+        // whatever the reading is at, it's been there for longer than the debounce
+        // delay, so take it as the actual current state:
+        if (this.active != reading) {
+          this.active = reading;
+        }
+      }
+
+      this.lastReading = reading;
     }
   }
 

@@ -138,7 +138,7 @@ bool send_colors(char value[]) {
     // Serial.println(responseBuffer);
     // 3 - skip "OK " and get to the PIRs
     for (int i = 3; i < bytesRead; i++) {
-      bool active = responseBuffer[i] == '1' || responseBuffer[i] == '2' || responseBuffer[i] == '3';
+      bool active = responseBuffer[i] == '1';//|| responseBuffer[i] == '2' || responseBuffer[i] == '3';
       int panel_index = i - 3;
       sensors[panel_index].update(active);
     }
@@ -175,8 +175,8 @@ void setup(void) {
   maxAnimationGradient.add_rgb_point(1.00, 255, 0, 0);
 
   initial_gradient.add_rgb_point(0.0, 10, 0, 0);
-  initial_gradient.add_rgb_point(.4, 255, 0, 0);
-  initial_gradient.add_rgb_point(1.0, 255, 255, 0);
+  initial_gradient.add_rgb_point(.9, 255, 0, 0);
+  initial_gradient.add_rgb_point(1.2, 255, 255, 0);
   initial_gradient.add_rgb_point(1.6, 0, 255, 255);
   initial_gradient.add_rgb_point(3, 0, 255, 255);
 
@@ -207,11 +207,11 @@ void setup(void) {
   config.number_of_panels = NUMBER_OF_PANELS;
   config.reverberation_distance_range = new Range(2, 5);
   // how long to wait to trigger a neighbor Panel to reverberate
-  config.reverberation_panel_delay_ticks = 20;
-  config.trigger_panel_animation_loop_duration_ticks_range = new Range(220, 300);
+  config.reverberation_panel_delay_ticks = 5;
+  config.trigger_panel_animation_loop_duration_ticks_range = new Range(40, 80);
   config.max_interaction_threshold_percent = .7;
   config.intermediate_interaction_threshold_percent = .35;
-  config.min_max_interaction_gradient_transition_duration = 3000;
+  config.min_max_interaction_gradient_transition_duration = 200;
   config.odds_for_max_interaction_gradient_transition = 90;
 
   config.init();
@@ -232,7 +232,7 @@ int iterationCount = 0;
 
 void loop(void) {
   if (failed_mapping_flag) {
-    if (iterationCount % 500 < 400) {
+    if (iterationCount % 50 < 40) {
       send_colors(FAILED_MAPPING_COLORS);
     } else {
       send_colors(ZERO_COLORS);
@@ -251,9 +251,9 @@ void loop(void) {
       snprintf(current_panel_color,
                SIZE_OF_COLOR + 1,
               "%02x%02x%02x",
-              color.red,
-              color.green,
-              color.blue);
+              gamma_lut[color.red],
+              gamma_lut[color.green],
+              gamma_lut[color.blue]);
       for (int j = 0; j < 7; j++) {
         panel_colors[(i * SIZE_OF_COLOR) + j] = current_panel_color[j];
       }
