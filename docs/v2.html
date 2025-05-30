@@ -650,40 +650,39 @@ document.addEventListener("DOMContentLoaded", () => {
    *****************************************************************/
   class Interaction {
     // one per sensor!
-    constructor() {
+    constructor(sensor) {
+      this.sensor;
       this.cycle;
       this.active;
 
+      this.sensor = sensor;
       this.active = false;
-      this.cycle = new Cycle(100,
+      this.cycle = new Cycle(400,
         false,
-        CYCLE_TYPE_UP,
+        CYCLE_TYPE_UP_AND_DOWN,
         this);
     }
 
     update() {
-      if (this.active && !active) {
+      if (this.active && !this.sensor.active) {
         // interaction was active, and now is not.
-        this.active = false;
-        this.cycle.release();
-      } else if (!this.active && active)  {
+        this.stop();
+      } else if (!this.active && this.sensor.active)  {
         // interaction was not active, and now is
-        this.active = true;
-        this.cycle.start();
+        this.start();
       }
       // no matter if it's stopped or not, we're updating its tick
       this.cycle.update();
     }
 
     start() {
+      this.active = true;
       this.cycle.start();
     }
 
     stop() {
-      // keeping it simple: this just stops the cycle and resets it.
-      // When the interaction stops, the LFO stops running and will start from 0 again (or should it
-      // keep going from where it left off? No let the smoothing function manage it?)
-      this.cycle.stop();
+      this.active = false;
+      this.cycle.release();
     }
   }
 
@@ -863,7 +862,7 @@ document.addEventListener("DOMContentLoaded", () => {
     for (let i = 0; i < number_of_panels; i++) {
       let panel = aunisoma.get_panel_at(i);
       let color = panel.color;
-      send_colors(i, color.red, color.green, color.blue);
+      // send_colors(i, color.red, color.green, color.blue);
     }
 
     LOOP_TIME_ELEMENT.innerText = Math.round(new Date().getTime() - start) + " ms";
@@ -1087,6 +1086,8 @@ document.addEventListener("DOMContentLoaded", () => {
     console.log(i, testCycle.current_value, testCycle.clock.ticks, testCycle.isRising());
   }
 
+  const interaction = new Interaction(sensors[0]);
+
   const mainRunInterval = setInterval(() => {
     currentAmps = 0;
     let elapsedSeconds = Math.round((new Date().getTime() - START_TIME) / 1000);
@@ -1097,7 +1098,14 @@ document.addEventListener("DOMContentLoaded", () => {
       ELAPSED_TIME_ELEMENT.innerText = elapsedSeconds + " seconds";
     }
 
+
     loop();
+
+    interaction.update();
+    const value = interaction.cycle.current_value;
+    const color = initial_gradient.getColorForValue(value);
+    PANEL_UI_OBJECTS[0].setColor(color.red, color.green, color.blue);
+
     iterations++;
   }, 1);
 });
