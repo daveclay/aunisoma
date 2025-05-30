@@ -495,7 +495,6 @@ document.addEventListener("DOMContentLoaded", () => {
       this.duration_ticks = 0;
       this.oneShot = false;
       this.cycle_type;
-      this.running;
       this.release_phase;
       this.clock;
       this.current_value;
@@ -505,7 +504,6 @@ document.addEventListener("DOMContentLoaded", () => {
       this.oneShot = oneShot;
       this.cycle_type = cycle_type;
       this.clock = new Clock();
-      this.running = false;
       this.release_phase = false;
       this.iterations = 0;
       this.current_value = 0;
@@ -515,15 +513,22 @@ document.addEventListener("DOMContentLoaded", () => {
      * Starts the cycle (does nothing if already started).
      */
     start() {
-      this.running = true;
-      this.clock.start(); // TODO: or restart? depends on where the clock is at, and if this cycle is "halted" at 0 and stopped its clock
+      this.release_phase = false;
+      // if the clock is on the falling side,
+      // set it to the equidistant rising side
+      if (!this.isRising()) {
+        this.clock.ticks = max(0, this.clock.ticks = this.duration_ticks - this.clock.ticks % this.duration_ticks);
+      }
+      this.clock.start();
     }
 
     /**
      * Stops the cycle from running - does not "release" it!
      */
     stop() {
-      this.running = false;
+      this.clock.stop();
+      this.current_value = 0;
+      this.release_phase = false;
     }
 
     /**
@@ -532,7 +537,7 @@ document.addEventListener("DOMContentLoaded", () => {
      */
     release() {
       this.release_phase = true;
-      if (this.clock.ticks < (this.duration_ticks / 2)) {
+      if (this.isRising()) {
         // If we're on the rising side of the cycle, jump the clock ticks
         // to the next down cycle at the same point: if we're at tick 23
         // of a duration of 100, then we're jumping to clock tick 67
@@ -567,8 +572,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (this.oneShot || this.release_phase) {
           // If this is a one-shot or the "release" is done, the Cycle is done.
           // Stop the clock, and return.
-          this.release_phase = false;
-          this.clock.stop();
+          this.stop();
           return;
         }
       }
@@ -586,6 +590,12 @@ document.addEventListener("DOMContentLoaded", () => {
           this.current_value = (this.duration_ticks - 1 - looping_elapsed_duration) / half_animation_loop_duration_ticks;
         }
       }
+    }
+
+    isRising() {
+      // no, this requires reseting the ticks
+      const relative_ticks = this.clock.ticks % this.duration_ticks;
+      return relative_ticks < (this.duration_ticks / 2);
     }
 
     restart(new_duration_ticks) {
@@ -641,7 +651,6 @@ document.addEventListener("DOMContentLoaded", () => {
   class Interaction {
     // one per sensor!
     constructor() {
-      this.currentValue;
       this.cycle;
       this.active;
 
@@ -652,11 +661,11 @@ document.addEventListener("DOMContentLoaded", () => {
         this);
     }
 
-    update(active) {
+    update() {
       if (this.active && !active) {
         // interaction was active, and now is not.
         this.active = false;
-        this.cycle.stop();
+        this.cycle.release();
       } else if (!this.active && active)  {
         // interaction was not active, and now is
         this.active = true;
@@ -1068,7 +1077,14 @@ document.addEventListener("DOMContentLoaded", () => {
   testCycle.start();
   for (let i = 0; i < 300; i++) {
     testCycle.update();
-    console.log(testCycle.current_value, testCycle.clock.ticks, testCycle.isAtZeroPoint());
+    if (i === 120) {
+      testCycle.release();
+    }
+
+    if (i === 135) {
+      testCycle.start();
+    }
+    console.log(i, testCycle.current_value, testCycle.clock.ticks, testCycle.isRising());
   }
 
   const mainRunInterval = setInterval(() => {
