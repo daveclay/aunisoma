@@ -747,8 +747,12 @@ document.addEventListener("DOMContentLoaded", () => {
         // first pulse, not all....
         if (this.pulses[0].isAtZeroPoint()) {
           // at this point the interaction just started or has looped.
-          // TODO: adjust the pulse amplitudes
           this._calculate_new_distance();
+          // TODO: nothing tells the pulses outside the range that they're done!
+          for (let i = this.distance; i < this.max_distance; i++) {
+            console.log("stopping pulse at ", i);
+            this.pulses[i].stop();
+          }
         }
 
         this.delayClock.update();
@@ -762,17 +766,17 @@ document.addEventListener("DOMContentLoaded", () => {
         this.start();
       }
 
-      const delay_over = this._is_delay_complete();
-
       for (let i = 0; i < this.max_distance; i++) {
         const pulse = this.pulses[i];
         const pulseDelay = this.delay * i;
-        if (delay_over || this.delayClock.ticks > pulseDelay) {
-          pulse.update(this.active);
-        }
+
+        const pulse_active = this.active && i < this.distance && this.delayClock.ticks > pulseDelay;
+        pulse.update(pulse_active);
       }
 
+      const delay_over = this._is_delay_complete();
       if (delay_over) {
+        // or restart?
         this.delayClock.pause();
       }
     }
@@ -1142,9 +1146,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     setColor(red, green, blue) {
-      red = gamma8[red];
-      green = gamma8[green];
-      blue = gamma8[blue];
+      // red = gamma8[red];
+      // green = gamma8[green];
+      // blue = gamma8[blue];
       this.panelUIElement.style.backgroundColor = toHexString(red, green, blue);
       addPowerDrawAmps(getPowerDrawAmps(red, green, blue));
     }
