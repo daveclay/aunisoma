@@ -716,20 +716,17 @@ document.addEventListener("DOMContentLoaded", () => {
       this.config;
       this.active;
       this.max_distance;
+      this.delay;
       this.distance;
-      this.cycle;
+      this.delayClock;
       this.pulses = [];
 
       this.sensor = sensor;
       this.config = config;
       this.active = false;
       this.max_distance = config.reverberation_distance_range.max;
-      // this is for timing the delayed pulses that happen on some schedule
-      // TODO: this could just be a clock, I think.
-      this.cycle = new Cycle(400,
-        false,
-        CYCLE_TYPE_UP_AND_DOWN,
-        this);
+      this.delay = config.reverberation_panel_delay_ticks;
+      this.delayClock = new Clock();
 
       this._calculate_new_distance();
 
@@ -744,9 +741,11 @@ document.addEventListener("DOMContentLoaded", () => {
         // first pulse, not all....
         if (this.pulses[0].isAtZeroPoint()) {
           // at this point the interaction just started or has looped.
-          // TODO: this won't calculate new distance, just adjust the pulse amplitudes
+          // TODO: adjust the pulse amplitudes
           this._calculate_new_distance();
         }
+
+        this.delayClock.update();
       }
 
       if (this.active && !this.sensor.active) {
@@ -757,33 +756,33 @@ document.addEventListener("DOMContentLoaded", () => {
         this.start();
       }
 
+      const delay_over = this._is_delay_complete();
+
       for (let i = 0; i < this.max_distance; i++) {
         const pulse = this.pulses[i];
-        pulse.update(this.active);
+        const pulseDelay = this.delay * i;
+        if (delay_over || this.delayClock.ticks > pulseDelay) {
+          pulse.update(this.active);
+        }
+      }
+
+      if (delay_over) {
+        this.delayClock.pause();
       }
     }
 
     start() {
       this.active = true;
-      for (let i = 0; i < this.distance; i++) {
-        // this iterates over the Pulses for the current calculated `distance`.
-        // Previous active Pulses will be in the release state. If the current
-        // distance is fewer than the previous, those previous Pulses will
-        // continue to release until they stop themselves. The Pulses
-        // that were in release but are within the new distance will be
-        // re-started (switching to their rising side).
-        const pulse = this.pulses[i];
-        pulse.start();
-      }
+      // TODO: hrm, if we stop the clock while waiting for a delay, what then?
+      this.delayClock.restart();
     }
 
     stop() {
       this.active = false;
-      for (let i = 0; i < this.distance; i++) {
-        const pulse = this.pulses[i];
-        // lets the Pulses fade out
-        pulse.stop();
-      }
+    }
+
+    _is_delay_complete() {
+      return this.delayClock.ticks > this.delay * this.max_distance;
     }
 
     _calculate_new_distance() {
