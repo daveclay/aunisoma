@@ -660,11 +660,15 @@ document.addEventListener("DOMContentLoaded", () => {
    *
    *****************************************************************/
   class Pulse {
-    constructor() {
-      this.cycle;
+    constructor(amplitude) {
+      this.amplitude;
       this.active;
+      this.current_value;
+      this.cycle;
 
+      this.amplitude = amplitude;
       this.active = false;
+      this.current_value = 0;
       this.cycle = new Cycle(400,
         false,
         CYCLE_TYPE_UP_AND_DOWN,
@@ -681,6 +685,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       // no matter if it's stopped or not, we're updating its tick
       this.cycle.update();
+      this.current_value = this.cycle.current_value * this.amplitude;
     }
 
     start() {
@@ -732,7 +737,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // number _per side_.
       for (let i = 0; i < this.max_distance; i++) {
-        this.pulses[i] = new Pulse();
+        const amplitude = (this.max_distance - i) / this.max_distance;
+        this.pulses[i] = new Pulse(amplitude);
       }
     }
 
@@ -1209,7 +1215,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     for (let i = 0; i < panelReverberation.max_distance; i++) {
       const pulse = panelReverberation.pulses[i];
-      const value = pulse.cycle.current_value;
+      const value = pulse.current_value;
       const color = initial_gradient.getColorForValue(value);
       PANEL_UI_OBJECTS[i].setColor(color.red, color.green, color.blue);
     }
