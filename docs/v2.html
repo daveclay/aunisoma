@@ -480,9 +480,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /******************************************************************
    * Cycle
-   * An LFO-like utility that provides a continuously changing value.
-   * May be set to a one-shot. Can be started, paused, and stopped.
-   * Also provides a release to provide a smooth return to 0.
+   * An LFO/Envelope-like utility that provides a continuously
+   * changing value.May be set to a one-shot. Can be started,
+   * paused, and stopped. Also provides a release to provide a
+   * smooth return to 0.
    *****************************************************************/
   const CYCLE_TYPE_UP = 1;
   const CYCLE_TYPE_UP_AND_DOWN = 2;
@@ -524,6 +525,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     /**
      * Stops the cycle from running - does not "release" it!
+     * TODO: should this be public? Does anyone outside of a cycle want to release it?
      */
     stop() {
       this.clock.stop();
@@ -644,18 +646,24 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /******************************************************************
-   * Interaction
+   * Pulse
    * Manages the relationship between a Sensor and a single Cycle
-   * (LFO) that will drive colors from the current gradient.
+   * (LFO) used as one input to drive panel colors.
+   *
+   * 1. A Sensor manages the reading and debounce.
+   * 2. An Interaction reads the Sensor state and manages the on/off
+   *    of the Cycle (LFO/Env)
+   * 3. PanelReverberation reads one or more Interactions and builds
+   *    up the value for a set of Panels
+   * 4. Aunisoma reads all the PanelReverberations, sums their values
+   *    for each Panel, and selects the color from the gradient.
+   *
    *****************************************************************/
-  class Interaction {
-    // one per sensor!
-    constructor(sensor) {
-      this.sensor;
+  class Pulse {
+    constructor() {
       this.cycle;
       this.active;
 
-      this.sensor = sensor;
       this.active = false;
       this.cycle = new Cycle(400,
         false,
@@ -663,11 +671,11 @@ document.addEventListener("DOMContentLoaded", () => {
         this);
     }
 
-    update() {
-      if (this.active && !this.sensor.active) {
+    update(active) {
+      if (this.active && !active) {
         // interaction was active, and now is not.
         this.stop();
-      } else if (!this.active && this.sensor.active)  {
+      } else if (!this.active && active)  {
         // interaction was not active, and now is
         this.start();
       }
@@ -683,6 +691,103 @@ document.addEventListener("DOMContentLoaded", () => {
     stop() {
       this.active = false;
       this.cycle.release();
+    }
+
+    isAtZeroPoint() {
+      return this.cycle.isAtZeroPoint();
+    }
+  }
+
+  /******************************************************************
+   * PanelReverberation
+   *
+   * TODO: OK, I can't think of any way to base a wave-like reverberation
+   * animation that only uses a single Cycle. It would _at least_ have
+   * to use a separate Cycle to track the first, and an Interaction is
+   * mostly just a Cycle, and does what we want.
+   *
+   * So the next question is: is there any reason to have a separate
+   * Interaction that reads the sensor vs ones that are just "re-usable"?
+   *
+   *****************************************************************/
+  class PanelReverberation {
+    constructor(sensor, config) {
+      this.sensor;
+      this.config;
+      this.active;
+      this.max_distance;
+      this.distance;
+      this.cycle;
+      this.pulses = [];
+
+      this.sensor = sensor;
+      this.config = config;
+      this.active = false;
+      this.max_distance = config.reverberation_distance_range.max;
+      // this is for timing the delayed pulses that happen on some schedule
+      // TODO: this could just be a clock, I think.
+      this.cycle = new Cycle(400,
+        false,
+        CYCLE_TYPE_UP_AND_DOWN,
+        this);
+
+      this._calculate_new_distance();
+
+      // number _per side_.
+      for (let i = 0; i < this.max_distance; i++) {
+        this.pulses[i] = new Pulse();
+      }
+    }
+
+    update() {
+      if (this.active) {
+        // first pulse, not all....
+        if (this.pulses[0].isAtZeroPoint()) {
+          // at this point the interaction just started or has looped.
+          // TODO: this won't calculate new distance, just adjust the pulse amplitudes
+          this._calculate_new_distance();
+        }
+      }
+
+      if (this.active && !this.sensor.active) {
+        // interaction was active, and now is not.
+        this.stop();
+      } else if (!this.active && this.sensor.active)  {
+        // interaction was not active, and now is
+        this.start();
+      }
+
+      for (let i = 0; i < this.max_distance; i++) {
+        const pulse = this.pulses[i];
+        pulse.update(this.active);
+      }
+    }
+
+    start() {
+      this.active = true;
+      for (let i = 0; i < this.distance; i++) {
+        // this iterates over the Pulses for the current calculated `distance`.
+        // Previous active Pulses will be in the release state. If the current
+        // distance is fewer than the previous, those previous Pulses will
+        // continue to release until they stop themselves. The Pulses
+        // that were in release but are within the new distance will be
+        // re-started (switching to their rising side).
+        const pulse = this.pulses[i];
+        pulse.start();
+      }
+    }
+
+    stop() {
+      this.active = false;
+      for (let i = 0; i < this.distance; i++) {
+        const pulse = this.pulses[i];
+        // lets the Pulses fade out
+        pulse.stop();
+      }
+    }
+
+    _calculate_new_distance() {
+      this.distance = this.config.get_reverberation_distance();
     }
   }
 
@@ -1072,21 +1177,21 @@ document.addEventListener("DOMContentLoaded", () => {
   renderLinearGradient("purple_red_gradient", purple_red_gradient);
   renderLinearGradient("green_blue_gradient", green_blue_gradient);
 
-  const testCycle = new Cycle(100, false, CYCLE_TYPE_UP_AND_DOWN);
-  testCycle.start();
-  for (let i = 0; i < 300; i++) {
-    testCycle.update();
-    if (i === 120) {
-      testCycle.release();
-    }
+  // const testCycle = new Cycle(100, false, CYCLE_TYPE_UP_AND_DOWN);
+  // testCycle.start();
+  // for (let i = 0; i < 300; i++) {
+  //   testCycle.update();
+  //   if (i === 120) {
+  //     testCycle.release();
+  //   }
+  //
+  //   if (i === 135) {
+  //     testCycle.start();
+  //   }
+  //   console.log(i, testCycle.current_value, testCycle.clock.ticks, testCycle.isRising() ? "rising" : "falling", testCycle.isAtZeroPoint() ? `zero point` : null);
+  // }
 
-    if (i === 135) {
-      testCycle.start();
-    }
-    console.log(i, testCycle.current_value, testCycle.clock.ticks, testCycle.isRising());
-  }
-
-  const interaction = new Interaction(sensors[0]);
+  const panelReverberation = new PanelReverberation(sensors[0], config);
 
   const mainRunInterval = setInterval(() => {
     currentAmps = 0;
@@ -1101,10 +1206,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     loop();
 
-    interaction.update();
-    const value = interaction.cycle.current_value;
-    const color = initial_gradient.getColorForValue(value);
-    PANEL_UI_OBJECTS[0].setColor(color.red, color.green, color.blue);
+    panelReverberation.update();
+
+    for (let i = 0; i < panelReverberation.max_distance; i++) {
+      const pulse = panelReverberation.pulses[i];
+      const value = pulse.cycle.current_value;
+      const color = initial_gradient.getColorForValue(value);
+      PANEL_UI_OBJECTS[i].setColor(color.red, color.green, color.blue);
+    }
 
     iterations++;
   }, 1);
