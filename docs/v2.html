@@ -119,472 +119,467 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
 </table>
 <div id="gradientTemplate"></div>
 <script>
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded",
+  () => {
 
-  /******************************************************************
-   * Arduino.h
-   *****************************************************************/
+    /******************************************************************
+     * Arduino.h
+     *****************************************************************/
 
-  HIGH = true;
+    HIGH = true;
 
-  function millis() {
-    return Date.now();
-  }
-
-  function abs(val) {
-    return Math.abs(val);
-  }
-
-  function min(a, b) {
-    return Math.min(a, b);
-  }
-
-  function max(a, b) {
-    return Math.max(a, b);
-  }
-
-  function round(value) {
-    return Math.round(value);
-  }
-
-  function send_colors(i, red, green, blue) {
-    PANEL_UI_OBJECTS[i].setColor(red, green, blue);
-  }
-
-  /******************************************************************
-   * Maths
-   *****************************************************************/
-
-  function maybe(percent) {
-    return Math.round(Math.random() * 100) > percent;
-  }
-
-  function constrain(minValue, maxValue, value) {
-    return max(minValue, min(maxValue, value));
-  }
-
-  function interpolateValue(value_a, value_b, amount) {
-    let value_a_amount = value_a * (1.0 - amount);
-    let value_b_amount = value_b * amount;
-
-    return round(value_a_amount + value_b_amount);
-  }
-
-  /******************************************************************
-   * Color
-   *****************************************************************/
-
-  function limit(red, green, blue) {
-    let diff = (red + green + blue) - 510;
-    if (diff > 0) {
-      let mult = 1 - (diff / 510);
-      return new Color(
-        red * mult,
-        green * mult,
-        blue * mult);
-    }
-    return new Color(red, green, blue);
-  }
-
-  const gamma8 = [
-    0,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,
-    1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,
-    2,  2,  2,  2,  2,  2,  2,  2,  2,  3,  3,  3,  3,  3,  3,  3,
-    3,  4,  4,  4,  4,  4,  4,  4,  5,  5,  5,  5,  5,  6,  6,  6,
-    6,  6,  6,  6,  6,  7,  7,  7,  7,  8,  8,  8,  9,  9,  9, 10,
-    10, 10, 11, 11, 11, 12, 12, 13, 13, 13, 14, 14, 15, 15, 16, 16,
-    17, 17, 18, 18, 19, 19, 20, 20, 21, 21, 22, 22, 23, 24, 24, 25,
-    25, 26, 27, 27, 28, 29, 29, 30, 31, 32, 32, 33, 34, 35, 35, 36,
-    37, 38, 39, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 50,
-    51, 52, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 66, 67, 68,
-    69, 70, 72, 73, 74, 75, 77, 78, 79, 81, 82, 83, 85, 86, 87, 89,
-    90, 92, 93, 95, 96, 98, 99,101,102,104,105,107,109,110,112,114,
-    115,117,119,120,122,124,126,127,129,131,133,135,137,138,140,142,
-    144,146,148,150,152,154,156,158,160,162,164,167,169,171,173,175,
-    177,180,182,184,186,189,191,193,196,198,200,203,205,208,210,213,
-    215,218,220,223,225,228,231,233,236,239,241,244,247,249,252,255 ];
-
-  class Color {
-    constructor(red, green, blue, hue, saturation, lightness) {
-      this.red = constrain(0, 255, round(red));
-      this.green = constrain(0, 255, round(green));
-      this.blue = constrain(0, 255, round(blue));
-
-      this.hue = hue;
-      this.saturation = saturation;
-      this.lightness = lightness;
+    function millis() {
+      return Date.now();
     }
 
-    interpolate(color, amount) {
-      let red = interpolateValue(this.red, color.red, amount);
-      let green = interpolateValue(this.green, color.green, amount);
-      let blue = interpolateValue(this.blue, color.blue, amount);
-
-      let hue = (this.hue + color.hue) / 2;
-      let saturation = (this.saturation + color.saturation) / 2;
-      let lightness = (this.lightness + color.lightness) / 2;
-
-      return new Color(red, green, blue, hue, saturation, lightness);
-    }
-  }
-
-  /******************************************************************
-   * GradientValuePoint
-   *****************************************************************/
-
-  class GradientValuePoint {
-    constructor(value, colorValue) {
-      this.value = value;
-      this.colorValue = colorValue;
-    }
-  }
-
-  /******************************************************************
-   * SingleGradientValueMap
-   * Defines a single color value gradient
-   *****************************************************************/
-
-  class SingleGradientValueMap {
-    constructor() {
-      this.gradientValuePoints = []; // new ArrayList<GradientValuePoint>();
+    function abs(val) {
+      return Math.abs(val);
     }
 
-    getColorAtValue(value) {
-      let points = this.getGradientValuePointsForValue(value);
-
-      // ratio = zero-based value / range
-      // ratio = val - min / max - min;
-      let min = points[0].value;
-      let max = points[1].value;
-      let ratio = (value - min) / (max - min);
-
-      // ints
-      let minColor = points[0].colorValue;
-      let maxColor = points[1].colorValue;
-
-      // int
-      let colorRange = maxColor - minColor;
-      // double
-      let colorValue = colorRange * ratio;
-
-      // int
-      let color = minColor + Math.round(colorValue);
-      return Math.min(255, Math.max(0, color));
+    function min(a, b) {
+      return Math.min(a, b);
     }
 
+    function max(a, b) {
+      return Math.max(a, b);
+    }
 
-        getGradientValuePointsForValue(value) {
-      let lowerPoint = null;
-      let matchingPointsForValue = null;
-      for (let i = 0; i < this.gradientValuePoints.length; i++) {
-        let point = this.gradientValuePoints[i];
-        if (value >= point.value) {
-          lowerPoint = point;
-        } else {
-          if (lowerPoint == null) {
-            matchingPointsForValue = [point, point];
+    function round(value) {
+      return Math.round(value);
+    }
+
+    function send_colors(i, red, green, blue) {
+      PANEL_UI_OBJECTS[i].setColor(red, green, blue);
+    }
+
+    /******************************************************************
+     * Maths
+     *****************************************************************/
+
+    function maybe(percent) {
+      return Math.round(Math.random() * 100) > percent;
+    }
+
+    function constrain(minValue, maxValue, value) {
+      return max(minValue, min(maxValue, value));
+    }
+
+    function interpolateValue(value_a, value_b, amount) {
+      let value_a_amount = value_a * (1.0 - amount);
+      let value_b_amount = value_b * amount;
+
+      return round(value_a_amount + value_b_amount);
+    }
+
+    /******************************************************************
+     * Color
+     *****************************************************************/
+
+    function limit(red, green, blue) {
+      let diff = (red + green + blue) - 510;
+      if (diff > 0) {
+        let mult = 1 - (diff / 510);
+        return new Color(
+          red * mult,
+          green * mult,
+          blue * mult);
+      }
+      return new Color(red, green, blue);
+    }
+
+    const gamma8 = [
+      0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2,
+      2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3,
+      3, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 6, 6, 6,
+      6, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 9, 9, 9, 10,
+      10, 10, 11, 11, 11, 12, 12, 13, 13, 13, 14, 14, 15, 15, 16, 16,
+      17, 17, 18, 18, 19, 19, 20, 20, 21, 21, 22, 22, 23, 24, 24, 25,
+      25, 26, 27, 27, 28, 29, 29, 30, 31, 32, 32, 33, 34, 35, 35, 36,
+      37, 38, 39, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 50,
+      51, 52, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 66, 67, 68,
+      69, 70, 72, 73, 74, 75, 77, 78, 79, 81, 82, 83, 85, 86, 87, 89,
+      90, 92, 93, 95, 96, 98, 99, 101, 102, 104, 105, 107, 109, 110, 112, 114,
+      115, 117, 119, 120, 122, 124, 126, 127, 129, 131, 133, 135, 137, 138, 140, 142,
+      144, 146, 148, 150, 152, 154, 156, 158, 160, 162, 164, 167, 169, 171, 173, 175,
+      177, 180, 182, 184, 186, 189, 191, 193, 196, 198, 200, 203, 205, 208, 210, 213,
+      215, 218, 220, 223, 225, 228, 231, 233, 236, 239, 241, 244, 247, 249, 252, 255];
+
+    class Color {
+      constructor(red, green, blue, hue, saturation, lightness) {
+        this.red = constrain(0, 255, round(red));
+        this.green = constrain(0, 255, round(green));
+        this.blue = constrain(0, 255, round(blue));
+
+        this.hue = hue;
+        this.saturation = saturation;
+        this.lightness = lightness;
+      }
+
+      interpolate(color, amount) {
+        let red = interpolateValue(this.red, color.red, amount);
+        let green = interpolateValue(this.green, color.green, amount);
+        let blue = interpolateValue(this.blue, color.blue, amount);
+
+        let hue = (this.hue + color.hue) / 2;
+        let saturation = (this.saturation + color.saturation) / 2;
+        let lightness = (this.lightness + color.lightness) / 2;
+
+        return new Color(red, green, blue, hue, saturation, lightness);
+      }
+    }
+
+    /******************************************************************
+     * GradientValuePoint
+     *****************************************************************/
+
+    class GradientValuePoint {
+      constructor(value, colorValue) {
+        this.value = value;
+        this.colorValue = colorValue;
+      }
+    }
+
+    /******************************************************************
+     * SingleGradientValueMap
+     * Defines a single color value gradient
+     *****************************************************************/
+
+    class SingleGradientValueMap {
+      constructor() {
+        this.gradientValuePoints = []; // new ArrayList<GradientValuePoint>();
+      }
+
+      getColorAtValue(value) {
+        let points = this.getGradientValuePointsForValue(value);
+
+        // ratio = zero-based value / range
+        // ratio = val - min / max - min;
+        let min = points[0].value;
+        let max = points[1].value;
+        let ratio = (value - min) / (max - min);
+
+        // ints
+        let minColor = points[0].colorValue;
+        let maxColor = points[1].colorValue;
+
+        // int
+        let colorRange = maxColor - minColor;
+        // double
+        let colorValue = colorRange * ratio;
+
+        // int
+        let color = minColor + Math.round(colorValue);
+        return Math.min(255, Math.max(0, color));
+      }
+
+
+      getGradientValuePointsForValue(value) {
+        let lowerPoint = null;
+        let matchingPointsForValue = null;
+        for (let i = 0; i < this.gradientValuePoints.length; i++) {
+          let point = this.gradientValuePoints[i];
+          if (value >= point.value) {
+            lowerPoint = point;
           } else {
-            matchingPointsForValue = [lowerPoint, point];
+            if (lowerPoint == null) {
+              matchingPointsForValue = [point, point];
+            } else {
+              matchingPointsForValue = [lowerPoint, point];
+            }
+            break;
           }
-          break;
         }
+
+        if (matchingPointsForValue) {
+          return matchingPointsForValue;
+        }
+
+        // otherwise, use the max two points
+        return [
+          this.gradientValuePoints[this.gradientValuePoints.length - 2],
+          this.gradientValuePoints[this.gradientValuePoints.length - 1]
+        ];
       }
 
-      if (matchingPointsForValue) {
-        return matchingPointsForValue;
+      addPoint(value, color) {
+        let point = new GradientValuePoint(value, color);
+        this.gradientValuePoints.push(point);
       }
 
-      // otherwise, use the max two points
-      return [
-        this.gradientValuePoints[this.gradientValuePoints.length - 2],
-        this.gradientValuePoints[this.gradientValuePoints.length - 1]
-      ];
-    }
-
-    addPoint(value, color) {
-      let point = new GradientValuePoint(value, color);
-      this.gradientValuePoints.push(point);
-    }
-
-    setGradientValuePoints(points) {
-      this.gradientValuePoints = points;
-    }
-
-    reset() {
-      this.gradientValuePoints.clear();
-    }
-  }
-
-  /******************************************************************
-   * LinearGradientValueMap
-   * defines a single-value RGB gradient
-   *****************************************************************/
-
-  class LinearGradientValueMap {
-
-    constructor() {
-      this.redMap = new SingleGradientValueMap();
-      this.greenMap = new SingleGradientValueMap();
-      this.blueMap = new SingleGradientValueMap();
-
-      this.hueMap = new SingleGradientValueMap();
-      this.saturationMap = new SingleGradientValueMap();
-      this.lightnessMap = new SingleGradientValueMap();
-    }
-
-    reset() {
-      this.redMap.reset();
-      this.greenMap.reset();
-      this.blueMap.reset();
-
-      this.hueMap.reset();
-      this.saturationMap.reset();
-      this.lightnessMap.reset();
-    }
-
-    add_rgb_point(value, red, green, blue) {
-      this.addRedPoint(value, red);
-      this.addGreenPoint(value, green);
-      this.addBluePoint(value, blue);
-
-      let shiftedRed = red / 255;
-      let shiftedGreen = green / 255;
-      let shiftedBlue = blue / 255;
-
-      let colorMax = Math.max(shiftedRed, shiftedGreen, shiftedBlue);
-      let colorMin = Math.min(shiftedRed, shiftedGreen, shiftedBlue);
-
-      let delta = colorMax - colorMin;
-      let hue = 0;
-
-      if (delta == 0) {
-        hue = 0;
-      } else if (colorMax == shiftedRed) {
-        hue = ((shiftedGreen - shiftedBlue) / delta) % 6;
-      } else if (colorMax == shiftedGreen) {
-        hue = (shiftedBlue - shiftedRed) / delta + 2;
-      } else {
-        hue = (shiftedRed - shiftedGreen) / delta + 4;
+      setGradientValuePoints(points) {
+        this.gradientValuePoints = points;
       }
 
-      hue = Math.round(hue * 60);
-
-      if (hue < 0) {
-        hue += 360;
-      }
-
-      let lightness = (colorMax + colorMin) / 2;
-
-      let saturation = delta == 0 ? 0 : delta / (1 - Math.abs(2 * lightness - 1));
-
-      // scale to 0 - 255
-      saturation = + Math.round(saturation * 100);
-      lightness = + Math.round(lightness * 100);
-
-      this.hueMap.addPoint(value, hue);
-      this.saturationMap.addPoint(value, saturation);
-      this.lightnessMap.addPoint(value, lightness);
-    }
-
-    addRedPoint(value, color) {
-      this.redMap.addPoint(value, color);
-    }
-
-    addGreenPoint(value, color) {
-      this.greenMap.addPoint(value, color);
-    }
-
-    addBluePoint(value, color) {
-      this.blueMap.addPoint(value, color);
-    }
-
-    getColorForValue(value) {
-      let red = this.redMap.getColorAtValue(value);
-      let green = this.greenMap.getColorAtValue(value);
-      let blue = this.blueMap.getColorAtValue(value);
-
-      let hue = this.hueMap.getColorAtValue(value);
-      let saturation = this.saturationMap.getColorAtValue(value);
-      let lightness = this.lightnessMap.getColorAtValue(value);
-
-      return new Color(red, green, blue, hue, saturation, lightness);
-    }
-  }
-
-  /******************************************************************
-   * Range
-   *****************************************************************/
-
-  class Range {
-    constructor(min, max) {
-      this.min = min;
-      this.max = max;
-    }
-
-    random_int_between() {
-      return this.min + Math.round(Math.random() * (this.max - this.min));
-    }
-  }
-
-  /******************************************************************
-   * Clock
-   * Stores a constant incrementing tick count used to determine
-   * durations and make timing calculations. update() must be called
-   * after calling start() or restart() to get the first tick.
-   *****************************************************************/
-
-  class Clock {
-    constructor() {
-      this.running = false;
-      this.ticks = -1;
-    }
-
-    start() {
-      this.running = true;
-    }
-
-    pause() {
-      this.running = false;
-    }
-
-    stop() {
-      this.running = false;
-      this.ticks = -1;
-    }
-
-    restart() {
-      this.running = true;
-      this.ticks = -1;
-    }
-
-    update() {
-      if (!this.running) {
-        return;
-      }
-
-      if (this.ticks < 0) {
-        this.ticks = 0;
-      } else {
-        this.ticks += 1;
+      reset() {
+        this.gradientValuePoints.clear();
       }
     }
 
-    isPaused() {
-      return !this.running && this.ticks > -1;
-    }
+    /******************************************************************
+     * LinearGradientValueMap
+     * defines a single-value RGB gradient
+     *****************************************************************/
 
-    isStopped() {
-      return !this.running && this.ticks < 0;
-    }
-  }
+    class LinearGradientValueMap {
 
-  /******************************************************************
-   * Cycle
-   * An LFO/Envelope-like utility that provides a continuously
-   * changing value.May be set to a one-shot. Can be started,
-   * paused, and stopped. Also provides a release to provide a
-   * smooth return to 0.
-   *****************************************************************/
-  const CYCLE_TYPE_UP = 1;
-  const CYCLE_TYPE_UP_AND_DOWN = 2;
+      constructor() {
+        this.redMap = new SingleGradientValueMap();
+        this.greenMap = new SingleGradientValueMap();
+        this.blueMap = new SingleGradientValueMap();
 
-  class Cycle {
-
-    constructor(duration_ticks,
-                oneShot,
-                cycle_type) {
-      this.duration_ticks = 0;
-      this.oneShot = false;
-      this.cycle_type;
-      this.release_phase;
-      this.clock;
-      this.current_value;
-      this.iterations;
-
-      this.duration_ticks = duration_ticks;
-      this.oneShot = oneShot;
-      this.cycle_type = cycle_type;
-      this.clock = new Clock();
-      this.release_phase = false;
-      this.iterations = 0;
-      this.current_value = 0;
-    }
-
-    /**
-     * Starts the cycle (does nothing if already started).
-     */
-    start() {
-      this.release_phase = false;
-      // if the clock is on the falling side,
-      // set it to the equidistant rising side
-      if (!this.isRising()) {
-        this.clock.ticks = max(0, this.clock.ticks = this.duration_ticks - this.clock.ticks % this.duration_ticks);
-      }
-      this.clock.start();
-    }
-
-    /**
-     * Stops the cycle from running - does not "release" it!
-     * TODO: should this be public? Does anyone outside of a cycle want to release it?
-     */
-    stop() {
-      this.clock.stop();
-      this.current_value = 0;
-      this.release_phase = false;
-    }
-
-    /**
-     * Triggers the "release" phase of the cycle, dropping the
-     * value down to its minimum which will then stop the cycle.
-     */
-    release() {
-      this.release_phase = true;
-      if (this.isRising()) {
-        // If we're on the rising side of the cycle, jump the clock ticks
-        // to the next down cycle at the same point: if we're at tick 23
-        // of a duration of 100, then we're jumping to clock tick 67
-        // (100 - 23) and continuing on to finish the remaining duration
-        // cycle of 100.
-        //
-        // If we're on the falling side of the cycle, just let it finish
-        this.clock.ticks = max(0, this.clock.ticks = this.duration_ticks - this.clock.ticks % this.duration_ticks);
-      }
-    }
-
-    /**
-     * Update this Cycle to the next iteration of its clock. Even if
-     * a Cycle is stopped, it may have a release duration.
-     */
-    update() {
-      // always update the clock. If it's stopped, it's a no-op, otherwise ensures
-      // the click is up-to-date before doing any calculations.
-      this.clock.update();
-
-      if (this.clock.isStopped()) {
-        // if this cycle has stopped - it's no longer actively cycling, nor is it in the release state,
-        // there's nothing to do.
-        return;
+        this.hueMap = new SingleGradientValueMap();
+        this.saturationMap = new SingleGradientValueMap();
+        this.lightnessMap = new SingleGradientValueMap();
       }
 
-      if (this.clock.ticks > 0 && this.clock.ticks % this.duration_ticks == 0) {
-        // we've hit run the entire duration length. Increment the number
-        // of iterations.
-        this.iterations += 1;
+      reset() {
+        this.redMap.reset();
+        this.greenMap.reset();
+        this.blueMap.reset();
 
-        if (this.oneShot || this.release_phase) {
-          // If this is a one-shot or the "release" is done, the Cycle is done.
-          // Stop the clock, and return.
-          this.stop();
+        this.hueMap.reset();
+        this.saturationMap.reset();
+        this.lightnessMap.reset();
+      }
+
+      add_rgb_point(value, red, green, blue) {
+        this.addRedPoint(value, red);
+        this.addGreenPoint(value, green);
+        this.addBluePoint(value, blue);
+
+        let shiftedRed = red / 255;
+        let shiftedGreen = green / 255;
+        let shiftedBlue = blue / 255;
+
+        let colorMax = Math.max(shiftedRed, shiftedGreen, shiftedBlue);
+        let colorMin = Math.min(shiftedRed, shiftedGreen, shiftedBlue);
+
+        let delta = colorMax - colorMin;
+        let hue = 0;
+
+        if (delta == 0) {
+          hue = 0;
+        } else if (colorMax == shiftedRed) {
+          hue = ((shiftedGreen - shiftedBlue) / delta) % 6;
+        } else if (colorMax == shiftedGreen) {
+          hue = (shiftedBlue - shiftedRed) / delta + 2;
+        } else {
+          hue = (shiftedRed - shiftedGreen) / delta + 4;
+        }
+
+        hue = Math.round(hue * 60);
+
+        if (hue < 0) {
+          hue += 360;
+        }
+
+        let lightness = (colorMax + colorMin) / 2;
+
+        let saturation = delta == 0 ? 0 : delta / (1 - Math.abs(2 * lightness - 1));
+
+        // scale to 0 - 255
+        saturation = +Math.round(saturation * 100);
+        lightness = +Math.round(lightness * 100);
+
+        this.hueMap.addPoint(value, hue);
+        this.saturationMap.addPoint(value, saturation);
+        this.lightnessMap.addPoint(value, lightness);
+      }
+
+      addRedPoint(value, color) {
+        this.redMap.addPoint(value, color);
+      }
+
+      addGreenPoint(value, color) {
+        this.greenMap.addPoint(value, color);
+      }
+
+      addBluePoint(value, color) {
+        this.blueMap.addPoint(value, color);
+      }
+
+      getColorForValue(value) {
+        let red = this.redMap.getColorAtValue(value);
+        let green = this.greenMap.getColorAtValue(value);
+        let blue = this.blueMap.getColorAtValue(value);
+
+        let hue = this.hueMap.getColorAtValue(value);
+        let saturation = this.saturationMap.getColorAtValue(value);
+        let lightness = this.lightnessMap.getColorAtValue(value);
+
+        return new Color(red, green, blue, hue, saturation, lightness);
+      }
+    }
+
+    /******************************************************************
+     * Range
+     *****************************************************************/
+
+    class Range {
+      constructor(min, max) {
+        this.min = min;
+        this.max = max;
+      }
+
+      random_int_between() {
+        return this.min + Math.round(Math.random() * (this.max - this.min));
+      }
+    }
+
+    /******************************************************************
+     * Clock
+     * Stores a constant incrementing tick count used to determine
+     * durations and make timing calculations. update() must be called
+     * after calling start() or restart() to get the first tick.
+     *****************************************************************/
+
+    class Clock {
+      constructor() {
+        this.running = false;
+        this.ticks = -1;
+      }
+
+      start() {
+        this.running = true;
+      }
+
+      pause() {
+        this.running = false;
+      }
+
+      stop() {
+        this.running = false;
+        this.ticks = -1;
+      }
+
+      restart() {
+        this.running = true;
+        this.ticks = -1;
+      }
+
+      update() {
+        if (!this.running) {
           return;
         }
+
+        if (this.ticks < 0) {
+          this.ticks = 0;
+        } else {
+          this.ticks += 1;
+        }
       }
 
-      let looping_elapsed_duration = this.clock.ticks % this.duration_ticks;
+      isPaused() {
+        return !this.running && this.ticks > -1;
+      }
 
-      if (this.cycle_type == CYCLE_TYPE_UP) {
-        // if the cycle type is CYCLE_TYPE_UP, it only increments
-        this.current_value = looping_elapsed_duration / this.duration_ticks;
-      } else {
+      isStopped() {
+        return !this.running && this.ticks < 0;
+      }
+    }
+
+    /******************************************************************
+     * Cycle
+     * An LFO/Envelope-like utility that provides a continuously
+     * changing value.May be set to a one-shot. Can be started,
+     * paused, and stopped. Also provides a release to provide a
+     * smooth return to 0.
+     *****************************************************************/
+    const ONE_SHOT_CYCLE = true;
+    const LOOP_CYCLE = false;
+
+    class Cycle {
+
+      constructor(duration_ticks,
+                  cycle_type) {
+        this.duration_ticks = 0;
+        this.oneShot = false;
+        this.cycle_type;
+        this.release_phase;
+        this.clock;
+        this.current_value;
+        this.iterations;
+
+        this.duration_ticks = duration_ticks;
+        this.oneShot = cycle_type == ONE_SHOT_CYCLE;
+        this.clock = new Clock();
+        this.release_phase = false;
+        this.iterations = 0;
+        this.current_value = 0;
+      }
+
+      /**
+       * Starts the cycle (does nothing if already started).
+       */
+      start() {
+        this.release_phase = false;
+        // if the clock is on the falling side,
+        // set it to the equidistant rising side
+        if (!this.isRising()) {
+          this.clock.ticks = max(0, this.clock.ticks = this.duration_ticks - this.clock.ticks % this.duration_ticks);
+        }
+        this.clock.start();
+      }
+
+      /**
+       * Stops the cycle from running - does not "release" it!
+       * TODO: should this be public? Does anyone outside of a cycle want to release it?
+       */
+      stop() {
+        this.clock.stop();
+        this.current_value = 0;
+        this.release_phase = false;
+      }
+
+      /**
+       * Triggers the "release" phase of the cycle, dropping the
+       * value down to its minimum which will then stop the cycle.
+       */
+      release() {
+        this.release_phase = true;
+        if (this.isRising()) {
+          // If we're on the rising side of the cycle, jump the clock ticks
+          // to the next down cycle at the same point: if we're at tick 23
+          // of a duration of 100, then we're jumping to clock tick 67
+          // (100 - 23) and continuing on to finish the remaining duration
+          // cycle of 100.
+          //
+          // If we're on the falling side of the cycle, just let it finish
+          this.clock.ticks = max(0, this.clock.ticks = this.duration_ticks - this.clock.ticks % this.duration_ticks);
+        }
+      }
+
+      /**
+       * Update this Cycle to the next iteration of its clock. Even if
+       * a Cycle is stopped, it may have a release duration.
+       */
+      update() {
+        // always update the clock. If it's stopped, it's a no-op, otherwise ensures
+        // the click is up-to-date before doing any calculations.
+        this.clock.update();
+
+        if (this.clock.isStopped()) {
+          // if this cycle has stopped - it's no longer actively cycling, nor is it in the release state,
+          // there's nothing to do.
+          return;
+        }
+
+        if (this.clock.ticks > 0 && this.clock.ticks % this.duration_ticks == 0) {
+          // we've hit run the entire duration length. Increment the number
+          // of iterations.
+          this.iterations += 1;
+
+          if (this.oneShot || this.release_phase) {
+            // If this is a one-shot or the "release" is done, the Cycle is done.
+            // Stop the clock, and return.
+            this.stop();
+            return;
+          }
+        }
+
+        let looping_elapsed_duration = this.clock.ticks % this.duration_ticks;
+
         let half_animation_loop_duration_ticks = round(this.duration_ticks / 2);
         if (looping_elapsed_duration <= half_animation_loop_duration_ticks) {
           this.current_value = looping_elapsed_duration / half_animation_loop_duration_ticks;
@@ -592,641 +587,669 @@ document.addEventListener("DOMContentLoaded", () => {
           this.current_value = (this.duration_ticks - 1 - looping_elapsed_duration) / half_animation_loop_duration_ticks;
         }
       }
-    }
 
-    isRising() {
-      // no, this requires reseting the ticks
-      const relative_ticks = this.clock.ticks % this.duration_ticks;
-      return relative_ticks < (this.duration_ticks / 2);
-    }
-
-    restart(new_duration_ticks) {
-      if (new_duration_ticks) {
-        this.duration_ticks = new_duration_ticks;
+      isRising() {
+        // no, this requires reseting the ticks
+        const relative_ticks = this.clock.ticks % this.duration_ticks;
+        return relative_ticks < (this.duration_ticks / 2);
       }
-      this.release_phase = false;
-      this.iterations = 0;
-      this.clock.restart();
-    }
 
-    /**
-     * Returns true if the cycle is at its "zero" point. The current_value may
-     * not hit 0 due to the math calculating ticks vs duration at 0 ticks.
-     * @returns {boolean}
-     */
-    isAtZeroPoint() {
-      return this.clock.ticks < 0 || (this.clock.ticks % this.duration_ticks == 0);
-    }
-
-    isDone() {
-      return this.oneShot && this.iterations > 0;
-    }
-  }
-
-  /******************************************************************
-   * Config
-   *****************************************************************/
-  class Config {
-    constructor() {
-    }
-
-    init() {
-      this.max_reverberation_distance = this.reverberation_distance_range.max;
-      this.initial_trigger_panel_animation_loop_duration_ticks =
-        (this.trigger_panel_animation_loop_duration_ticks_range.max + this.trigger_panel_animation_loop_duration_ticks_range.min) / 2;
-    }
-
-    getTriggerPanelAnimationLoopDurationTicks() {
-      return this.trigger_panel_animation_loop_duration_ticks_range.random_int_between();
-    }
-
-    get_reverberation_distance() {
-      return this.reverberation_distance_range.random_int_between();
-    }
-  }
-
-  /******************************************************************
-   * Pulse
-   * Manages the relationship between a Sensor and a single Cycle
-   * (LFO) used as one input to drive panel colors.
-   *
-   * 1. A Sensor manages the reading and debounce.
-   * 2. An Interaction reads the Sensor state and manages the on/off
-   *    of the Cycle (LFO/Env)
-   * 3. PanelReverberation reads one or more Interactions and builds
-   *    up the value for a set of Panels
-   * 4. Aunisoma reads all the PanelReverberations, sums their values
-   *    for each Panel, and selects the color from the gradient.
-   *
-   *****************************************************************/
-  class Pulse {
-    constructor(amplitude) {
-      this.amplitude;
-      this.active;
-      this.current_value;
-      this.cycle;
-
-      this.amplitude = amplitude;
-      this.active = false;
-      this.current_value = 0;
-      this.cycle = new Cycle(400,
-        false,
-        CYCLE_TYPE_UP_AND_DOWN,
-        this);
-    }
-
-    update(active) {
-      if (this.active && !active) {
-        // interaction was active, and now is not.
-        this.stop();
-      } else if (!this.active && active)  {
-        // interaction was not active, and now is
-        this.start();
+      restart(new_duration_ticks) {
+        if (new_duration_ticks) {
+          this.duration_ticks = new_duration_ticks;
+        }
+        this.release_phase = false;
+        this.iterations = 0;
+        this.clock.restart();
       }
-      // no matter if it's stopped or not, we're updating its tick
-      this.cycle.update();
-      this.current_value = this.cycle.current_value * this.amplitude;
-    }
 
-    start() {
-      this.active = true;
-      this.cycle.start();
-    }
+      /**
+       * Returns true if the cycle is at its "zero" point.
+       */
+      isAtZeroPoint() {
+        return this.clock.ticks % this.duration_ticks == 0;
+      }
 
-    stop() {
-      this.active = false;
-      this.cycle.release();
-    }
+      isDone() {
+        return this.oneShot && this.iterations > 0;
+      }
 
-    isAtZeroPoint() {
-      return this.cycle.isAtZeroPoint();
-    }
-  }
-
-  /******************************************************************
-   * PanelReverberation
-   *
-   * TODO: OK, I can't think of any way to base a wave-like reverberation
-   * animation that only uses a single Cycle. It would _at least_ have
-   * to use a separate Cycle to track the first, and an Interaction is
-   * mostly just a Cycle, and does what we want.
-   *
-   * So the next question is: is there any reason to have a separate
-   * Interaction that reads the sensor vs ones that are just "re-usable"?
-   *
-   *****************************************************************/
-  class PanelReverberation {
-    constructor(sensor, config) {
-      this.sensor;
-      this.config;
-      this.active;
-      this.max_distance;
-      this.delay;
-      this.distance;
-      this.delayClock;
-      this.pulses = [];
-
-      this.sensor = sensor;
-      this.config = config;
-      this.active = false;
-      this.max_distance = config.reverberation_distance_range.max;
-      this.delay = config.reverberation_panel_delay_ticks;
-      this.delayClock = new Clock();
-
-      this._calculate_new_distance();
-
-      // number _per side_.
-      for (let i = 0; i < this.max_distance; i++) {
-        const amplitude = (this.max_distance - i) / this.max_distance;
-        this.pulses[i] = new Pulse(amplitude);
+      isStopped() {
+        return this.clock.isStopped();
       }
     }
 
-    update() {
-      if (this.active) {
-        // first pulse, not all....
-        if (this.pulses[0].isAtZeroPoint()) {
-          // at this point the interaction just started or has looped.
-          this._calculate_new_distance();
-          // TODO: nothing tells the pulses outside the range that they're done!
-          for (let i = this.distance; i < this.max_distance; i++) {
-            console.log("stopping pulse at ", i);
-            this.pulses[i].stop();
+    /******************************************************************
+     * Config
+     *****************************************************************/
+    class Config {
+      constructor() {
+      }
+
+      init() {
+        this.max_reverberation_distance = this.reverberation_distance_range.max;
+        this.initial_trigger_panel_animation_loop_duration_ticks =
+          (this.trigger_panel_animation_loop_duration_ticks_range.max + this.trigger_panel_animation_loop_duration_ticks_range.min) / 2;
+      }
+
+      getTriggerPanelAnimationLoopDurationTicks() {
+        return this.trigger_panel_animation_loop_duration_ticks_range.random_int_between();
+      }
+
+      get_reverberation_distance() {
+        return this.reverberation_distance_range.random_int_between();
+      }
+    }
+
+    /******************************************************************
+     * Pulse
+     * Manages the relationship between a Sensor and a single Cycle
+     * (LFO) used as one input to drive panel colors.
+     *
+     * 1. A Sensor manages the reading and debounce.
+     * 2. An Interaction reads the Sensor state and manages the on/off
+     *    of the Cycle (LFO/Env)
+     * 3. Reverberation reads one or more Interactions and builds
+     *    up the value for a set of Panels
+     * 4. Aunisoma reads all the PanelReverberations, sums their values
+     *    for each Panel, and selects the color from the gradient.
+     *
+     *****************************************************************/
+    class Pulse {
+      constructor(amplitude, duration, cycle_type) {
+        this.amplitude;
+        this.active;
+        this.current_value;
+        this.cycle;
+
+        this.amplitude = amplitude;
+        this.active = false;
+        this.current_value = 0;
+        this.cycle = new Cycle(duration, cycle_type);
+      }
+
+      update(active) {
+        if (this.active && !active) {
+          // interaction was active, and now is not.
+          this.stop();
+        } else if (!this.active && active) {
+          // interaction was not active, and now is
+          this.start();
+        }
+
+        // no matter if it's stopped or not, we're updating its tick
+        this.cycle.update();
+        this.current_value = this.cycle.current_value * this.amplitude;
+      }
+
+      start() {
+        this.active = true;
+        this.cycle.start();
+      }
+
+      stop() {
+        this.active = false;
+        this.cycle.release();
+      }
+
+      isAtZeroPoint() {
+        return this.cycle.isAtZeroPoint();
+      }
+
+      isStopped() {
+        return this.cycle.isStopped();
+      }
+    }
+
+    /******************************************************************
+     * Reverberation
+     *
+     * TODO: OK, I can't think of any way to base a wave-like reverberation
+     * animation that only uses a single Cycle. It would _at least_ have
+     * to use a separate Cycle to track the first, and an Interaction is
+     * mostly just a Cycle, and does what we want.
+     *
+     * So the next question is: is there any reason to have a separate
+     * Interaction that reads the sensor vs ones that are just "re-usable"?
+     *
+     *****************************************************************/
+    class Reverberation {
+      constructor(sensor, config) {
+        this.sensor;
+        this.config;
+        this.active;
+        this.max_distance;
+        this.delay;
+        this.delay_complete;
+        this.distance;
+        this.delay_clock;
+        this.pulses = [];
+
+        this.sensor = sensor;
+        this.config = config;
+        this.active = false;
+        this.delay_complete = false;
+        this.max_distance = config.reverberation_distance_range.max;
+        this.delay = config.reverberation_panel_delay_ticks;
+        this.delay_clock = new Clock();
+
+        this._calculate_new_distance();
+
+        // number _per side_.
+        for (let i = 0; i < this.max_distance; i++) {
+          const amplitude = (this.max_distance - i) / this.max_distance;
+          // TODO: if the duration is the same, the lower amplitude colors shift slower. With the gamma map,
+          //  that means those slow color changes are perceptible as "jank". Might have to fix the gamma to cycle
+          //  through darker colors more quickly than the low-mids?
+          //  I'd say the same cycle duration isn't as nice either - the further cycles through the colors slower,
+          //  while the front panel cycles really quickly. It does pulse, but it's not as natural.
+          // TODO: I think the delay should be a similar value or calc to the duration and amplitude to make a more natural flow.
+          //  it looks janky when the far panel animates really quickly after a short delay.
+          const cycle_type = i == 0 ? LOOP_CYCLE : ONE_SHOT_CYCLE;
+          const duration = (800 * amplitude);
+          this.pulses[i] = new Pulse(amplitude, duration, cycle_type);
+        }
+      }
+
+      update() {
+        if (this.active && !this.sensor.active) {
+          // interaction was active, and now is not.
+          this.stop();
+        } else if (!this.active && this.sensor.active) {
+          // interaction was not active, and now is
+          this.start();
+        }
+
+        if (this.active) {
+          this.delay_clock.update();
+        }
+
+        for (let i = 0; i < this.max_distance; i++) {
+          const pulse = this.pulses[i];
+          const pulseDelay = this.delay * i;
+          const waited_long_enough = this.delay_complete || this.delay_clock.ticks >= pulseDelay;
+
+          const pulse_active = this.active && i < this.distance && waited_long_enough;
+          pulse.update(pulse_active);
+        }
+
+        if (this.active) {
+          if (this.pulses[0].isAtZeroPoint()) {
+            console.log("at zero point", this);
+            this._restart_pulses();
           }
         }
 
-        this.delayClock.update();
-      }
-
-      if (this.active && !this.sensor.active) {
-        // interaction was active, and now is not.
-        this.stop();
-      } else if (!this.active && this.sensor.active)  {
-        // interaction was not active, and now is
-        this.start();
-      }
-
-      for (let i = 0; i < this.max_distance; i++) {
-        const pulse = this.pulses[i];
-        const pulseDelay = this.delay * i;
-
-        const pulse_active = this.active && i < this.distance && this.delayClock.ticks > pulseDelay;
-        pulse.update(pulse_active);
-      }
-
-      const delay_over = this._is_delay_complete();
-      if (delay_over) {
-        // or restart?
-        this.delayClock.pause();
-      }
-    }
-
-    start() {
-      this.active = true;
-      // TODO: hrm, if we stop the clock while waiting for a delay, what then?
-      this.delayClock.restart();
-    }
-
-    stop() {
-      this.active = false;
-    }
-
-    _is_delay_complete() {
-      return this.delayClock.ticks > this.delay * this.max_distance;
-    }
-
-    _calculate_new_distance() {
-      this.distance = this.config.get_reverberation_distance();
-    }
-  }
-
-  /******************************************************************
-   * Panel
-   *****************************************************************/
-  class Panel {
-    constructor(index) {
-      this.index;
-      this.color;
-
-      this.index = index;
-      this.color = new Color(10, 0, 0);
-    }
-  }
-
-  /******************************************************************
-   * Aunisoma
-   *****************************************************************/
-  class Aunisoma {
-    constructor(config, sensors) {
-      this.numberOfPanels;
-      this.config;
-      this.sensors;
-
-      this.panels = [];
-      this.sensors = sensors;
-      this.config = config;
-      this.numberOfPanels = config.number_of_panels;
-      this._create_panels();
-    }
-
-    _create_panels() {
-      for (let i = 0; i < this.numberOfPanels; i++) {
-        let panel = new Panel(i);
-        panel.index = i;
-        this.panels[i] = panel;
-      }
-    }
-
-    get_panel_at(index) {
-      return this.panels[index];
-    }
-
-    event_loop() {
-      // interactions
-    }
-  }
-
-  DEBOUNCE_PIR_DELAY = 0; // ms debounce
-  class Sensor {
-
-    constructor() {
-      this.active;
-      this.lastDebounceTime;
-      this.lastReading;
-
-      this.active = false;
-      this.lastDebounceTime = -1;
-      this.lastReading = false;
-    }
-
-    update(reading) {
-      let currentMillis = millis();
-      if (this.lastReading != reading) {
-        this.lastDebounceTime = currentMillis;
-      }
-
-      if ((currentMillis - this.lastDebounceTime) >= DEBOUNCE_PIR_DELAY) {
-        // whatever the reading is at, it's been there for longer than the debounce
-        // delay, so take it as the actual current state:
-        if (this.active != reading) {
-          this.active = reading;
+        const delay_over = this._is_delay_complete();
+        if (delay_over) {
+          this.delay_complete = true;
+          this.delay_clock.stop();
         }
       }
 
-      this.lastReading = reading;
-    }
-  }
+      start() {
+        this.active = true;
+        this.delay_clock.restart();
+        this.delay_complete = false;
+      }
 
-  /******************************************************************
-   * Aunisoma-Sketch.ino
-   *****************************************************************/
-  let sensors = [];
+      stop() {
+        this.active = false;
+        this.delay_complete = false;
+      }
 
-  let number_of_panels = 20;
-  let config = new Config();
+      _restart_pulses() {
+        // at this point the interaction just started or has looped.
+        this._calculate_new_distance();
+        this.delay_clock.restart();
+        this.delay_complete = false;
 
-  let maxAnimationGradient = new LinearGradientValueMap();
-  let initial_gradient = new LinearGradientValueMap();
-  let blue_gradient = new LinearGradientValueMap();
-  let green_gradient = new LinearGradientValueMap();
-  let purple_red_gradient = new LinearGradientValueMap();
-  let green_blue_gradient = new LinearGradientValueMap();
+        // also, re-start the pulse cycles!
+        for (let i = 0; i < this.max_distance; i++) {
+          if (i < this.distance) {
+            this.pulses[i].start();
+          } else {
+            this.pulses[i].stop();
+          }
+        }
+      }
 
-  let gradients = [
-    initial_gradient,
-    blue_gradient,
-    purple_red_gradient,
-    green_blue_gradient,
-    green_gradient
-  ];
+      _is_delay_complete() {
+        return this.delay_clock.ticks > this.delay * this.distance;
+      }
 
-  let aunisoma;
-
-  function setup() {
-
-    maxAnimationGradient.add_rgb_point(0.00,   255,   0,   0);
-    maxAnimationGradient.add_rgb_point(0.02,   255, 127,   0);
-    maxAnimationGradient.add_rgb_point(0.20,   255, 255,   0);
-    maxAnimationGradient.add_rgb_point(0.29,   200, 255,   0);
-    maxAnimationGradient.add_rgb_point(0.30,     0, 255,   0);
-    maxAnimationGradient.add_rgb_point(0.31,     0, 255, 127);
-    maxAnimationGradient.add_rgb_point(0.40,     0, 255, 200);
-    maxAnimationGradient.add_rgb_point(0.45,     0, 255, 255);
-    maxAnimationGradient.add_rgb_point(0.59,     0, 120, 255);
-    maxAnimationGradient.add_rgb_point(0.60,     0,   0, 255);
-    maxAnimationGradient.add_rgb_point(0.61,   160,   0, 255);
-    maxAnimationGradient.add_rgb_point(0.80,   255,   0, 255);
-    maxAnimationGradient.add_rgb_point(0.80,   255,   0, 255);
-    maxAnimationGradient.add_rgb_point(0.89,   255,   0, 200);
-    maxAnimationGradient.add_rgb_point(1.00,   255,   0,   0);
-
-    initial_gradient.add_rgb_point(0.0, 3, 0, 0);
-    initial_gradient.add_rgb_point(.4, 255, 0, 0);
-    initial_gradient.add_rgb_point(1.0, 255, 255, 0);
-    initial_gradient.add_rgb_point(1.6, 0, 255, 255);
-    initial_gradient.add_rgb_point(3, 0, 255, 255);
-
-    blue_gradient.add_rgb_point(0.0, 0, 0, 10);
-    blue_gradient.add_rgb_point(.4, 0, 0, 255);
-    blue_gradient.add_rgb_point(.8, 255, 0, 255);
-    blue_gradient.add_rgb_point(2, 255, 255, 0);
-    blue_gradient.add_rgb_point(3, 255, 255, 0);
-
-    green_gradient.add_rgb_point(0.0, 0, 10, 0);
-    green_gradient.add_rgb_point(.4, 0, 255, 0);
-    green_gradient.add_rgb_point(.8, 255, 255, 0);
-    green_gradient.add_rgb_point(1.5, 255, 0, 255);
-    green_gradient.add_rgb_point(3, 255, 0, 255);
-
-    purple_red_gradient.add_rgb_point(0,   1,    0,   1);
-    purple_red_gradient.add_rgb_point(.4, 255,   0, 255);
-    purple_red_gradient.add_rgb_point(.85,  255,   0,   0);
-    purple_red_gradient.add_rgb_point(1.2,  255, 255,   0);
-    purple_red_gradient.add_rgb_point(3,    0, 255,   0);
-
-    green_blue_gradient.add_rgb_point(0,    0,   3,   0);
-    green_blue_gradient.add_rgb_point(.3,   0, 255,   0);
-    green_blue_gradient.add_rgb_point(1,    0, 255, 255);
-    green_blue_gradient.add_rgb_point(2,    0,   0, 255);
-    green_blue_gradient.add_rgb_point(3,  255,   0, 255);
-
-    config.number_of_panels = number_of_panels;
-    config.reverberation_distance_range = new Range(2, 5);
-    // how long to wait to trigger a neighbor Panel to reverberate
-    config.reverberation_panel_delay_ticks = 20;
-    config.trigger_panel_animation_loop_duration_ticks_range = new Range(220, 300);
-    config.max_interaction_threshold_percent = .85;
-    config.intermediate_interaction_threshold_percent = .5;
-    config.min_max_interaction_gradient_transition_duration = 5000;
-    config.odds_for_max_interaction_gradient_transition = 90;
-
-    config.init();
-
-    for (let i = 0; i < 40; i++) {
-      sensors[i] = new Sensor();
+      _calculate_new_distance() {
+        this.distance = this.config.get_reverberation_distance();
+      }
     }
 
-    aunisoma = new Aunisoma(config, maxAnimationGradient, gradients, 5, sensors);
-  }
+    /******************************************************************
+     * Panel
+     *****************************************************************/
+    class Panel {
+      constructor(index) {
+        this.index;
+        this.color;
 
-  function loop() {
-    let start = new Date().getTime();
-    aunisoma.event_loop();
+        this.index = index;
+        this.color = new Color(10, 0, 0);
+      }
+    }
+
+    /******************************************************************
+     * Aunisoma
+     *****************************************************************/
+    class Aunisoma {
+      constructor(config, sensors) {
+        this.numberOfPanels;
+        this.config;
+        this.sensors;
+
+        this.panels = [];
+        this.sensors = sensors;
+        this.config = config;
+        this.numberOfPanels = config.number_of_panels;
+        this._create_panels();
+      }
+
+      _create_panels() {
+        for (let i = 0; i < this.numberOfPanels; i++) {
+          let panel = new Panel(i);
+          panel.index = i;
+          this.panels[i] = panel;
+        }
+      }
+
+      get_panel_at(index) {
+        return this.panels[index];
+      }
+
+      event_loop() {
+        // interactions
+      }
+    }
+
+    DEBOUNCE_PIR_DELAY = 0; // ms debounce
+    class Sensor {
+
+      constructor() {
+        this.active;
+        this.lastDebounceTime;
+        this.lastReading;
+
+        this.active = false;
+        this.lastDebounceTime = -1;
+        this.lastReading = false;
+      }
+
+      update(reading) {
+        let currentMillis = millis();
+        if (this.lastReading != reading) {
+          this.lastDebounceTime = currentMillis;
+        }
+
+        if ((currentMillis - this.lastDebounceTime) >= DEBOUNCE_PIR_DELAY) {
+          // whatever the reading is at, it's been there for longer than the debounce
+          // delay, so take it as the actual current state:
+          if (this.active != reading) {
+            this.active = reading;
+          }
+        }
+
+        this.lastReading = reading;
+      }
+    }
+
+    /******************************************************************
+     * Aunisoma-Sketch.ino
+     *****************************************************************/
+    let sensors = [];
+
+    let number_of_panels = 20;
+    let config = new Config();
+
+    let maxAnimationGradient = new LinearGradientValueMap();
+    let initial_gradient = new LinearGradientValueMap();
+    let blue_gradient = new LinearGradientValueMap();
+    let green_gradient = new LinearGradientValueMap();
+    let purple_red_gradient = new LinearGradientValueMap();
+    let green_blue_gradient = new LinearGradientValueMap();
+
+    let gradients = [
+      initial_gradient,
+      blue_gradient,
+      purple_red_gradient,
+      green_blue_gradient,
+      green_gradient
+    ];
+
+    let aunisoma;
+
+    function setup() {
+
+      maxAnimationGradient.add_rgb_point(0.00, 255, 0, 0);
+      maxAnimationGradient.add_rgb_point(0.02, 255, 127, 0);
+      maxAnimationGradient.add_rgb_point(0.20, 255, 255, 0);
+      maxAnimationGradient.add_rgb_point(0.29, 200, 255, 0);
+      maxAnimationGradient.add_rgb_point(0.30, 0, 255, 0);
+      maxAnimationGradient.add_rgb_point(0.31, 0, 255, 127);
+      maxAnimationGradient.add_rgb_point(0.40, 0, 255, 200);
+      maxAnimationGradient.add_rgb_point(0.45, 0, 255, 255);
+      maxAnimationGradient.add_rgb_point(0.59, 0, 120, 255);
+      maxAnimationGradient.add_rgb_point(0.60, 0, 0, 255);
+      maxAnimationGradient.add_rgb_point(0.61, 160, 0, 255);
+      maxAnimationGradient.add_rgb_point(0.80, 255, 0, 255);
+      maxAnimationGradient.add_rgb_point(0.80, 255, 0, 255);
+      maxAnimationGradient.add_rgb_point(0.89, 255, 0, 200);
+      maxAnimationGradient.add_rgb_point(1.00, 255, 0, 0);
+
+      initial_gradient.add_rgb_point(0.0, 3, 0, 0);
+      initial_gradient.add_rgb_point(.4, 255, 0, 0);
+      initial_gradient.add_rgb_point(1.0, 255, 255, 0);
+      initial_gradient.add_rgb_point(1.6, 0, 255, 255);
+      initial_gradient.add_rgb_point(3, 0, 255, 255);
+
+      blue_gradient.add_rgb_point(0.0, 0, 0, 10);
+      blue_gradient.add_rgb_point(.4, 0, 0, 255);
+      blue_gradient.add_rgb_point(.8, 255, 0, 255);
+      blue_gradient.add_rgb_point(2, 255, 255, 0);
+      blue_gradient.add_rgb_point(3, 255, 255, 0);
+
+      green_gradient.add_rgb_point(0.0, 0, 10, 0);
+      green_gradient.add_rgb_point(.4, 0, 255, 0);
+      green_gradient.add_rgb_point(.8, 255, 255, 0);
+      green_gradient.add_rgb_point(1.5, 255, 0, 255);
+      green_gradient.add_rgb_point(3, 255, 0, 255);
+
+      purple_red_gradient.add_rgb_point(0, 1, 0, 1);
+      purple_red_gradient.add_rgb_point(.4, 255, 0, 255);
+      purple_red_gradient.add_rgb_point(.85, 255, 0, 0);
+      purple_red_gradient.add_rgb_point(1.2, 255, 255, 0);
+      purple_red_gradient.add_rgb_point(3, 0, 255, 0);
+
+      green_blue_gradient.add_rgb_point(0, 0, 3, 0);
+      green_blue_gradient.add_rgb_point(.3, 0, 255, 0);
+      green_blue_gradient.add_rgb_point(1, 0, 255, 255);
+      green_blue_gradient.add_rgb_point(2, 0, 0, 255);
+      green_blue_gradient.add_rgb_point(3, 255, 0, 255);
+
+      config.number_of_panels = number_of_panels;
+      config.reverberation_distance_range = new Range(2, 5);
+      // how long to wait to trigger a neighbor Panel to reverberate
+      config.reverberation_panel_delay_ticks = 50;
+      config.trigger_panel_animation_loop_duration_ticks_range = new Range(220, 300);
+      config.max_interaction_threshold_percent = .85;
+      config.intermediate_interaction_threshold_percent = .5;
+      config.min_max_interaction_gradient_transition_duration = 5000;
+      config.odds_for_max_interaction_gradient_transition = 90;
+
+      config.init();
+
+      for (let i = 0; i < 40; i++) {
+        sensors[i] = new Sensor();
+      }
+
+      aunisoma = new Aunisoma(config, maxAnimationGradient, gradients, 5, sensors);
+    }
+
+    function loop() {
+      let start = new Date().getTime();
+      aunisoma.event_loop();
+
+      for (let i = 0; i < number_of_panels; i++) {
+        let panel = aunisoma.get_panel_at(i);
+        let color = panel.color;
+        // send_colors(i, color.red, color.green, color.blue);
+      }
+
+      LOOP_TIME_ELEMENT.innerText = Math.round(new Date().getTime() - start) + " ms";
+    }
+
+    /******************************************************************
+     * Power Calculations/Utilities
+     *****************************************************************/
+
+      // TODO: capture average amp-hours over time for various interactions for nightly consumption
+    const DRAW_PER_COLOR_PER_PANEL_AMPS = 0.8046715655;
+
+    function calculatePowerDrawForColorAmps(color) {
+      return (color / 255) * DRAW_PER_COLOR_PER_PANEL_AMPS;
+    }
+
+    function getPowerDrawAmps(red, green, blue) {
+      return calculatePowerDrawForColorAmps(red)
+        + calculatePowerDrawForColorAmps(green)
+        + calculatePowerDrawForColorAmps(blue);
+    }
+
+    function addPowerDrawAmps(amps) {
+      currentAmps += amps;
+      totalAmps += amps;
+
+      CURRENT_POWER_DRAW_ELEMENT.innerText = (currentAmps + "").substring(0, 4);
+      if (currentAmps > maxAmps) {
+        maxAmps = currentAmps;
+        MAX_POWER_DRAW_ELEMENT.innerText = (maxAmps + "").substring(0, 4);
+      }
+
+      let averageAmps = totalAmps / iterations;
+      AVERAGE_POWER_DRAW_ELEMENT.innerText = (averageAmps + "").substring(0, 4);
+    }
+
+    /******************************************************************
+     * UI Code
+     *****************************************************************/
+
+    const PANEL_TEMPLATE_ELEMENT = document.getElementById("panelTemplate");
+    const STAGE = document.getElementById("stage");
+
+    const GRADIENT_CONTAINER_ELEMENT = document.getElementById("gradientContainer");
+    const GRADIENT_TEMPLATE_ELEMENT = document.getElementById("gradientTemplate");
+
+    const TRIGGER_SCRIPT_TEXTAREA = document.getElementById("triggerScript");
+    const TRIGGER_SCRIPT_BUTTON = document.getElementById("triggerScriptButton");
+    const TRIGGER_WALK_DOWN_BUTTON = document.getElementById("triggerWalkDownButton");
+    document
+      .getElementById("triggerMaxInteractionsButton")
+      .addEventListener("click", () => triggerMaxInteraction());
+
+    function triggerMaxInteraction() {
+      let numberOfSensorsToTrigger = (config.max_interaction_threshold_percent * number_of_panels) + 1;
+      let indexesToTrigger = {};
+      while (Object.keys(indexesToTrigger).length < numberOfSensorsToTrigger) {
+        let panelIndex;
+        do {
+          panelIndex = Math.min(19, Math.round(Math.random() * number_of_panels));
+        } while (indexesToTrigger[panelIndex] != null);
+        indexesToTrigger[panelIndex] = 1;
+      }
+
+      Object.keys(indexesToTrigger).forEach(s => {
+        let i = parseInt(s);
+        sensors[i * 2].update(true);
+        PANEL_UI_OBJECTS[i].setActive(true);
+      });
+    }
+
+    document
+      .getElementById("clearInteractionsButton")
+      .addEventListener("click", () => {
+        for (let i = 0; i < sensors.length; i++) {
+          sensors[i].update(false);
+        }
+        for (let i = 0; i < PANEL_UI_OBJECTS.length; i++) {
+          PANEL_UI_OBJECTS[i].setActive(false);
+        }
+      });
+
+
+    const CURRENT_POWER_DRAW_ELEMENT = document.getElementById("currentPowerDraw");
+    const MAX_POWER_DRAW_ELEMENT = document.getElementById("maxPowerDraw");
+    const AVERAGE_POWER_DRAW_ELEMENT = document.getElementById("averagePowerDraw");
+
+    const ELAPSED_TIME_ELEMENT = document.getElementById("elapsedTimeElement");
+    const LOOP_TIME_ELEMENT = document.getElementById("loopTime")
+
+    // TODO: show which panels have someone interacting
+    const REVERBERATIONS_INFO_ELEMENT = document.getElementById("reverberationsInfo");
+    const REVERBERATION_INFO_TEMPLATE_ELEMENT = document.getElementById("reverberationInfoTemplate");
+    const PANEL_REVERBERATION_INFO_TEMPLATE_ELEMENT = document.getElementById("panelReverberationInfoTemplate");
+
+    function renderLinearGradient(name, gradient, max) {
+      let rgbGradientElement = clone(GRADIENT_TEMPLATE_ELEMENT);
+      let hslGradientElement = clone(GRADIENT_TEMPLATE_ELEMENT);
+
+      let steps = 1000;
+      for (let i = 0; i < steps; i++) {
+
+        let color;
+        if (max) {
+          color = gradient.getColorForValue(i / steps);
+        } else {
+          color = gradient.getColorForValue(i / (steps / 2));
+        }
+
+        let rgbSpan = document.createElement("span");
+        rgbSpan.setAttribute("class", "gradient-slice");
+        rgbSpan.style.backgroundColor = toHexString(color.red, color.green, color.blue);
+        rgbGradientElement.appendChild(rgbSpan);
+
+        /*
+        let hslSpan = document.createElement("span");
+        hslSpan.setAttribute("class", "gradient-slice");
+        hslSpan.style.backgroundColor = toHSLString(color.hue, color.saturation, color.lightness);
+        hslGradientElement.appendChild(hslSpan);
+        */
+      }
+
+      let nameElement = document.createElement("p");
+      nameElement.innerText = name;
+      GRADIENT_CONTAINER_ELEMENT.appendChild(nameElement);
+      GRADIENT_CONTAINER_ELEMENT.appendChild(rgbGradientElement);
+      GRADIENT_CONTAINER_ELEMENT.appendChild(hslGradientElement);
+    }
+
+    function toHexString(red, green, blue) {
+      return "#"
+        + red.toString(16).padStart(2, "0")
+        + green.toString(16).padStart(2, "0")
+        + blue.toString(16).padStart(2, "0");
+    }
+
+    function toHSLString(hue, saturation, lightness) {
+      return "hsl(" + hue + ", " + saturation + "%, " + lightness + "%)";
+    }
+
+    function clone(templateElement) {
+      let clone = templateElement.cloneNode(true);
+      clone.attributes.removeNamedItem("id");
+      return clone;
+    }
+
+    function removeChildren(element) {
+      while (element.firstChild) {
+        element.removeChild(element.firstChild);
+      }
+    }
+
+    class PanelUI {
+      constructor(index, panelElement) {
+        this.index = index;
+        this.panelElement = panelElement;
+        this.panelUIElement = panelElement.querySelector("div[class='panel']");
+        this.panelInfoElement = panelElement.querySelector("div[class='panelInfo']");
+      }
+
+      setActive(active) {
+        if (active) {
+          this.panelInfoElement.innerText = "Active";
+        } else {
+          this.panelInfoElement.innerHTML = "&nbsp;";
+        }
+      }
+
+      setColor(red, green, blue) {
+        // red = gamma8[red];
+        // green = gamma8[green];
+        // blue = gamma8[blue];
+        this.panelUIElement.style.backgroundColor = toHexString(red, green, blue);
+        addPowerDrawAmps(getPowerDrawAmps(red, green, blue));
+      }
+    }
+
+    const PANEL_UI_OBJECTS = [];
 
     for (let i = 0; i < number_of_panels; i++) {
-      let panel = aunisoma.get_panel_at(i);
-      let color = panel.color;
-      // send_colors(i, color.red, color.green, color.blue);
+      let panelElement = clone(PANEL_TEMPLATE_ELEMENT);
+      panelElement.classList.add("panel-" + i);
+      STAGE.appendChild(panelElement);
+
+      let panelUI = new PanelUI(i, panelElement);
+      panelElement.addEventListener("click", () => {
+        let sensor = sensors[i * 2];
+        sensor.update(!sensor.active);
+        panelUI.setActive(sensor.active);
+      })
+
+      PANEL_UI_OBJECTS[i] = panelUI;
     }
 
-    LOOP_TIME_ELEMENT.innerText = Math.round(new Date().getTime() - start) + " ms";
-  }
+    let currentAmps = 0;
+    let maxAmps = 0;
+    let totalAmps = 0;
+    let iterations = 0;
+    const START_TIME = new Date().getTime();
 
-  /******************************************************************
-   * Power Calculations/Utilities
-   *****************************************************************/
+    setup();
 
-    // TODO: capture average amp-hours over time for various interactions for nightly consumption
-  const DRAW_PER_COLOR_PER_PANEL_AMPS = 0.8046715655;
+    renderLinearGradient("max_gradient", maxAnimationGradient, 1);
+    renderLinearGradient("initial_gradient", initial_gradient);
+    renderLinearGradient("blue_gradient", blue_gradient);
+    renderLinearGradient("green_gradient", green_gradient);
+    renderLinearGradient("purple_red_gradient", purple_red_gradient);
+    renderLinearGradient("green_blue_gradient", green_blue_gradient);
 
-  function calculatePowerDrawForColorAmps(color) {
-    return (color / 255) * DRAW_PER_COLOR_PER_PANEL_AMPS;
-  }
+    // const testCycle = new Cycle(100, LOOP_CYCLE);
+    // testCycle.start();
+    // for (let i = 0; i < 300; i++) {
+    //   testCycle.update();
+    //   if (i === 120) {
+    //     testCycle.release();
+    //   }
+    //
+    //   if (i === 135) {
+    //     testCycle.start();
+    //   }
+    //   console.log(i, testCycle.current_value, testCycle.clock.ticks, testCycle.isRising() ? "rising" : "falling", testCycle.isAtZeroPoint() ? `zero point` : null);
+    // }
 
-  function getPowerDrawAmps(red, green, blue) {
-    return calculatePowerDrawForColorAmps(red)
-      + calculatePowerDrawForColorAmps(green)
-      + calculatePowerDrawForColorAmps(blue);
-  }
+    const panelReverberation = new Reverberation(sensors[0], config);
 
-  function addPowerDrawAmps(amps) {
-    currentAmps += amps;
-    totalAmps += amps;
-
-    CURRENT_POWER_DRAW_ELEMENT.innerText = (currentAmps + "").substring(0, 4);
-    if (currentAmps > maxAmps) {
-      maxAmps = currentAmps;
-      MAX_POWER_DRAW_ELEMENT.innerText = (maxAmps + "").substring(0, 4);
-    }
-
-    let averageAmps = totalAmps / iterations;
-    AVERAGE_POWER_DRAW_ELEMENT.innerText = (averageAmps + "").substring(0, 4);
-  }
-
-  /******************************************************************
-   * UI Code
-   *****************************************************************/
-
-  const PANEL_TEMPLATE_ELEMENT = document.getElementById("panelTemplate");
-  const STAGE = document.getElementById("stage");
-
-  const GRADIENT_CONTAINER_ELEMENT = document.getElementById("gradientContainer");
-  const GRADIENT_TEMPLATE_ELEMENT = document.getElementById("gradientTemplate");
-
-  const TRIGGER_SCRIPT_TEXTAREA = document.getElementById("triggerScript");
-  const TRIGGER_SCRIPT_BUTTON = document.getElementById("triggerScriptButton");
-  const TRIGGER_WALK_DOWN_BUTTON = document.getElementById("triggerWalkDownButton");
-  document
-    .getElementById("triggerMaxInteractionsButton")
-    .addEventListener("click", () => triggerMaxInteraction());
-
-  function triggerMaxInteraction() {
-    let numberOfSensorsToTrigger = (config.max_interaction_threshold_percent * number_of_panels) + 1;
-    let indexesToTrigger = {};
-    while (Object.keys(indexesToTrigger).length < numberOfSensorsToTrigger) {
-      let panelIndex;
-      do {
-        panelIndex = Math.min(19, Math.round(Math.random() * number_of_panels));
-      } while (indexesToTrigger[panelIndex] != null);
-      indexesToTrigger[panelIndex] = 1;
-    }
-
-    Object.keys(indexesToTrigger).forEach(s => {
-      let i = parseInt(s);
-      sensors[i*2].update(true);
-      PANEL_UI_OBJECTS[i].setActive(true);
-    });
-  }
-
-  document
-    .getElementById("clearInteractionsButton")
-    .addEventListener("click", () => {
-      for (let i = 0; i < sensors.length; i++) {
-        sensors[i].update(false);
-      }
-      for (let i = 0; i < PANEL_UI_OBJECTS.length; i++) {
-        PANEL_UI_OBJECTS[i].setActive(false);
-      }
-    });
-
-
-  const CURRENT_POWER_DRAW_ELEMENT = document.getElementById("currentPowerDraw");
-  const MAX_POWER_DRAW_ELEMENT = document.getElementById("maxPowerDraw");
-  const AVERAGE_POWER_DRAW_ELEMENT = document.getElementById("averagePowerDraw");
-
-  const ELAPSED_TIME_ELEMENT = document.getElementById("elapsedTimeElement");
-  const LOOP_TIME_ELEMENT = document.getElementById("loopTime")
-
-  // TODO: show which panels have someone interacting
-  const REVERBERATIONS_INFO_ELEMENT = document.getElementById("reverberationsInfo");
-  const REVERBERATION_INFO_TEMPLATE_ELEMENT = document.getElementById("reverberationInfoTemplate");
-  const PANEL_REVERBERATION_INFO_TEMPLATE_ELEMENT = document.getElementById("panelReverberationInfoTemplate");
-
-  function renderLinearGradient(name, gradient, max) {
-    let rgbGradientElement = clone(GRADIENT_TEMPLATE_ELEMENT);
-    let hslGradientElement = clone(GRADIENT_TEMPLATE_ELEMENT);
-
-    let steps = 1000;
-    for (let i = 0; i < steps; i++) {
-
-      let color;
-      if (max) {
-        color = gradient.getColorForValue(i / steps);
+    const mainRunInterval = setInterval(() => {
+      currentAmps = 0;
+      let elapsedSeconds = Math.round((new Date().getTime() - START_TIME) / 1000);
+      if (elapsedSeconds > 59) {
+        let elapsedMinutes = Math.round(elapsedSeconds / 60);
+        ELAPSED_TIME_ELEMENT.innerText = elapsedMinutes + " minutes";
       } else {
-        color = gradient.getColorForValue(i / (steps / 2));
+        ELAPSED_TIME_ELEMENT.innerText = elapsedSeconds + " seconds";
       }
 
-      let rgbSpan = document.createElement("span");
-      rgbSpan.setAttribute("class", "gradient-slice");
-      rgbSpan.style.backgroundColor = toHexString(color.red, color.green, color.blue);
-      rgbGradientElement.appendChild(rgbSpan);
 
-      /*
-      let hslSpan = document.createElement("span");
-      hslSpan.setAttribute("class", "gradient-slice");
-      hslSpan.style.backgroundColor = toHSLString(color.hue, color.saturation, color.lightness);
-      hslGradientElement.appendChild(hslSpan);
-      */
-    }
+      loop();
 
-    let nameElement = document.createElement("p");
-    nameElement.innerText = name;
-    GRADIENT_CONTAINER_ELEMENT.appendChild(nameElement);
-    GRADIENT_CONTAINER_ELEMENT.appendChild(rgbGradientElement);
-    GRADIENT_CONTAINER_ELEMENT.appendChild(hslGradientElement);
-  }
+      panelReverberation.update();
 
-  function toHexString(red, green, blue) {
-    return "#"
-      + red.toString(16).padStart(2, "0")
-      + green.toString(16).padStart(2, "0")
-      + blue.toString(16).padStart(2, "0");
-  }
-
-  function toHSLString(hue, saturation, lightness) {
-    return "hsl(" + hue + ", " + saturation + "%, " + lightness + "%)";
-  }
-
-  function clone(templateElement) {
-    let clone = templateElement.cloneNode(true);
-    clone.attributes.removeNamedItem("id");
-    return clone;
-  }
-
-  function removeChildren(element) {
-    while (element.firstChild) {
-      element.removeChild(element.firstChild);
-    }
-  }
-
-  class PanelUI {
-    constructor(index, panelElement) {
-      this.index = index;
-      this.panelElement = panelElement;
-      this.panelUIElement = panelElement.querySelector("div[class='panel']");
-      this.panelInfoElement = panelElement.querySelector("div[class='panelInfo']");
-    }
-
-    setActive(active) {
-      if (active) {
-        this.panelInfoElement.innerText = "Active";
-      } else {
-        this.panelInfoElement.innerHTML = "&nbsp;";
+      for (let i = 0; i < panelReverberation.max_distance; i++) {
+        const pulse = panelReverberation.pulses[i];
+        const value = pulse.current_value;
+        const color = initial_gradient.getColorForValue(value);
+        PANEL_UI_OBJECTS[i].setColor(color.red, color.green, color.blue);
       }
-    }
 
-    setColor(red, green, blue) {
-      // red = gamma8[red];
-      // green = gamma8[green];
-      // blue = gamma8[blue];
-      this.panelUIElement.style.backgroundColor = toHexString(red, green, blue);
-      addPowerDrawAmps(getPowerDrawAmps(red, green, blue));
-    }
-  }
-
-  const PANEL_UI_OBJECTS = [];
-
-  for (let i = 0; i < number_of_panels; i++) {
-    let panelElement = clone(PANEL_TEMPLATE_ELEMENT);
-    panelElement.classList.add("panel-" + i);
-    STAGE.appendChild(panelElement);
-
-    let panelUI = new PanelUI(i, panelElement);
-    panelElement.addEventListener("click", () => {
-      let sensor = sensors[i*2];
-      sensor.update(!sensor.active);
-      panelUI.setActive(sensor.active);
-    })
-
-    PANEL_UI_OBJECTS[i] = panelUI;
-  }
-
-  let currentAmps = 0;
-  let maxAmps = 0;
-  let totalAmps = 0;
-  let iterations = 0;
-  const START_TIME = new Date().getTime();
-
-  setup();
-
-  renderLinearGradient("max_gradient", maxAnimationGradient,1);
-  renderLinearGradient("initial_gradient", initial_gradient);
-  renderLinearGradient("blue_gradient", blue_gradient);
-  renderLinearGradient("green_gradient", green_gradient);
-  renderLinearGradient("purple_red_gradient", purple_red_gradient);
-  renderLinearGradient("green_blue_gradient", green_blue_gradient);
-
-  // const testCycle = new Cycle(100, false, CYCLE_TYPE_UP_AND_DOWN);
-  // testCycle.start();
-  // for (let i = 0; i < 300; i++) {
-  //   testCycle.update();
-  //   if (i === 120) {
-  //     testCycle.release();
-  //   }
-  //
-  //   if (i === 135) {
-  //     testCycle.start();
-  //   }
-  //   console.log(i, testCycle.current_value, testCycle.clock.ticks, testCycle.isRising() ? "rising" : "falling", testCycle.isAtZeroPoint() ? `zero point` : null);
-  // }
-
-  const panelReverberation = new PanelReverberation(sensors[0], config);
-
-  const mainRunInterval = setInterval(() => {
-    currentAmps = 0;
-    let elapsedSeconds = Math.round((new Date().getTime() - START_TIME) / 1000);
-    if (elapsedSeconds > 59) {
-      let elapsedMinutes = Math.round(elapsedSeconds / 60);
-      ELAPSED_TIME_ELEMENT.innerText = elapsedMinutes + " minutes";
-    } else {
-      ELAPSED_TIME_ELEMENT.innerText = elapsedSeconds + " seconds";
-    }
-
-
-    loop();
-
-    panelReverberation.update();
-
-    for (let i = 0; i < panelReverberation.max_distance; i++) {
-      const pulse = panelReverberation.pulses[i];
-      const value = pulse.current_value;
-      const color = initial_gradient.getColorForValue(value);
-      PANEL_UI_OBJECTS[i].setColor(color.red, color.green, color.blue);
-    }
-
-    iterations++;
-  }, 1);
-});
+      iterations++;
+    }, 10);
+  });
 
 </script>
 </body>
