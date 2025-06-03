@@ -736,6 +736,7 @@ document.addEventListener("DOMContentLoaded",
         this._calculate_new_distance();
 
         // number _per side_.
+        let durationTicks = config.getTriggerPanelAnimationLoopDurationTicks();
         for (let i = 0; i < this.max_distance; i++) {
           const amplitude = (this.max_distance - i) / this.max_distance;
           // TODO: if the duration is the same, the lower amplitude colors shift slower. With the gamma map,
@@ -746,8 +747,7 @@ document.addEventListener("DOMContentLoaded",
           // TODO: I think the delay should be a similar value or calc to the duration and amplitude to make a more natural flow.
           //  it looks janky when the far panel animates really quickly after a short delay.
           const cycle_type = i == 0 ? LOOP_CYCLE : ONE_SHOT_CYCLE;
-          const duration = (200 * amplitude);
-          this.pulses[i] = new Pulse(amplitude, 200, cycle_type);
+          this.pulses[i] = new Pulse(amplitude, durationTicks, cycle_type);
         }
       }
 
@@ -968,7 +968,7 @@ document.addEventListener("DOMContentLoaded",
       config.reverberation_distance_range = new Range(2, 5);
       // how long to wait to trigger a neighbor Panel to reverberate
       config.reverberation_panel_delay_ticks = 20;
-      config.trigger_panel_animation_loop_duration_ticks_range = new Range(220, 300);
+      config.trigger_panel_animation_loop_duration_ticks_range = new Range(80, 220);
       config.max_interaction_threshold_percent = .85;
       config.intermediate_interaction_threshold_percent = .5;
       config.min_max_interaction_gradient_transition_duration = 5000;
