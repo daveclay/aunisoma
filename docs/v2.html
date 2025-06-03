@@ -418,32 +418,24 @@ document.addEventListener("DOMContentLoaded",
      *****************************************************************/
 
     class TransitionAnimation {
-      constructor(durationTicks,
-                  transitionAnimationCallback) {
+      constructor(duration) {
         this.active;
         this.cycle;
-        this.transitionAnimationCallback;
-        this.current_value;
-        this.target_gradient;
+        this.current_gradient;
+        this.next_gradient;
 
-        XXX
-
-        this.transitionAnimationCallback = transitionAnimationCallback;
-        this.cycle = new Cycle(durationTicks,
-          false,
-          CYCLE_TYPE_UP,
-          this);
+        this.cycle = new Cycle(duration, ONE_SHOT_CYCLE, UP_ONLY_CYCLE);
 
         this.current_value = 0;
         this.active = false;
       }
 
-      value(value, direction) {
-        this.current_value = value;
-      }
-
-      start(new_target_gradient) {
-        this.target_gradient = new_target_gradient;
+      start(current_gradient, next_gradient) {
+        this.current_gradient = current_gradient;
+        this.next_gradient = next_gradient;
+        // TODO: if this was already started, this will jump...
+        // Note: restart() will reset the `iterations` so we can
+        // determine whether the animation has run once vs not run yet.
         this.cycle.restart();
         this.active = true;
       }
@@ -453,22 +445,32 @@ document.addEventListener("DOMContentLoaded",
           return;
         }
 
-        this.cycle.next();
+        this.cycle.update();
 
-        if (this.current_value >= .97) {
-          // Done!
-          this.transitionAnimationCallback.switch_to_next_gradient();
+        if (this.cycle.isDone()) {
           this.cycle.stop();
           this.active = false;
         }
       }
 
-      get_color(panel_value) {
-        let current_gradient = this.transitionAnimationCallback.getCurrentGradient();
-        let from_color = current_gradient.getColorForValue(panel_value);
-        let to_color = this.target_gradient.getColorForValue(panel_value);
+      is_done() {
+        // how do I know if it's done? It has to have _run_ to be done.
+        return this.cycle.isDone();
+      }
 
-        let color = from_color.interpolate(to_color, this.current_value);
+      /**
+       * Used to reset the state of the transition animation so it can
+       * be started again, vs knowing it is done and has stopped.
+       */
+      reset() {
+        this.cycle.reset();
+      }
+
+      get_color(panel_value) {
+        let from_color = this.current_gradient.getColorForValue(panel_value);
+        let to_color = this.next_gradient.getColorForValue(panel_value);
+
+        let color = from_color.interpolate(to_color, this.cycle.current_value);
 
         return color;
       }
@@ -648,12 +650,19 @@ document.addEventListener("DOMContentLoaded",
 
       /**
        * Stops the cycle from running - does not "release" it!
-       * TODO: should this be public? Does anyone outside of a cycle want to release it?
        */
       stop() {
         this.clock.stop();
         this.current_value = 0;
         this.release_phase = false;
+      }
+
+      /**
+       * Reset the cycle so it can be run again.
+       */
+      reset() {
+        // The `iterations` tracks whether this cycle has run or not.
+        this.iterations = 0;
       }
 
       /**
@@ -745,6 +754,10 @@ document.addEventListener("DOMContentLoaded",
 
       isStopped() {
         return this.clock.isStopped();
+      }
+
+      is_running() {
+        return this.clock.running;
       }
     }
 
@@ -1020,28 +1033,47 @@ document.addEventListener("DOMContentLoaded",
       constructor(config,
                   maxAnimationGradient,
                   gradients,
-                  numberOfGradients,
+                  number_of_gradients,
                   sensors) {
         this.config;
         this.sensors;
-        this.numberOfPanels;
+        this.gradients;
+        this.number_of_panels;
+        this.number_of_sensors;
+        this.number_of_gradients;
+        this.current_interaction_percent;
+        this.intermediate_interaction_debounce;
+        this.intermediate_transition_delay_cycle;
         this.panels;
         this.reverberations;
         this.panel_smoothing_functions;
+        this.gradient_transition_animation;
+        this.current_gradient_index;
+        this.next_gradient_index;
+        this.current_gradient;
+        this.max_gradient_index;
 
-        this.sensors = sensors;
         this.config = config;
-        this.numberOfPanels = config.number_of_panels;
+        this.sensors = sensors;
+        this.gradients = gradients;
+        this.number_of_panels = config.number_of_panels;
+        this.number_of_sensors = config.number_of_sensors;
+        this.number_of_gradients = number_of_gradients;
+        this.current_interaction_percent = 0;
+        this.intermediate_interaction_debounce = new Debounce(10);
+        this.intermediate_transition_delay_cycle = new Cycle(
+          this.config.delay_for_gradient_transition_duration,
+          ONE_SHOT_CYCLE,
+          UP_ONLY_CYCLE
+        );
         this.panels = [];
         this.reverberations = [];
         this.panel_smoothing_functions = [];
-
-        this.gradients = gradients;
-        this.numberOfGradients = numberOfGradients;
+        this.gradient_transition_animation = new TransitionAnimation(config.gradient_transition_animation_duration)
         this.current_gradient_index = 0;
         this.next_gradient_index = 0;
-        this.currentGradient = this.gradients[this.current_gradient_index];
-        this.maxGradientIndex = this.numberOfGradients - 1;
+        this.current_gradient = this.gradients[this.current_gradient_index];
+        this.max_gradient_index = this.number_of_gradients - 1;
 
         this._create_panels();
         this._create_reverberations();
@@ -1049,7 +1081,7 @@ document.addEventListener("DOMContentLoaded",
       }
 
       _create_panels() {
-        for (let i = 0; i < this.numberOfPanels; i++) {
+        for (let i = 0; i < this.number_of_panels; i++) {
           let panel = new Panel(i);
           panel.index = i;
           this.panels[i] = panel;
@@ -1074,10 +1106,30 @@ document.addEventListener("DOMContentLoaded",
         return this.panels[index];
       }
 
-      event_loop() {
+      update() {
+        this._calculate_interaction_percent();
+
         for (let reverberation_index = 0; reverberation_index < this.reverberations.length; reverberation_index++) {
           const reverberation = this.reverberations[reverberation_index];
           reverberation.update();
+        }
+
+        this._update_intermediate_transition_state();
+
+        if (this._is_time_to_transition_gradients()) {
+          this._start_gradient_transition();
+        }
+
+        if (this.gradient_transition_animation.active) {
+          // if the transition is active, update it's state/clock.
+          this.gradient_transition_animation.update();
+        } else if (this.gradient_transition_animation.is_done()) {
+          // If the transition animation is done, swap the gradients to the next
+          // gradient and reset the transition.
+          this.gradient_transition_animation.reset();
+          this.current_gradient_index = this.next_gradient_index;
+          this.current_gradient = this.gradients[this.current_gradient_index];
+          console.log("finished gradient transition!");
         }
 
         for (let panel_index = 0; panel_index < number_of_panels; panel_index++) {
@@ -1090,9 +1142,122 @@ document.addEventListener("DOMContentLoaded",
           }
 
           const value = panel_smoothing_fn.get_smoothed_value(panel_value);
-          const color = this.currentGradient.getColorForValue(value);
+          const color = this._calculate_color_for_value(value);
           this.panels[panel_index].color = color;
         }
+      }
+
+      _calculate_color_for_value(value) {
+        if (this.gradient_transition_animation.active) {
+          return this.gradient_transition_animation.get_color(value);
+        } else {
+          return this.current_gradient.getColorForValue(value);
+        }
+      }
+
+      _update_intermediate_transition_state() {
+        if (this._is_intermediate_interaction()) {
+          // If we're at the intermediate interaction level
+          if (this.intermediate_transition_delay_cycle.is_running()) {
+            this.intermediate_transition_delay_cycle.update();
+          } else {
+            // and we haven't started the cycle to trigger intermediate transition,
+            // start that cycle.
+            // TODO: if we don't start the transition immediately, this will re-start the cycle delay.
+            // tODO: should we move this whole delay out of Aunisoma? Maybe not TransitionAnimation, but
+            // something that manages the intermediate interactivity state?
+            this.intermediate_transition_delay_cycle.start();
+          }
+        } else {
+          // if the intermediate interactivity isn't reached, stop the clock.
+          this.intermediate_transition_delay_cycle.stop();
+        }
+      }
+
+      _is_time_to_transition_gradients() {
+        return this._is_intermediate_interaction() &&
+          // TODO: but did it run?! Should, yes, we're not stopping it unless
+          // we intended to stop it (which clears the done state)
+          this.intermediate_transition_delay_cycle.isDone();
+      }
+
+      /**
+       * Start the intermediate gradient transition
+       */
+      _start_gradient_transition() {
+        console.log("starting gradient transition!");
+        // stop the delay cycle, since we've started.
+        // tODO: if we stop it, the next calculation will restart it :-/ retriggering this
+        this.intermediate_transition_delay_cycle.stop();
+        this.next_gradient_index = this.current_gradient_index + 1;
+        if (this.next_gradient_index == this.number_of_gradients) {
+          // hit the max, loop around.
+          this.next_gradient_index = 0;
+        }
+
+        let next_gradient = this.gradients[this.next_gradient_index];
+        this.gradient_transition_animation.start(
+          this.current_gradient,
+          next_gradient
+        );
+      }
+
+      _calculate_interaction_percent() {
+        let active_sensor_count = 0;
+        for (let i = 0; i < this.number_of_sensors; i++) {
+          const sensor = this.sensors[i];
+          if (sensor.active) {
+            active_sensor_count++;
+          }
+        }
+        this.current_interaction_percent = active_sensor_count / this.number_of_sensors;
+      }
+
+      _is_intermediate_interaction() {
+        const currently_high = this.current_interaction_percent > this.config.intermediate_interaction_threshold_percent;
+        return this.intermediate_interaction_debounce.update(currently_high);
+      }
+
+      _is_max_interaction() {
+        return this.current_interaction_percent > this.config.intermediate_interaction_threshold_percent;
+      }
+    }
+
+    /******************************************************************
+     * Debounce
+     *
+     * Utility to debounce boolean value
+     *****************************************************************/
+    class Debounce {
+      constructor(debounce_ticks) {
+        this.reading;
+        this.last_debounce_time;
+        this.previous_reading;
+        this.debounce_ticks;
+
+        this.reading = false;
+        this.last_debounce_time = -1;
+        this.previous_reading = false;
+        this.debounce_ticks = debounce_ticks;
+      }
+
+      update(new_reading) {
+        let currentMillis = millis();
+        if (this.previous_reading != new_reading) {
+          this.last_debounce_time = currentMillis;
+        }
+
+        if ((currentMillis - this.last_debounce_time) >= this.debounce_ticks) {
+          // whatever the reading is at, it's been there for longer than the debounce
+          // delay, so take it as the actual current state:
+          if (this.reading != new_reading) {
+            this.reading = new_reading;
+          }
+        }
+
+        this.previous_reading = new_reading;
+
+        return this.reading;
       }
     }
 
@@ -1109,30 +1274,15 @@ document.addEventListener("DOMContentLoaded",
     class Sensor {
 
       constructor() {
+        this.debounce;
         this.active;
-        this.lastDebounceTime;
-        this.lastReading;
 
+        this.debounce = new Debounce(DEBOUNCE_PIR_DELAY);
         this.active = false;
-        this.lastDebounceTime = -1;
-        this.lastReading = false;
       }
 
       update(reading) {
-        let currentMillis = millis();
-        if (this.lastReading != reading) {
-          this.lastDebounceTime = currentMillis;
-        }
-
-        if ((currentMillis - this.lastDebounceTime) >= DEBOUNCE_PIR_DELAY) {
-          // whatever the reading is at, it's been there for longer than the debounce
-          // delay, so take it as the actual current state:
-          if (this.active != reading) {
-            this.active = reading;
-          }
-        }
-
-        this.lastReading = reading;
+        this.active = this.debounce.update(reading);
       }
     }
 
@@ -1142,10 +1292,10 @@ document.addEventListener("DOMContentLoaded",
     let sensors = [];
 
     let number_of_panels = 20;
+    let number_of_sensors = 40;
     let config = new Config();
 
     let maxAnimationGradient = new LinearGradientValueMap();
-    let full_gradient = new LinearGradientValueMap();
     let initial_gradient = new LinearGradientValueMap();
     let blue_gradient = new LinearGradientValueMap();
     let green_gradient = new LinearGradientValueMap();
@@ -1153,7 +1303,6 @@ document.addEventListener("DOMContentLoaded",
     let green_blue_gradient = new LinearGradientValueMap();
 
     let gradients = [
-      full_gradient,
       initial_gradient,
       blue_gradient,
       purple_red_gradient,
@@ -1179,23 +1328,6 @@ document.addEventListener("DOMContentLoaded",
       maxAnimationGradient.add_rgb_point(0.80, 255, 0, 255);
       maxAnimationGradient.add_rgb_point(0.89, 255, 0, 200);
       maxAnimationGradient.add_rgb_point(1.00, 255, 0, 0);
-
-      full_gradient.add_rgb_point(0.00, 3, 0, 0);
-      full_gradient.add_rgb_point(.4, 255, 0, 0);
-      full_gradient.add_rgb_point(0.6, 255, 127, 0);
-      full_gradient.add_rgb_point(0.8, 255, 255, 0);
-      full_gradient.add_rgb_point(0.9, 200, 255, 0);
-      full_gradient.add_rgb_point(1, 0, 255, 0);
-      full_gradient.add_rgb_point(1.2, 0, 255, 127);
-      full_gradient.add_rgb_point(1.3, 0, 255, 200);
-      full_gradient.add_rgb_point(1.4, 0, 255, 255);
-      full_gradient.add_rgb_point(1.6, 0, 120, 255);
-      full_gradient.add_rgb_point(1.8, 0, 0, 255);
-      full_gradient.add_rgb_point(2.3, 160, 0, 255);
-      full_gradient.add_rgb_point(2.8, 255, 0, 255);
-      full_gradient.add_rgb_point(3, 255, 0, 255);
-      full_gradient.add_rgb_point(3.3, 255, 0, 200);
-      full_gradient.add_rgb_point(5, 255, 0, 0);
 
       initial_gradient.add_rgb_point(0.0, 3, 0, 0);
       initial_gradient.add_rgb_point(.4, 255, 0, 0);
@@ -1228,19 +1360,32 @@ document.addEventListener("DOMContentLoaded",
       green_blue_gradient.add_rgb_point(3, 255, 0, 255);
 
       config.number_of_panels = number_of_panels;
+      config.number_of_sensors = number_of_sensors;
       config.reverberation_distance_range = new Range(2, 5);
       // how long to wait to trigger a neighbor Panel to reverberate
       config.reverberation_panel_delay_ticks = 20;
+      // total duration of a pulse wave from low to high back to low
       config.trigger_panel_animation_loop_duration_ticks_range = new Range(80, 220);
+      // How many sensors need to be high to trigger the max interaction state
       config.max_interaction_threshold_percent = .85;
-      config.intermediate_interaction_threshold_percent = .5;
-      config.min_max_interaction_gradient_transition_duration = 5000;
+      // how many sensors need to be high to trigger a gradient transition "intermediate" state
+      config.intermediate_interaction_threshold_percent = .2;
+      // how long to wait for a gradient transition
+      config.delay_for_gradient_transition_duration = 5000;
+
+      // TODO: what is this for?
       config.odds_for_max_interaction_gradient_transition = 90;
+
+      // smoothing amount for panel values. In the web mockup, 10 is a
+      // little jumpy, 30 is smooth, 100 blurs so that it never goes
+      // back to 0 even when the Reverberation is active (which I like)
       config.smoothing_fn_window_size = 100;
+      // How long it takes to transition from one gradient to another
+      config.gradient_transition_animation_duration = 500;
 
       config.init();
 
-      for (let i = 0; i < 40; i++) {
+      for (let i = 0; i < number_of_sensors; i++) {
         sensors[i] = new Sensor();
       }
 
@@ -1249,7 +1394,7 @@ document.addEventListener("DOMContentLoaded",
 
     function loop() {
       let start = new Date().getTime();
-      aunisoma.event_loop();
+      aunisoma.update();
 
       for (let i = 0; i < number_of_panels; i++) {
         let panel = aunisoma.get_panel_at(i);
@@ -1458,7 +1603,6 @@ document.addEventListener("DOMContentLoaded",
     setup();
 
     renderLinearGradient("max_gradient", maxAnimationGradient, 1);
-    renderLinearGradient("full_gradient", full_gradient);
     renderLinearGradient("initial_gradient", initial_gradient);
     renderLinearGradient("blue_gradient", blue_gradient);
     renderLinearGradient("green_gradient", green_gradient);
