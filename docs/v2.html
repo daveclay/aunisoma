@@ -714,9 +714,12 @@ document.addEventListener("DOMContentLoaded",
      *
      *****************************************************************/
     class Reverberation {
-      constructor(sensor, config) {
+      constructor(sensor, config, panel_index) {
         this.sensor;
         this.config;
+        this.panel_index;
+        this.first_panel_index;
+        this.last_panel_index;
         this.active;
         this.max_distance;
         this.delay;
@@ -727,6 +730,9 @@ document.addEventListener("DOMContentLoaded",
 
         this.sensor = sensor;
         this.config = config;
+        this.panel_index = panel_index;
+        this.first_panel_index = 0;
+        this.last_panel_index = 0;
         this.active = false;
         this.delay_complete = false;
         this.max_distance = config.reverberation_distance_range.max;
@@ -798,6 +804,21 @@ document.addEventListener("DOMContentLoaded",
         this.delay_complete = false;
       }
 
+      get_panel_value_for_panel_index(panel_index) {
+        if (panel_index < this.first_panel_index || panel_index > this.last_panel_index) {
+          return 0;
+        }
+
+        // given panel index of 0, and this panel index of 3, and distance of 2:
+        // ? = 3 - 0 - outside of range!
+        // 2 = 3 - 1
+        // 1 = 3 - 2
+        // 0 = 3 - 3
+        // 1 = 3 - 4
+        const index = abs(this.panel_index - panel_index);
+        return this.pulses[index].current_value;
+      }
+
       _restart_pulses() {
         // at this point the interaction just started or has looped.
         this._calculate_new_distance();
@@ -811,6 +832,8 @@ document.addEventListener("DOMContentLoaded",
 
       _calculate_new_distance() {
         this.distance = this.config.get_reverberation_distance();
+        this.first_panel_index = max(0, this.panel_index - this.distance + 1);
+        this.last_panel_index = min(config.number_of_panels - 1, this.panel_index + this.distance - 1);
       }
     }
 
@@ -1214,7 +1237,12 @@ document.addEventListener("DOMContentLoaded",
     //   console.log(i, testCycle.current_value, testCycle.clock.ticks, testCycle.isRising() ? "rising" : "falling", testCycle.isAtZeroPoint() ? `zero point` : null);
     // }
 
-    const panelReverberation = new Reverberation(sensors[0], config);
+    // indexed by panel position, let's say. We could give it a panel index. Eh, let's do that.
+    const reverberations = [
+      new Reverberation(sensors[0], config, 0),
+      new Reverberation(sensors[1], config, 1),
+      new Reverberation(sensors[2], config, 2)
+    ];
 
     const mainRunInterval = setInterval(() => {
       currentAmps = 0;
@@ -1229,13 +1257,21 @@ document.addEventListener("DOMContentLoaded",
 
       loop();
 
-      panelReverberation.update();
+      for (let reverberation_index = 0; reverberation_index < reverberations.length; reverberation_index++) {
+        const reverberation = reverberations[reverberation_index];
+        reverberation.update();
+      }
 
-      for (let i = 0; i < panelReverberation.max_distance; i++) {
-        const pulse = panelReverberation.pulses[i];
-        const value = pulse.current_value;
-        const color = initial_gradient.getColorForValue(value);
-        PANEL_UI_OBJECTS[i].setColor(color.red, color.green, color.blue);
+      for (let panel_index = 0; panel_index < number_of_panels; panel_index++) {
+        let panel_value = 0;
+
+        for (let reverberation_index = 0; reverberation_index < reverberations.length; reverberation_index++) {
+          const reverberation = reverberations[reverberation_index];
+          panel_value += reverberation.get_panel_value_for_panel_index(panel_index);
+        }
+
+        const color = initial_gradient.getColorForValue(panel_value);
+        PANEL_UI_OBJECTS[panel_index].setColor(color.red, color.green, color.blue);
       }
 
       iterations++;
