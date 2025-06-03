@@ -476,6 +476,12 @@ document.addEventListener("DOMContentLoaded",
       }
     }
 
+    /******************************************************************
+     * ColorManager
+     * manages the color gradients and transitions between them based
+     * on interaction percentage.
+     *****************************************************************/
+
     class ColorManager {
       constructor(gradients, number_of_gradients, config) {
         this.config;
@@ -519,6 +525,8 @@ document.addEventListener("DOMContentLoaded",
           // If the transition animation is done, swap the gradients to the next
           // gradient and reset the transition.
           this.gradient_transition_animation.reset();
+          // TODO: make this a random time - and make it _minutes_
+          this.intermediate_transition_delay_timer.restart(config.delay_for_gradient_transition_duration)
           this.current_gradient_index = this.next_gradient_index;
           this.current_gradient = this.gradients[this.current_gradient_index];
           this.transition_active = false;
@@ -1389,15 +1397,13 @@ document.addEventListener("DOMContentLoaded",
       // how many sensors need to be high to trigger a gradient transition "intermediate" state
       config.intermediate_interaction_threshold_percent = .2;
       // how long to wait for a gradient transition
+      // tODO: make this random and longer
       config.delay_for_gradient_transition_duration = 2000;
-
-      // TODO: what is this for?
-      config.odds_for_max_interaction_gradient_transition = 90;
 
       // smoothing amount for panel values. In the web mockup, 10 is a
       // little jumpy, 30 is smooth, 100 blurs so that it never goes
       // back to 0 even when the Reverberation is active (which I like)
-      config.smoothing_fn_window_size = 100;
+      config.smoothing_fn_window_size = 50;
       // How long it takes to transition from one gradient to another
       config.gradient_transition_animation_duration = 500;
 
@@ -1531,13 +1537,6 @@ document.addEventListener("DOMContentLoaded",
         rgbSpan.setAttribute("class", "gradient-slice");
         rgbSpan.style.backgroundColor = toHexString(color.red, color.green, color.blue);
         rgbGradientElement.appendChild(rgbSpan);
-
-        /*
-        let hslSpan = document.createElement("span");
-        hslSpan.setAttribute("class", "gradient-slice");
-        hslSpan.style.backgroundColor = toHSLString(color.hue, color.saturation, color.lightness);
-        hslGradientElement.appendChild(hslSpan);
-        */
       }
 
       let nameElement = document.createElement("p");
