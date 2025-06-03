@@ -413,6 +413,68 @@ document.addEventListener("DOMContentLoaded",
     }
 
     /******************************************************************
+     * TransitionAnimation
+     * Utility to transition between gradients
+     *****************************************************************/
+
+    class TransitionAnimation {
+      constructor(durationTicks,
+                  transitionAnimationCallback) {
+        this.active;
+        this.cycle;
+        this.transitionAnimationCallback;
+        this.current_value;
+        this.target_gradient;
+
+        XXX
+
+        this.transitionAnimationCallback = transitionAnimationCallback;
+        this.cycle = new Cycle(durationTicks,
+          false,
+          CYCLE_TYPE_UP,
+          this);
+
+        this.current_value = 0;
+        this.active = false;
+      }
+
+      value(value, direction) {
+        this.current_value = value;
+      }
+
+      start(new_target_gradient) {
+        this.target_gradient = new_target_gradient;
+        this.cycle.restart();
+        this.active = true;
+      }
+
+      update() {
+        if (!this.active) {
+          return;
+        }
+
+        this.cycle.next();
+
+        if (this.current_value >= .97) {
+          // Done!
+          this.transitionAnimationCallback.switch_to_next_gradient();
+          this.cycle.stop();
+          this.active = false;
+        }
+      }
+
+      get_color(panel_value) {
+        let current_gradient = this.transitionAnimationCallback.getCurrentGradient();
+        let from_color = current_gradient.getColorForValue(panel_value);
+        let to_color = this.target_gradient.getColorForValue(panel_value);
+
+        let color = from_color.interpolate(to_color, this.current_value);
+
+        return color;
+      }
+    }
+
+    /******************************************************************
      * ValueSmoothingFn
      * Uses a buffer to average values over a window
      *****************************************************************/
@@ -545,13 +607,17 @@ document.addEventListener("DOMContentLoaded",
      *****************************************************************/
     const ONE_SHOT_CYCLE = true;
     const LOOP_CYCLE = false;
+    const UP_ONLY_CYCLE = 1;
+    const UP_DOWN_CYCLE = 2;
 
     class Cycle {
 
       constructor(duration_ticks,
-                  cycle_type) {
+                  one_shot,
+                  cycle_type
+      ) {
         this.duration_ticks = 0;
-        this.oneShot = false;
+        this.one_shot = false;
         this.cycle_type;
         this.release_phase;
         this.clock;
@@ -559,7 +625,8 @@ document.addEventListener("DOMContentLoaded",
         this.iterations;
 
         this.duration_ticks = duration_ticks;
-        this.oneShot = cycle_type == ONE_SHOT_CYCLE;
+        this.one_shot = one_shot;
+        this.cycle_type = cycle_type;
         this.clock = new Clock();
         this.release_phase = false;
         this.iterations = 0;
@@ -595,7 +662,7 @@ document.addEventListener("DOMContentLoaded",
        */
       release() {
         this.release_phase = true;
-        if (this.isRising()) {
+        if (this.isRising() && this.cycle_type == UP_DOWN_CYCLE) {
           // If we're on the rising side of the cycle, jump the clock ticks
           // to the next down cycle at the same point: if we're at tick 23
           // of a duration of 100, then we're jumping to clock tick 67
@@ -627,7 +694,7 @@ document.addEventListener("DOMContentLoaded",
           // of iterations.
           this.iterations += 1;
 
-          if (this.oneShot || this.release_phase) {
+          if (this.one_shot || this.release_phase) {
             // If this is a one-shot or the "release" is done, the Cycle is done.
             // Stop the clock, and return.
             this.stop();
@@ -636,17 +703,22 @@ document.addEventListener("DOMContentLoaded",
         }
 
         let looping_elapsed_duration = this.clock.ticks % this.duration_ticks;
-
-        let half_animation_loop_duration_ticks = round(this.duration_ticks / 2);
-        if (looping_elapsed_duration <= half_animation_loop_duration_ticks) {
-          this.current_value = looping_elapsed_duration / half_animation_loop_duration_ticks;
+        if (this.cycle_type == UP_ONLY_CYCLE) {
+          this.current_value = looping_elapsed_duration / this.duration_ticks;
         } else {
-          this.current_value = (this.duration_ticks - 1 - looping_elapsed_duration) / half_animation_loop_duration_ticks;
+          let half_animation_loop_duration_ticks = round(this.duration_ticks / 2);
+          if (looping_elapsed_duration <= half_animation_loop_duration_ticks) {
+            this.current_value = looping_elapsed_duration / half_animation_loop_duration_ticks;
+          } else {
+            this.current_value = (this.duration_ticks - 1 - looping_elapsed_duration) / half_animation_loop_duration_ticks;
+          }
         }
       }
 
       isRising() {
-        // no, this requires reseting the ticks
+        if (this.cycle_type == UP_ONLY_CYCLE) {
+          return true;
+        }
         const relative_ticks = this.clock.ticks % this.duration_ticks;
         return relative_ticks < (this.duration_ticks / 2);
       }
@@ -668,7 +740,7 @@ document.addEventListener("DOMContentLoaded",
       }
 
       isDone() {
-        return this.oneShot && this.iterations > 0;
+        return this.one_shot && this.iterations > 0;
       }
 
       isStopped() {
@@ -713,7 +785,7 @@ document.addEventListener("DOMContentLoaded",
      *
      *****************************************************************/
     class Pulse {
-      constructor(amplitude, duration, cycle_type) {
+      constructor(amplitude, duration, one_shot) {
         this.amplitude;
         this.active;
         this.current_value;
@@ -722,7 +794,7 @@ document.addEventListener("DOMContentLoaded",
         this.amplitude = amplitude;
         this.active = false;
         this.current_value = 0;
-        this.cycle = new Cycle(duration, cycle_type);
+        this.cycle = new Cycle(duration, one_shot, UP_DOWN_CYCLE);
       }
 
       update(active) {
@@ -803,8 +875,8 @@ document.addEventListener("DOMContentLoaded",
           //  while the front panel cycles really quickly. It does pulse, but it's not as natural.
           // TODO: I think the delay should be a similar value or calc to the duration and amplitude to make a more natural flow.
           //  it looks janky when the far panel animates really quickly after a short delay.
-          const cycle_type = i == 0 ? LOOP_CYCLE : ONE_SHOT_CYCLE;
-          this.pulses[i] = new Pulse(amplitude, durationTicks, cycle_type);
+          const one_shot = i == 0 ? LOOP_CYCLE : ONE_SHOT_CYCLE;
+          this.pulses[i] = new Pulse(amplitude, durationTicks, one_shot);
         }
       }
 
