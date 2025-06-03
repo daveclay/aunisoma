@@ -480,7 +480,7 @@ document.addEventListener("DOMContentLoaded",
       constructor(gradients, number_of_gradients, config) {
         this.config;
         this.intermediate_interaction_debounce;
-        this.intermediate_transition_delay_cycle;
+        this.intermediate_transition_delay_timer;
         this.gradient_transition_animation;
         this.gradients;
         this.number_of_gradients;
@@ -488,14 +488,14 @@ document.addEventListener("DOMContentLoaded",
         this.next_gradient_index;
         this.current_gradient;
         this.max_gradient_index;
-        this.active;
+        this.transition_active;
 
         this.config = config;
         this.gradients = gradients;
         this.number_of_gradients = number_of_gradients;
         // TODO: move debounce time to config
         this.intermediate_interaction_debounce = new Debounce(10);
-        this.intermediate_transition_delay_cycle = new Cycle(
+        this.intermediate_transition_delay_timer = new Cycle(
           this.config.delay_for_gradient_transition_duration,
           ONE_SHOT_CYCLE,
           UP_ONLY_CYCLE
@@ -505,16 +505,12 @@ document.addEventListener("DOMContentLoaded",
         this.next_gradient_index = 0;
         this.current_gradient = this.gradients[this.current_gradient_index];
         this.max_gradient_index = this.number_of_gradients - 1;
-        this.active = false;
+        this.transition_active = false;
       }
 
       update(current_interaction_percent) {
         this.current_interaction_percent = current_interaction_percent;
         this._update_intermediate_transition_state();
-
-        if (this._is_time_to_transition_gradients()) {
-          this._start_gradient_transition();
-        }
 
         if (this.gradient_transition_animation.active) {
           // if the transition is active, update it's state/clock.
@@ -530,7 +526,7 @@ document.addEventListener("DOMContentLoaded",
       }
 
       get_color(value) {
-        if (this.active) {
+        if (this.transition_active) {
           return this.gradient_transition_animation.get_color(value);
         } else {
           return this.current_gradient.getColorForValue(value);
@@ -539,28 +535,23 @@ document.addEventListener("DOMContentLoaded",
 
       _update_intermediate_transition_state() {
         if (this._is_intermediate_interaction()) {
-          // If we're at the intermediate interaction level
-          if (this.intermediate_transition_delay_cycle.is_running()) {
-            this.intermediate_transition_delay_cycle.update();
+          // If we've reached the intermediate interaction level
+          if (this.intermediate_transition_delay_timer.is_running()) {
+            // if the delay cycle is running, update it's state
+            this.intermediate_transition_delay_timer.update();
+            if (this.intermediate_transition_delay_timer.isDone() && !this.transition_active) {
+              // if the timer is done, and we're not transitioning, it is time to transition!
+              this._start_gradient_transition();
+            }
           } else {
-            // and we haven't started the cycle to trigger intermediate transition,
-            // start that cycle.
-            // TODO: if we don't start the transition immediately, this will re-start the cycle delay.
-            // tODO: should we move this whole delay out of Aunisoma? Maybe not TransitionAnimation, but
-            // something that manages the intermediate interactivity state?
-            this.intermediate_transition_delay_cycle.start();
+            // Otherwise we haven't started the cycle to trigger
+            // intermediate transition, so start that cycle.
+            this.intermediate_transition_delay_timer.start();
           }
         } else {
-          // if the intermediate interactivity isn't reached, stop the clock.
-          this.intermediate_transition_delay_cycle.stop();
+          // if the intermediate interactivity isn't reached, stop the timer
+          this.intermediate_transition_delay_timer.stop();
         }
-      }
-
-      _is_time_to_transition_gradients() {
-        return this._is_intermediate_interaction() &&
-          // TODO: but did it run?! Should, yes, we're not stopping it unless
-          // we intended to stop it (which clears the done state)
-          this.intermediate_transition_delay_cycle.isDone();
       }
 
       /**
@@ -568,9 +559,9 @@ document.addEventListener("DOMContentLoaded",
        */
       _start_gradient_transition() {
         console.log("starting gradient transition!");
-        // stop the delay cycle, since we've started.
-        // tODO: if we stop it, the next calculation will restart it :-/ retriggering this
-        this.intermediate_transition_delay_cycle.stop();
+        this.transition_active = true;
+        // Note: The intermediate_transition_delay_timer shoudl have stopped if isDone is true.
+        // I think.
         this.next_gradient_index = this.current_gradient_index + 1;
         if (this.next_gradient_index == this.number_of_gradients) {
           // hit the max, loop around.
@@ -1392,7 +1383,7 @@ document.addEventListener("DOMContentLoaded",
       // how many sensors need to be high to trigger a gradient transition "intermediate" state
       config.intermediate_interaction_threshold_percent = .2;
       // how long to wait for a gradient transition
-      config.delay_for_gradient_transition_duration = 5000;
+      config.delay_for_gradient_transition_duration = 2000;
 
       // TODO: what is this for?
       config.odds_for_max_interaction_gradient_transition = 90;
