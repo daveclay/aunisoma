@@ -521,6 +521,12 @@ document.addEventListener("DOMContentLoaded",
           this.gradient_transition_animation.reset();
           this.current_gradient_index = this.next_gradient_index;
           this.current_gradient = this.gradients[this.current_gradient_index];
+          this.transition_active = false;
+          // TODO: ok, so the new problem is that this will constantly cycle through gradients because
+          // there is no state where we say "don't run the timer and don't transition."
+          // Note: which is probably fine because we always want to shift through
+          // gradients, just on a long, random timescale. We don't have to, but that's
+          // the best idea I've had so far.
           console.log("finished gradient transition!");
         }
       }
