@@ -413,6 +413,63 @@ document.addEventListener("DOMContentLoaded",
     }
 
     /******************************************************************
+     * ValueSmoothingFn
+     * Uses a buffer to average values over a window
+     *****************************************************************/
+
+    class ValueSmoothingFn {
+      constructor(window_size) {
+        this.values;
+        this.window_size;
+        this.current_value_index;
+        this.initializing;
+
+        this.values = [];
+        this.window_size = window_size;
+        this.current_value_index = 0;
+        this.initializing = true;
+      }
+
+      get_smoothed_value(new_value) {
+        if (this.initializing) {
+          // initialize the array to the new value - the first
+          // time we call this method, it returns the value.
+          for (let i = 0; i < this.window_size; i++) {
+            this.values[i] = new_value;
+          }
+          this.initializing = false;
+          // optimize: there's no need to do the rest of the buffer
+          // math since it returns the new_value anyways.
+          return new_value;
+        }
+
+        // to use the latest window_size values, plus the new_value,
+        // this overwrites the previous value at the
+        // current_value_index with the new_value. The
+        // current_value_index represents the _oldest_ value
+        // in the window.
+        this.values[this.current_value_index] = new_value;
+
+        // Once the oldest value is overwritten with the latest value,
+        // the current_value_index is incremented to the _next_
+        // oldest value, so that the next value will overwrite
+        // the oldest value.
+        this.current_value_index++;
+        if (this.current_value_index >= this.window_size) {
+          // write into the first
+          this.current_value_index = 0;
+        }
+
+        let smoothed_value = 0;
+        for (let i = 0; i < this.window_size; i++) {
+          smoothed_value += this.values[i];
+        }
+
+        return smoothed_value / this.window_size;
+      }
+    }
+
+    /******************************************************************
      * Range
      *****************************************************************/
 
@@ -703,15 +760,9 @@ document.addEventListener("DOMContentLoaded",
 
     /******************************************************************
      * Reverberation
-     *
-     * TODO: OK, I can't think of any way to base a wave-like reverberation
-     * animation that only uses a single Cycle. It would _at least_ have
-     * to use a separate Cycle to track the first, and an Interaction is
-     * mostly just a Cycle, and does what we want.
-     *
-     * So the next question is: is there any reason to have a separate
-     * Interaction that reads the sensor vs ones that are just "re-usable"?
-     *
+     * Manages a set of Pulses that each generate a Cycle of values
+     * that together form a wave-like "reverberation" values across
+     * the set of Pulses.
      *****************************************************************/
     class Reverberation {
       constructor(sensor, config, panel_index) {
@@ -758,6 +809,23 @@ document.addEventListener("DOMContentLoaded",
       }
 
       update() {
+        // This method is tricky:
+        // The order in which we call methods and read values on the associated
+        // objects is important. Generally speaking, we have to manage the
+        // active state of our clocks for this Reverberation. Then we have to
+        // update the delay clock. Only then we can update the Pulses, and
+        // only after we update the Pulses can we read their values and use
+        // them.
+        //
+        // If the order is changed, or we change how states are updated, then
+        // we end up with bugs where ticks don't reset, clocks are stopped,
+        // and values aren't updated.
+
+        // First, determine if this Reverberation should be started or
+        // stopped based on the current sensor reading. This manages the
+        // delay clock start/stop state, which is critical to ensure
+        // the "distant" Pulses wait a certain number of ticks before
+        // generating their Cycle value, creating the wave-like animation.
         if (this.active && !this.sensor.active) {
           // interaction was active, and now is not.
           this.stop();
@@ -766,26 +834,43 @@ document.addEventListener("DOMContentLoaded",
           this.start();
         }
 
-        if (this.active) {
+        // Now, if the Reverberation is in an active state, and the
+        // delay clock is running, update the delay clock's ticks.
+        if (this.active && this.delay_clock.running) {
           this.delay_clock.update();
         }
 
+        // Now that the delay clock is updated, we can use it to
+        // update the Pulses.
         for (let i = 0; i < this.max_distance; i++) {
           const pulse = this.pulses[i];
+          // calculate the delay for this Pulse
           const pulseDelay = this.delay * i;
+          // check to see if the delay has comleted or the delay
+          // clock has passed that number of ticks
           const waited_long_enough = this.delay_complete || this.delay_clock.ticks >= pulseDelay;
 
+          // and calculate whether the Pulse should be "active" or not.
+          // This allows the Pulse to determine what it's own "active" state
+          // means rather than have the Reverberation read and interpret
+          // the Pulse state.
           const pulse_active = this.active && i < this.distance && waited_long_enough;
           pulse.update(pulse_active);
         }
 
+        // Only after we update the Pulses can we ask if the first
+        // Pulse (corresponding to the origin interaction panel)
+        // is at its zero point. If so, recalculate new Pulse
+        // distance and re-start the Pulses.
         if (this.active) {
           if (this.pulses[0].isAtZeroPoint()) {
-            console.log("at zero point", this);
             this._restart_pulses();
           }
         }
 
+        // Lastly, check to see if all the Pulse delays have passed. If
+        // so, we can stop the delay clock and flag that the delay has
+        // been completed, letting the Pulses run free.
         const delay_over = this._is_delay_complete();
         if (delay_over) {
           this.delay_complete = true;
@@ -794,6 +879,9 @@ document.addEventListener("DOMContentLoaded",
       }
 
       start() {
+        // Start the Reverberation means putting it into a state where
+        // the delay clock starts running on the next update() call
+        // and Pulses wait for their delay time to start their Cycle.
         this.active = true;
         this.delay_clock.restart();
         this.delay_complete = false;
@@ -805,6 +893,9 @@ document.addEventListener("DOMContentLoaded",
       }
 
       get_panel_value_for_panel_index(panel_index) {
+        // Returns a value for the given panel index, based on
+        // this Reverberation's Pulse values for their corresponding
+        // Cycles.
         if (panel_index < this.first_panel_index || panel_index > this.last_panel_index) {
           return 0;
         }
@@ -815,8 +906,8 @@ document.addEventListener("DOMContentLoaded",
         // 1 = 3 - 2
         // 0 = 3 - 3
         // 1 = 3 - 4
-        const index = abs(this.panel_index - panel_index);
-        return this.pulses[index].current_value;
+        const pulse_index = abs(this.panel_index - panel_index);
+        return this.pulses[pulse_index].current_value;
       }
 
       _restart_pulses() {
@@ -854,16 +945,27 @@ document.addEventListener("DOMContentLoaded",
      * Aunisoma
      *****************************************************************/
     class Aunisoma {
-      constructor(config, sensors) {
-        this.numberOfPanels;
+      constructor(config,
+                  maxAnimationGradient,
+                  gradients,
+                  numberOfGradients,
+                  sensors) {
         this.config;
         this.sensors;
+        this.numberOfPanels;
+        this.panels;
+        this.reverberations;
+        this.panel_smoothing_functions;
 
-        this.panels = [];
         this.sensors = sensors;
         this.config = config;
         this.numberOfPanels = config.number_of_panels;
+        this.panels = [];
+        this.reverberations = [];
+        this.panel_smoothing_functions = [];
         this._create_panels();
+        this._create_reverberations();
+        this._create_panel_smoothing_functions();
       }
 
       _create_panels() {
@@ -874,15 +976,54 @@ document.addEventListener("DOMContentLoaded",
         }
       }
 
+      _create_reverberations() {
+        // TODO: for now we're only reading one of the two sensors. Eventually handle a Reverberation per sensor.
+        for (let i = 0; i < number_of_panels; i++) {
+          this.reverberations[i] = new Reverberation(sensors[i * 2], config, i);
+        }
+      }
+
+      _create_panel_smoothing_functions() {
+        const window_size = this.config.smoothing_fn_window_size;
+        for (let i = 0; i < number_of_panels; i++) {
+          this.panel_smoothing_functions[i] = new ValueSmoothingFn(window_size);
+        }
+      }
+
       get_panel_at(index) {
         return this.panels[index];
       }
 
       event_loop() {
-        // interactions
+        for (let reverberation_index = 0; reverberation_index < this.reverberations.length; reverberation_index++) {
+          const reverberation = this.reverberations[reverberation_index];
+          reverberation.update();
+        }
+
+        for (let panel_index = 0; panel_index < number_of_panels; panel_index++) {
+          let panel_value = 0;
+          const panel_smoothing_fn = this.panel_smoothing_functions[panel_index];
+
+          for (let reverberation_index = 0; reverberation_index < this.reverberations.length; reverberation_index++) {
+            const reverberation = this.reverberations[reverberation_index];
+            panel_value += reverberation.get_panel_value_for_panel_index(panel_index);
+          }
+
+          const value = panel_smoothing_fn.get_smoothed_value(panel_value);
+          this.panels[panel_index].color = initial_gradient.getColorForValue(value);
+        }
       }
     }
 
+    /******************************************************************
+     * Sensor
+     * Manages reading a PIR sensor value from the protocol,
+     * debouncing chaotic values (PIRs tend to be chaotic
+     * 1 or 0, generally being sensitive to a high reading).
+     * TODO: use a smoothing function too, and rounding up?
+     * Would smoothing the value help trend to a low value
+     * if it's noisy?
+     *****************************************************************/
     DEBOUNCE_PIR_DELAY = 0; // ms debounce
     class Sensor {
 
@@ -996,6 +1137,7 @@ document.addEventListener("DOMContentLoaded",
       config.intermediate_interaction_threshold_percent = .5;
       config.min_max_interaction_gradient_transition_duration = 5000;
       config.odds_for_max_interaction_gradient_transition = 90;
+      config.smoothing_fn_window_size = 30;
 
       config.init();
 
@@ -1013,7 +1155,7 @@ document.addEventListener("DOMContentLoaded",
       for (let i = 0; i < number_of_panels; i++) {
         let panel = aunisoma.get_panel_at(i);
         let color = panel.color;
-        // send_colors(i, color.red, color.green, color.blue);
+        send_colors(i, color.red, color.green, color.blue);
       }
 
       LOOP_TIME_ELEMENT.innerText = Math.round(new Date().getTime() - start) + " ms";
@@ -1237,66 +1379,6 @@ document.addEventListener("DOMContentLoaded",
     //   console.log(i, testCycle.current_value, testCycle.clock.ticks, testCycle.isRising() ? "rising" : "falling", testCycle.isAtZeroPoint() ? `zero point` : null);
     // }
 
-    // indexed by panel position, let's say. We could give it a panel index. Eh, let's do that.
-    const reverberations = [
-      new Reverberation(sensors[0], config, 0),
-      new Reverberation(sensors[1], config, 1),
-      new Reverberation(sensors[2], config, 2)
-    ];
-
-    class ValueSmoothingFn {
-      constructor(window_size) {
-        this.values;
-        this.window_size;
-        this.current_value_index;
-        this.initializing;
-
-        this.values = [];
-        this.window_size = window_size;
-        this.current_value_index = 0;
-        this.initializing = true;
-      }
-
-      get_smoothed_value(new_value) {
-        if (this.initializing) {
-          // initialize the array to 0
-          for (let i = 0; i < this.window_size; i++) {
-            this.values[i] = new_value;
-          }
-          this.initializing = false;
-        }
-
-        // to use the latest window_size values, plus the new_value,
-        // this overwrites the previous value at the
-        // current_value_index with the new_value. The
-        // current_value_index represents the _oldest_ value
-        // in the window.
-        this.values[this.current_value_index] = new_value;
-
-        // Once the oldest value is overwritten with the latest value,
-        // the current_value_index is incremented to the _next_
-        // oldest value, so that the next value will overwrite
-        // the oldest value.
-        this.current_value_index++;
-        if (this.current_value_index >= this.window_size) {
-          // write into the first
-          this.current_value_index = 0;
-        }
-
-        let smoothed_value = 0;
-        for (let i = 0; i < this.window_size; i++) {
-          smoothed_value += this.values[i];
-        }
-
-        return smoothed_value / this.window_size;
-      }
-    }
-
-    const panel_smoothing_functions = [];
-    for (let i = 0; i < number_of_panels; i++) {
-      panel_smoothing_functions[i] = new ValueSmoothingFn(10);
-    }
-
     const mainRunInterval = setInterval(() => {
       currentAmps = 0;
       let elapsedSeconds = Math.round((new Date().getTime() - START_TIME) / 1000);
@@ -1307,28 +1389,7 @@ document.addEventListener("DOMContentLoaded",
         ELAPSED_TIME_ELEMENT.innerText = elapsedSeconds + " seconds";
       }
 
-
       loop();
-
-      for (let reverberation_index = 0; reverberation_index < reverberations.length; reverberation_index++) {
-        const reverberation = reverberations[reverberation_index];
-        reverberation.update();
-      }
-
-      for (let panel_index = 0; panel_index < number_of_panels; panel_index++) {
-        let panel_value = 0;
-        const panel_smoothing_fn = panel_smoothing_functions[panel_index];
-
-        for (let reverberation_index = 0; reverberation_index < reverberations.length; reverberation_index++) {
-          const reverberation = reverberations[reverberation_index];
-          panel_value += reverberation.get_panel_value_for_panel_index(panel_index);
-        }
-
-        const value = panel_smoothing_fn.get_smoothed_value(panel_value);
-
-        const color = initial_gradient.getColorForValue(value);
-        PANEL_UI_OBJECTS[panel_index].setColor(color.red, color.green, color.blue);
-      }
 
       iterations++;
     }, 10);
