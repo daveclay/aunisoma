@@ -76,6 +76,11 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
                 <button id="triggerScriptButton" value="run">Run</button>
             </p>
         </td>
+        <td style="width: 150px">
+            <p>
+                <button id="pauseButton" value="pause">Pause</button>
+            </p>
+        </td>
         <td>
             <p>
                 Preset Scripts
@@ -1466,6 +1471,7 @@ document.addEventListener("DOMContentLoaded",
 
     const GRADIENT_CONTAINER_ELEMENT = document.getElementById("gradientContainer");
     const GRADIENT_TEMPLATE_ELEMENT = document.getElementById("gradientTemplate");
+    const PAUSE_BUTTON = document.getElementById("pauseButton");
 
     const TRIGGER_SCRIPT_TEXTAREA = document.getElementById("triggerScript");
     const TRIGGER_SCRIPT_BUTTON = document.getElementById("triggerScriptButton");
@@ -1503,6 +1509,20 @@ document.addEventListener("DOMContentLoaded",
         }
       });
 
+    PAUSE_BUTTON.addEventListener("click", () => {
+      togglePause();
+    });
+
+    function togglePause() {
+      if (MAIN_RUN_LOOP_INTERVAL) {
+        clearInterval(MAIN_RUN_LOOP_INTERVAL);
+        MAIN_RUN_LOOP_INTERVAL = null;
+        PAUSE_BUTTON.innerText = "Continue";
+      } else {
+        runMainLoop();
+        PAUSE_BUTTON.innerText = "Pause";
+      }
+    }
 
     const CURRENT_POWER_DRAW_ELEMENT = document.getElementById("currentPowerDraw");
     const MAX_POWER_DRAW_ELEMENT = document.getElementById("maxPowerDraw");
@@ -1637,20 +1657,24 @@ document.addEventListener("DOMContentLoaded",
     //   console.log(i, testCycle.current_value, testCycle.clock.ticks, testCycle.isRising() ? "rising" : "falling", testCycle.isAtZeroPoint() ? `zero point` : null);
     // }
 
-    const mainRunInterval = setInterval(() => {
-      currentAmps = 0;
-      let elapsedSeconds = Math.round((new Date().getTime() - START_TIME) / 1000);
-      if (elapsedSeconds > 59) {
-        let elapsedMinutes = Math.round(elapsedSeconds / 60);
-        ELAPSED_TIME_ELEMENT.innerText = elapsedMinutes + " minutes";
-      } else {
-        ELAPSED_TIME_ELEMENT.innerText = elapsedSeconds + " seconds";
-      }
+    let MAIN_RUN_LOOP_INTERVAL = null;
 
-      loop();
+    function runMainLoop() {
+      MAIN_RUN_LOOP_INTERVAL = setInterval(() => {
+        currentAmps = 0;
+        let elapsedSeconds = Math.round((new Date().getTime() - START_TIME) / 1000);
+        if (elapsedSeconds > 59) {
+          let elapsedMinutes = Math.round(elapsedSeconds / 60);
+          ELAPSED_TIME_ELEMENT.innerText = elapsedMinutes + " minutes";
+        } else {
+          ELAPSED_TIME_ELEMENT.innerText = elapsedSeconds + " seconds";
+        }
 
-      iterations++;
-    }, 10);
+        loop();
+
+        iterations++;
+      }, 10);
+    }
   });
 
 </script>
