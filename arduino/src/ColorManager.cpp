@@ -29,22 +29,29 @@ void ColorManager::update(float current_interaction_percent) {
   this->_update_intermediate_transition_state();
 
   if (this->gradient_transition_animation->active) {
-    // if the transition is active, update it's state/clock->
+    // if the transition is active, update it's state/clock.
     this->gradient_transition_animation->update();
-  } else if (this->gradient_transition_animation->is_done()) {
-    // If the transition animation is done, swap the gradients to the next
-    // gradient and reset the transition->
-    this->gradient_transition_animation->reset();
-    // TODO: make this a random time - and make it _minutes_
-    this->intermediate_transition_delay_timer->restart(config->delay_for_gradient_transition_duration);
-    this->current_gradient_index = this->next_gradient_index;
-    this->current_gradient = &this->gradients[this->current_gradient_index];
-    this->transition_active = false;
-    // TODO: ok, so the new problem is that this will constantly cycle through gradients because
-    // there is no state where we say "don't run the timer and don't transition->"
-    // Note: which is probably fine because we always want to shift through
-    // gradients, just on a long, random timescale-> We don't have to, but that's
-    // the best idea I've had so far->
+
+    // Once gradient_transition_animation->update() is called, it may result
+    // in the gradient animation timer being "done". If we don't catch it here,
+    // the resulting transition value will be 0 and this will return 100% of
+    // the current_gradient, and 0% of the next_gradient, even though last
+    // update() it was at 99%. Checking here ensures we catch that state.
+    if (this->gradient_transition_animation->is_done()) {
+      // If the transition animation is done, swap the gradients to the next
+      // gradient and reset the transition->
+      this->gradient_transition_animation->reset();
+      // TODO: make this a random time - and make it _minutes_
+      this->intermediate_transition_delay_timer->restart(config->delay_for_gradient_transition_duration);
+      this->current_gradient_index = this->next_gradient_index;
+      this->current_gradient = &this->gradients[this->current_gradient_index];
+      this->transition_active = false;
+      // TODO: ok, so the new problem is that this will constantly cycle through gradients because
+      // there is no state where we say "don't run the timer and don't transition->"
+      // Note: which is probably fine because we always want to shift through
+      // gradients, just on a long, random timescale-> We don't have to, but that's
+      // the best idea I've had so far->
+    }
   }
 }
 
