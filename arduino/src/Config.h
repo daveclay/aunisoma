@@ -21,6 +21,11 @@ public:
     int min_max_interaction_gradient_transition_duration;
     int odds_for_max_interaction_gradient_transition;
 
+    int number_of_sensors;
+    int delay_for_gradient_transition_duration;
+    int gradient_transition_animation_duration;
+    int smoothing_fn_window_size;
+
     Config();
 
     void init();

@@ -7,8 +7,7 @@
 #include "Config.h"
 #include "Gradient.h"
 #include "Panel.h"
-#include "PanelContext.h"
-#include "PanelReverberation.h"
+#include "Reverberation.h"
 #include "Sensor.h"
 #include "TransitionAnimation.h"
 #include "Aunisoma.h"
@@ -46,7 +45,7 @@ char TERMINATOR = '\n';
 char responseBuffer[512];  // should be 20 panels * however big messages are
 char panel_colors[(NUMBER_OF_PANELS * SIZE_OF_COLOR)];
 
-Sensor sensors[NUMBER_OF_PANELS];
+Sensor sensors[NUMBER_OF_PANELS * 2];
 
 Config config = Config();
 
@@ -138,9 +137,12 @@ bool send_colors(char value[]) {
     // Serial.println(responseBuffer);
     // 3 - skip "OK " and get to the PIRs
     for (int i = 3; i < bytesRead; i++) {
-      bool active = responseBuffer[i] == '1' || responseBuffer[i] == '2' || responseBuffer[i] == '3';
+      bool front_sensor_active = responseBuffer[i] == '1' || responseBuffer[i] == '3';
+      bool back_sensor_active= responseBuffer[i] == '2' || responseBuffer[i] == '3';
       int panel_index = i - 3;
-      sensors[panel_index].update(active);
+      int sensor_index = panel_index * 2;
+      sensors[sensor_index].update(front_sensor_active);
+      sensors[sensor_index + 1].update(back_sensor_active);
     }
     return true;
   } else {
@@ -208,19 +210,26 @@ void setup(void) {
   config.reverberation_distance_range = new Range(3, 3);
   // how long to wait to trigger a neighbor Panel to reverberate
   config.reverberation_panel_delay_ticks = 20;
-  config.trigger_panel_animation_loop_duration_ticks_range = new Range(220, 220);
+  config.trigger_panel_animation_loop_duration_ticks_range = new Range(100, 220);
   config.max_interaction_threshold_percent = .7;
   config.intermediate_interaction_threshold_percent = .35;
   config.min_max_interaction_gradient_transition_duration = 3000;
   config.odds_for_max_interaction_gradient_transition = 90;
 
+  // how long to wait for a gradient transition
+  // tODO: make this random and longer
+  config.delay_for_gradient_transition_duration = 2000;
+
+  // smoothing amount for panel values. In the web mockup, 10 is a
+  // little jumpy, 30 is smooth, 100 blurs so that it never goes
+  // back to 0 even when the Reverberation is active (which I like)
+  config.smoothing_fn_window_size = 50;
+  // How long it takes to transition from one gradient to another
+  config.gradient_transition_animation_duration = 500;
+
   config.init();
 
-  aunisoma = new Aunisoma(&config, &maxAnimationGradient, gradients, 5, sensors);
-
-  for (int i = 0; i < NUMBER_OF_PANELS; i++) {
-    sensors[i].panelIndex = i;
-  }
+  aunisoma = new Aunisoma(&config, gradients, 5, sensors);
 
   initializePanels();
 }
@@ -242,7 +251,8 @@ void loop(void) {
       failed_mapping_flag = false;
     }
   } else {
-    aunisoma->event_loop();
+
+    aunisoma->update();
 
     //panel_colors[0] = '\0';
     for (int i = 0; i < NUMBER_OF_PANELS; i++) {

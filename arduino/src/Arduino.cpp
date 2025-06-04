@@ -16,10 +16,6 @@ char lights[21] = "00000000000000000000";
 
 int iteration = 0;
 
-int abs(int value) {
-    return std::abs(value);
-}
-
 int min(int a, int b) {
     return std::min(a, b);
 }

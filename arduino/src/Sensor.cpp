@@ -7,20 +7,10 @@
 #include "Arduino.h"
 
 Sensor::Sensor() {
+    this->debounce = new Debounce(DEBOUNCE_PIR_DELAY);
+    this->active = false;
 }
 
 void Sensor::update(bool reading) {
-    long currentMillis = millis();
-    if (this->lastReading != reading) {
-        this->lastDebounceTime = currentMillis;
-    }
-    if ((currentMillis - lastDebounceTime) > DEBOUNCE_PIR_DELAY) {
-        // whatever the reading is at, it's been there for longer than the debounce
-        // delay, so take it as the actual current state:
-        if (this->active != reading) {
-            this->active = reading;
-        }
-    }
-
-    this->lastReading = reading;
+    this->active = this->debounce->update(reading);
 }

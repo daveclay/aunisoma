@@ -419,6 +419,7 @@ document.addEventListener("DOMContentLoaded",
 
     class TransitionAnimation {
       constructor(duration) {
+        this.current_value;
         this.active;
         this.cycle;
         this.current_gradient;
@@ -495,6 +496,7 @@ document.addEventListener("DOMContentLoaded",
         this.current_gradient;
         this.max_gradient_index;
         this.transition_active;
+        this.current_interaction_percent;
 
         this.config = config;
         this.gradients = gradients;
@@ -550,7 +552,7 @@ document.addEventListener("DOMContentLoaded",
       _update_intermediate_transition_state() {
         if (this._is_intermediate_interaction()) {
           // If we've reached the intermediate interaction level
-          if (this.intermediate_transition_delay_timer.is_running()) {
+          if (this.intermediate_transition_delay_timer.isRunning()) {
             // if the delay cycle is running, update it's state
             this.intermediate_transition_delay_timer.update();
             if (this.intermediate_transition_delay_timer.isDone() && !this.transition_active) {
@@ -879,7 +881,7 @@ document.addEventListener("DOMContentLoaded",
         return this.clock.isStopped();
       }
 
-      is_running() {
+      isRunning() {
         return this.clock.running;
       }
     }

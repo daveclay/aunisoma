@@ -4,16 +4,16 @@
 
 #ifndef C_AUNISOMA_SENSOR_H
 #define C_AUNISOMA_SENSOR_H
+#include "Debounce.h"
 
 
 class Sensor {
 public:
-    Sensor();
-    int panelIndex;
     bool active;
+    Sensor();
     void update(bool reading);
-    unsigned long lastDebounceTime;
-    bool lastReading;
+private:
+    Debounce* debounce;
 };
 
 
