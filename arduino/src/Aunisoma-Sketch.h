@@ -212,20 +212,20 @@ void setup(void) {
   config.reverberation_panel_delay_ticks = 20;
   config.trigger_panel_animation_loop_duration_ticks_range = new Range(100, 220);
   config.max_interaction_threshold_percent = .7;
-  config.intermediate_interaction_threshold_percent = .35;
-  config.min_max_interaction_gradient_transition_duration = 3000;
+  config.intermediate_interaction_threshold_percent = .15;
+  config.min_max_interaction_gradient_transition_duration = 200;
   config.odds_for_max_interaction_gradient_transition = 90;
 
   // how long to wait for a gradient transition
   // tODO: make this random and longer
-  config.delay_for_gradient_transition_duration = 2000;
+  config.delay_for_gradient_transition_duration = 200;
 
   // smoothing amount for panel values. In the web mockup, 10 is a
   // little jumpy, 30 is smooth, 100 blurs so that it never goes
   // back to 0 even when the Reverberation is active (which I like)
   config.smoothing_fn_window_size = 50;
   // How long it takes to transition from one gradient to another
-  config.gradient_transition_animation_duration = 500;
+  config.gradient_transition_animation_duration = 200;
 
   config.init();
 

@@ -15,6 +15,7 @@
 #include "ValueSmoothingFn.h"
 
 #define NUMBER_OF_PANELS 20
+#define NUMBER_OF_SENSORS 40
 
 class Aunisoma {
 public:
@@ -27,8 +28,6 @@ public:
 private:
     Config* config;
     Sensor* sensors;
-    int number_of_panels;
-    int number_of_sensors;
     float current_interaction_percent;
     Panel* panels[NUMBER_OF_PANELS];
     Reverberation* reverberations[NUMBER_OF_PANELS];

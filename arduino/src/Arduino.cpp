@@ -112,10 +112,10 @@ void Uart::print(const char c) const {
             // }
             // strcpy(in, lights);
             //
-            if (iteration >= 290) {
+            if (iteration >= 590) {
                 strcpy(in, "00000000000001100010");
-            } else if (iteration > 2 && iteration < 290) {
-                strcpy(in, "11011010000110101110");
+            } else if (iteration > 2 && iteration < 590) {
+                strcpy(in, "11011011110110101110");
             } else {
                 strcpy(in, "00000000001000010000");
             }
