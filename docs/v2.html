@@ -1374,8 +1374,8 @@ document.addEventListener("DOMContentLoaded",
       initial_gradient.add_rgb_point(0.0, 3, 0, 0);
       initial_gradient.add_rgb_point(.4, 255, 0, 0);
       initial_gradient.add_rgb_point(1.0, 255, 255, 0);
-      initial_gradient.add_rgb_point(1.6, 0, 255, 255);
-      initial_gradient.add_rgb_point(3, 0, 255, 255);
+      initial_gradient.add_rgb_point(4, 0, 255, 255);
+      initial_gradient.add_rgb_point(4, 0, 255, 255);
 
       blue_gradient.add_rgb_point(0.0, 0, 0, 10);
       blue_gradient.add_rgb_point(.4, 0, 0, 255);
@@ -1517,7 +1517,7 @@ document.addEventListener("DOMContentLoaded",
           sensors[i].update(false);
         }
         for (let i = 0; i < PANEL_UI_OBJECTS.length; i++) {
-          PANEL_UI_OBJECTS[i].setActive(false);
+          PANEL_UI_OBJECTS[i].active = fals;
         }
       });
 
@@ -1548,18 +1548,19 @@ document.addEventListener("DOMContentLoaded",
     const REVERBERATION_INFO_TEMPLATE_ELEMENT = document.getElementById("reverberationInfoTemplate");
     const PANEL_REVERBERATION_INFO_TEMPLATE_ELEMENT = document.getElementById("panelReverberationInfoTemplate");
 
-    function renderLinearGradient(name, gradient, max) {
+    function renderLinearGradient(name, gradient, valueRange) {
       let rgbGradientElement = clone(GRADIENT_TEMPLATE_ELEMENT);
       let hslGradientElement = clone(GRADIENT_TEMPLATE_ELEMENT);
 
       let steps = 1000;
       for (let i = 0; i < steps; i++) {
-
         let color;
-        if (max) {
+        if (valueRange) {
           color = gradient.getColorForValue(i / steps);
         } else {
-          color = gradient.getColorForValue(i / (steps / 2));
+          // the max value a panel gets (right now) is about 2.8 or so, so we want the
+          // range to extend from 0 to 3
+          color = gradient.getColorForValue(i / (steps / 3));
         }
 
         let rgbSpan = document.createElement("span");
@@ -1604,6 +1605,7 @@ document.addEventListener("DOMContentLoaded",
         this.panelElement = panelElement;
         this.value = 0;
         this.active = false;
+        this.maxValue = 0;
         this.panelUIElement = panelElement.querySelector("div[class='panel']");
         this.panelInfoElement = panelElement.querySelector("div[class='panelInfo']");
       }
@@ -1614,7 +1616,10 @@ document.addEventListener("DOMContentLoaded",
         // blue = gamma8[blue];
         this.panelUIElement.style.backgroundColor = toHexString(red, green, blue);
         addPowerDrawAmps(getPowerDrawAmps(red, green, blue));
-        this.panelInfoElement.innerHTML = (this.active ? "active" : "") + `<br/>${this.value}`;
+        this.panelInfoElement.innerHTML = (this.active ? "active" : "") + `<br/>${this.value.toPrecision(2)}<br/>${this.maxValue.toPrecision(2)}`;
+        if (this.value > this.maxValue) {
+          this.maxValue = this.value;
+        }
       }
     }
 
