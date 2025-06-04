@@ -5,6 +5,10 @@
 #ifndef C_AUNISOMA_ARDUINO_H
 #define C_AUNISOMA_ARDUINO_H
 #include <cmath>
+#include <string.h>
+
+// Note: this avoids having to #include Aunisoma-Sketch.h which defines it globally
+#define NUMBER_OF_PANELS 20
 
 const int ITERATIONS = 3000;
 

@@ -1134,7 +1134,7 @@ document.addEventListener("DOMContentLoaded",
       _calculate_new_distance() {
         this.distance = this.config.get_reverberation_distance();
         this.first_panel_index = max(0, this.panel_index - this.distance + 1);
-        this.last_panel_index = min(config.number_of_panels - 1, this.panel_index + this.distance - 1);
+        this.last_panel_index = min(NUMBER_OF_PANELS - 1, this.panel_index + this.distance - 1);
       }
     }
 
@@ -1162,8 +1162,6 @@ document.addEventListener("DOMContentLoaded",
                   sensors) {
         this.config;
         this.sensors;
-        this.number_of_panels;
-        this.number_of_sensors;
         this.current_interaction_percent;
         this.panels;
         this.reverberations;
@@ -1172,8 +1170,6 @@ document.addEventListener("DOMContentLoaded",
 
         this.config = config;
         this.sensors = sensors;
-        this.number_of_panels = config.number_of_panels;
-        this.number_of_sensors = config.number_of_sensors;
         this.current_interaction_percent = 0;
         this.panels = [];
         this.reverberations = [];
@@ -1186,7 +1182,7 @@ document.addEventListener("DOMContentLoaded",
       }
 
       _create_panels() {
-        for (let i = 0; i < this.number_of_panels; i++) {
+        for (let i = 0; i < NUMBER_OF_PANELS; i++) {
           let panel = new Panel(i);
           panel.index = i;
           this.panels[i] = panel;
@@ -1195,14 +1191,14 @@ document.addEventListener("DOMContentLoaded",
 
       _create_reverberations() {
         // TODO: for now we're only reading one of the two sensors. Eventually handle a Reverberation per sensor.
-        for (let i = 0; i < number_of_panels; i++) {
+        for (let i = 0; i < NUMBER_OF_PANELS; i++) {
           this.reverberations[i] = new Reverberation(sensors[i * 2], config, i);
         }
       }
 
       _create_panel_smoothing_functions() {
         const window_size = this.config.smoothing_fn_window_size;
-        for (let i = 0; i < number_of_panels; i++) {
+        for (let i = 0; i < NUMBER_OF_PANELS; i++) {
           this.panel_smoothing_functions[i] = new ValueSmoothingFn(window_size);
         }
       }
@@ -1220,7 +1216,7 @@ document.addEventListener("DOMContentLoaded",
           reverberation.update();
         }
 
-        for (let panel_index = 0; panel_index < number_of_panels; panel_index++) {
+        for (let panel_index = 0; panel_index < NUMBER_OF_PANELS; panel_index++) {
           let panel_value = 0;
           const panel_smoothing_fn = this.panel_smoothing_functions[panel_index];
 
@@ -1241,13 +1237,13 @@ document.addEventListener("DOMContentLoaded",
 
       _calculate_interaction_percent() {
         let active_sensor_count = 0;
-        for (let i = 0; i < this.number_of_sensors; i++) {
+        for (let i = 0; i < NUMBER_OF_SENSORS; i++) {
           const sensor = this.sensors[i];
           if (sensor.active) {
             active_sensor_count++;
           }
         }
-        this.current_interaction_percent = active_sensor_count / this.number_of_sensors;
+        this.current_interaction_percent = active_sensor_count / NUMBER_OF_SENSORS;
       }
     }
 
@@ -1317,10 +1313,11 @@ document.addEventListener("DOMContentLoaded",
     /******************************************************************
      * Aunisoma-Sketch.ino
      *****************************************************************/
+    NUMBER_OF_PANELS = 20;
+    NUMBER_OF_SENSORS = 40;
+
     let sensors = [];
 
-    let number_of_panels = 20;
-    let number_of_sensors = 40;
     let config = new Config();
 
     let maxAnimationGradient = new LinearGradientValueMap();
@@ -1387,8 +1384,6 @@ document.addEventListener("DOMContentLoaded",
       green_blue_gradient.add_rgb_point(2, 0, 0, 255);
       green_blue_gradient.add_rgb_point(3, 255, 0, 255);
 
-      config.number_of_panels = number_of_panels;
-      config.number_of_sensors = number_of_sensors;
       config.reverberation_distance_range = new Range(2, 5);
       // how long to wait to trigger a neighbor Panel to reverberate
       config.reverberation_panel_delay_ticks = 20;
@@ -1411,7 +1406,7 @@ document.addEventListener("DOMContentLoaded",
 
       config.init();
 
-      for (let i = 0; i < number_of_sensors; i++) {
+      for (let i = 0; i < NUMBER_OF_SENSORS; i++) {
         sensors[i] = new Sensor();
       }
 
@@ -1422,7 +1417,7 @@ document.addEventListener("DOMContentLoaded",
       let start = new Date().getTime();
       aunisoma.update();
 
-      for (let i = 0; i < number_of_panels; i++) {
+      for (let i = 0; i < NUMBER_OF_PANELS; i++) {
         let panel = aunisoma.get_panel_at(i);
         let color = panel.color;
         send_colors(i, color.red, color.green, color.blue);
@@ -1480,12 +1475,12 @@ document.addEventListener("DOMContentLoaded",
       .addEventListener("click", () => triggerMaxInteraction());
 
     function triggerMaxInteraction() {
-      let numberOfSensorsToTrigger = (config.max_interaction_threshold_percent * number_of_panels) + 1;
+      let numberOfSensorsToTrigger = (config.max_interaction_threshold_percent * NUMBER_OF_PANELS) + 1;
       let indexesToTrigger = {};
       while (Object.keys(indexesToTrigger).length < numberOfSensorsToTrigger) {
         let panelIndex;
         do {
-          panelIndex = Math.min(19, Math.round(Math.random() * number_of_panels));
+          panelIndex = Math.min(19, Math.round(Math.random() * NUMBER_OF_PANELS));
         } while (indexesToTrigger[panelIndex] != null);
         indexesToTrigger[panelIndex] = 1;
       }
@@ -1598,7 +1593,7 @@ document.addEventListener("DOMContentLoaded",
 
     const PANEL_UI_OBJECTS = [];
 
-    for (let i = 0; i < number_of_panels; i++) {
+    for (let i = 0; i < NUMBER_OF_PANELS; i++) {
       let panelElement = clone(PANEL_TEMPLATE_ELEMENT);
       panelElement.classList.add("panel-" + i);
       STAGE.appendChild(panelElement);

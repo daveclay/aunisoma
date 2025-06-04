@@ -153,5 +153,5 @@ bool Reverberation::_is_delay_complete() {
 void Reverberation::_calculate_new_distance() {
     this->distance = this->config->get_reverberation_distance();
     this->first_panel_index = max(0, this->panel_index - this->distance + 1);
-    this->last_panel_index = min(config->number_of_panels - 1, this->panel_index + this->distance - 1);
+    this->last_panel_index = min(NUMBER_OF_PANELS - 1, this->panel_index + this->distance - 1);
 }
