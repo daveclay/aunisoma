@@ -112,12 +112,14 @@ void Uart::print(const char c) const {
             // }
             // strcpy(in, lights);
             //
-            if (iteration >= 590) {
-                strcpy(in, "00000000000001100010");
+            if (iteration >= 1390) {
+                strcpy(in, "OK 00000000000000000000");
+            } else if (iteration >= 590) {
+                strcpy(in, "OK 01000000000001000010");
             } else if (iteration > 2 && iteration < 590) {
-                strcpy(in, "11011011110110101110");
+                strcpy(in, "OK 11011011110110101110");
             } else {
-                strcpy(in, "00000000001000010000");
+                strcpy(in, "OK 00000000001000010000");
             }
             iteration++;
         } else if (currentCommand == 'M') {
