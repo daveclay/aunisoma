@@ -204,7 +204,8 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
           let index = panel.index;
           let panelUI = this.panelUIs[index]
           panelUI.color = panel;
-          panelUI.active = interactions.charAt(index) !== "0";
+          // interactions is "OK 011101..."
+          panelUI.active = interactions.charAt(index + 3) !== "0";
           panelUI.update();
           totalAmps += panelUI.amps;
         });
