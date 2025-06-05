@@ -9,10 +9,6 @@ MaxInteractionAnimation::MaxInteractionAnimation(int numberOfPanels,
                                                  Panel** panels,
                                                  GradientValueMap *gradient) {
     this->numberOfPanels = numberOfPanels;
-    this->cycle = new Cycle(100,
-                           false,
-                           CYCLE_TYPE_UP,
-                           this);
     this->gradient = gradient;
     this->panels = panels;
     this->current_value = 0;
@@ -23,7 +19,7 @@ MaxInteractionAnimation::MaxInteractionAnimation(int numberOfPanels,
     this->hasTransitionedOut = true;
 };
 
-void MaxInteractionAnimation::value(float value, CycleDirection direction) {
+void MaxInteractionAnimation::value(float value) {
     this->current_value = value;
 }
 
@@ -41,7 +37,7 @@ void MaxInteractionAnimation::start() {
 }
 
 void MaxInteractionAnimation::update() {
-    this->cycle->next();
+    this->cycle->update();
     if (!this->hasTransitionedIn) {
         this->transitionTicks += 1;
         if (this->transitionTicks > this->transitionDuration) {

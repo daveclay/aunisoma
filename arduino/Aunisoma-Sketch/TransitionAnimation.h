@@ -7,25 +7,23 @@
 
 
 #include "Cycle.h"
-#include "PanelContext.h"
 #include "Gradient.h"
-#include "TransitionAnimationCallback.h"
 
-class TransitionAnimation: public CycleHandler {
+class TransitionAnimation {
 public:
-    TransitionAnimation(int durationTicks, TransitionAnimationCallback* transitionAnimationCallback);
     bool active;
-    Cycle* cycle;
-    void value(float value, CycleDirection direction);
-    void start(GradientValueMap* target_gradient);
+    TransitionAnimation(int duration);
+    void start(GradientValueMap* current_gradient, GradientValueMap* next_gradient);
     void update();
+    bool is_done();
+    void reset();
     Color get_color(float panel_value);
 
 private:
-    TransitionAnimationCallback* transitionAnimationCallback;
     float current_value;
-    GradientValueMap* target_gradient;
+    Cycle* cycle;
+    GradientValueMap* current_gradient;
+    GradientValueMap* next_gradient;
 };
-
 
 #endif //C_AUNISOMA_TRANSITIONANIMATION_H

@@ -10,7 +10,7 @@
 #include "Cycle.h"
 #include "Panel.h"
 
-class MaxInteractionAnimation: public CycleHandler {
+class MaxInteractionAnimation {
 public:
     MaxInteractionAnimation(int numberOfPanels, Panel** panels, GradientValueMap* gradient);
     bool active;
@@ -19,7 +19,7 @@ public:
     bool hasTransitionedOut;
     Color panelColorByPanelIndex[20];
 
-    void value(float value, CycleDirection direction);
+    void value(float value);
     void start();
     void update();
     float get_transition_amount();

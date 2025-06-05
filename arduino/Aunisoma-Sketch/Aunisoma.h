@@ -6,53 +6,39 @@
 #define C_AUNISOMA_AUNISOMA_H
 
 
+#include "ColorManager.h"
+#include "Config.h"
 #include "Gradient.h"
 #include "Panel.h"
-#include "Interaction.h"
-#include "TransitionAnimation.h"
 #include "Sensor.h"
-#include "MaxInteractionAnimation.h"
+#include "Reverberation.h"
+#include "ValueSmoothingFn.h"
 
-class Aunisoma: public PanelContext, public TransitionAnimationCallback {
+#define NUMBER_OF_PANELS 20
+#define NUMBER_OF_SENSORS 40
+
+class Aunisoma {
 public:
     Aunisoma(Config* config,
-             GradientValueMap* maxAnimationGradient,
              GradientValueMap* gradients,
-             int numberOfGradients,
+             int number_of_gradients,
              Sensor* sensors);
-
-    int numberOfPanels;
-    Sensor* sensors;
-
     Panel* get_panel_at(int);
-    void event_loop();
-    void switch_to_next_gradient();
-    GradientValueMap* getCurrentGradient();
-
+    void update();
 private:
     Config* config;
-    GradientValueMap* gradients;
-    int numberOfGradients;
-    GradientValueMap* currentGradient;
-    Panel* panels[20];
-    Interaction* interactions_by_source_panel_index[20];
-    TransitionAnimation* transitionAnimation;
-    MaxInteractionAnimation* maxInteractionAnimation;
-    int current_gradient_index;
-    int next_gradient_index;
-    int maxGradientIndex;
-    bool transitioned_during_current_intermediate_state;
-    int ticks_since_last_transition;
-    float interaction_panel_values[20];
+    Sensor* sensors;
+    float current_interaction_percent;
+    Panel* panels[NUMBER_OF_PANELS];
+    Reverberation* reverberations[NUMBER_OF_PANELS];
+    ValueSmoothingFn* panel_smoothing_functions[NUMBER_OF_PANELS];
+    ColorManager* color_manager;
 
-    void _calculate_next_gradient_index();
     void _create_panels();
-    void _create_interactions();
-    void read_sensors();
-    void _handle_panel_sensor(int panel_index, bool active);
-    void _start_transition();
-    void _update_panels();
-    void _update_panel(Panel* panel, float total_panel_value);
+    void _create_reverberations();
+    void _create_panel_smoothing_functions();
+    Color _calculate_color_for_value(float value);
+    void _calculate_interaction_percent();
 };
 
 

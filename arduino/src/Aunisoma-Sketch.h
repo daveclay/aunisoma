@@ -208,6 +208,8 @@ void setup(void) {
   green_blue_gradient.add_rgb_point(2, 0, 0, 255);
   green_blue_gradient.add_rgb_point(3, 255, 0, 255);
 
+  config.number_of_panels = NUMBER_OF_PANELS;
+
   config.reverberation_distance_range = new Range(3, 3);
   // how long to wait to trigger a neighbor Panel to reverberate
   config.reverberation_panel_delay_ticks = 20;

@@ -10,7 +10,6 @@
 
 class Config {
 public:
-    int number_of_panels;
     int initial_trigger_panel_animation_loop_duration_ticks;
     Range* reverberation_distance_range;
     int max_reverberation_distance;
@@ -20,6 +19,13 @@ public:
     float intermediate_interaction_threshold_percent;
     int min_max_interaction_gradient_transition_duration;
     int odds_for_max_interaction_gradient_transition;
+
+    int delay_for_gradient_transition_duration;
+    int gradient_transition_animation_duration;
+    int smoothing_fn_window_size;
+
+    // This is here to make it available to the C++ files, since importing Aunisoma-Sketch isn't good.
+    int number_of_panels;
 
     Config();
 

@@ -1,4 +1,6 @@
 #include "SPI.h"
+#include <string.h>
+#include <stdio.h>
 #include "Arduino.h"         // required before wiring_private.h
 #include "wiring_private.h"  // pinPeripheral() function
 #include "Clock.h"
@@ -7,8 +9,7 @@
 #include "Config.h"
 #include "Gradient.h"
 #include "Panel.h"
-#include "PanelContext.h"
-#include "PanelReverberation.h"
+#include "Reverberation.h"
 #include "Sensor.h"
 #include "TransitionAnimation.h"
 #include "Aunisoma.h"
@@ -46,7 +47,7 @@ char TERMINATOR = '\n';
 char responseBuffer[512];  // should be 20 panels * however big messages are
 char panel_colors[(NUMBER_OF_PANELS * SIZE_OF_COLOR)];
 
-Sensor sensors[NUMBER_OF_PANELS];
+Sensor sensors[NUMBER_OF_PANELS * 2];
 
 Config config = Config();
 
@@ -138,9 +139,12 @@ bool send_colors(char value[]) {
     // Serial.println(responseBuffer);
     // 3 - skip "OK " and get to the PIRs
     for (int i = 3; i < bytesRead; i++) {
-      bool active = responseBuffer[i] == '1';//|| responseBuffer[i] == '2' || responseBuffer[i] == '3';
+      bool front_sensor_active = responseBuffer[i] == '1' || responseBuffer[i] == '3';
+      bool back_sensor_active= responseBuffer[i] == '2' || responseBuffer[i] == '3';
       int panel_index = i - 3;
-      sensors[panel_index].update(active);
+      int sensor_index = panel_index * 2;
+      sensors[sensor_index].update(front_sensor_active);
+      sensors[sensor_index + 1].update(back_sensor_active);
     }
     return true;
   } else {
@@ -175,52 +179,60 @@ void setup(void) {
   maxAnimationGradient.add_rgb_point(1.00, 255, 0, 0);
 
   initial_gradient.add_rgb_point(0.0, 10, 0, 0);
-  initial_gradient.add_rgb_point(.9, 255, 0, 0);
-  initial_gradient.add_rgb_point(1.2, 255, 255, 0);
-  initial_gradient.add_rgb_point(1.6, 0, 255, 255);
-  initial_gradient.add_rgb_point(3, 0, 255, 255);
+  initial_gradient.add_rgb_point(.4, 255, 0, 0);
+  initial_gradient.add_rgb_point(1.8, 255, 255, 0);
+  initial_gradient.add_rgb_point(2.2, 0, 255, 255);
+  initial_gradient.add_rgb_point(3, 0, 100, 255);
 
   blue_gradient.add_rgb_point(0.0, 0, 0, 10);
-  blue_gradient.add_rgb_point(.4, 0, 0, 255);
-  blue_gradient.add_rgb_point(.8, 255, 0, 255);
-  blue_gradient.add_rgb_point(2, 255, 255, 0);
+  blue_gradient.add_rgb_point(.5, 0, 0, 255);
+  blue_gradient.add_rgb_point(1.2, 255, 0, 255);
+  blue_gradient.add_rgb_point(2.5, 255, 255, 0);
   blue_gradient.add_rgb_point(3, 255, 255, 0);
 
   green_gradient.add_rgb_point(0.0, 0, 10, 0);
-  green_gradient.add_rgb_point(.4, 0, 255, 0);
-  green_gradient.add_rgb_point(.8, 255, 255, 0);
-  green_gradient.add_rgb_point(1.5, 255, 0, 255);
+  green_gradient.add_rgb_point(.5, 0, 255, 0);
+  green_gradient.add_rgb_point(1.2, 255, 255, 0);
+  green_gradient.add_rgb_point(2.5, 255, 0, 255);
   green_gradient.add_rgb_point(3, 255, 0, 255);
 
   purple_red_gradient.add_rgb_point(0, 5, 0, 5);
-  purple_red_gradient.add_rgb_point(.4, 255, 0, 255);
-  purple_red_gradient.add_rgb_point(.85, 255, 0, 0);
-  purple_red_gradient.add_rgb_point(1.2, 255, 255, 0);
+  purple_red_gradient.add_rgb_point(.6, 255, 0, 255);
+  purple_red_gradient.add_rgb_point(1.2, 255, 0, 0);
+  purple_red_gradient.add_rgb_point(2.5, 255, 255, 0);
   purple_red_gradient.add_rgb_point(3, 0, 255, 0);
 
   green_blue_gradient.add_rgb_point(0, 0, 10, 0);
-  green_blue_gradient.add_rgb_point(.3, 0, 255, 0);
-  green_blue_gradient.add_rgb_point(1, 0, 255, 255);
+  green_blue_gradient.add_rgb_point(.5, 0, 255, 0);
+  green_blue_gradient.add_rgb_point(1.2, 0, 255, 255);
   green_blue_gradient.add_rgb_point(2, 0, 0, 255);
   green_blue_gradient.add_rgb_point(3, 255, 0, 255);
 
   config.number_of_panels = NUMBER_OF_PANELS;
-  config.reverberation_distance_range = new Range(2, 5);
+
+  config.reverberation_distance_range = new Range(3, 3);
   // how long to wait to trigger a neighbor Panel to reverberate
-  config.reverberation_panel_delay_ticks = 5;
-  config.trigger_panel_animation_loop_duration_ticks_range = new Range(40, 80);
+  config.reverberation_panel_delay_ticks = 20;
+  config.trigger_panel_animation_loop_duration_ticks_range = new Range(100, 220);
   config.max_interaction_threshold_percent = .7;
-  config.intermediate_interaction_threshold_percent = .35;
+  config.intermediate_interaction_threshold_percent = .15;
   config.min_max_interaction_gradient_transition_duration = 200;
   config.odds_for_max_interaction_gradient_transition = 90;
 
+  // how long to wait for a gradient transition
+  // tODO: make this random and longer
+  config.delay_for_gradient_transition_duration = 200;
+
+  // smoothing amount for panel values. In the web mockup, 10 is a
+  // little jumpy, 30 is smooth, 100 blurs so that it never goes
+  // back to 0 even when the Reverberation is active (which I like)
+  config.smoothing_fn_window_size = 50;
+  // How long it takes to transition from one gradient to another
+  config.gradient_transition_animation_duration = 200;
+
   config.init();
 
-  aunisoma = new Aunisoma(&config, &maxAnimationGradient, gradients, 5, sensors);
-
-  for (int i = 0; i < NUMBER_OF_PANELS; i++) {
-    sensors[i].panelIndex = i;
-  }
+  aunisoma = new Aunisoma(&config, gradients, 5, sensors);
 
   initializePanels();
 }
@@ -232,7 +244,7 @@ int iterationCount = 0;
 
 void loop(void) {
   if (failed_mapping_flag) {
-    if (iterationCount % 50 < 40) {
+    if (iterationCount % 500 < 400) {
       send_colors(FAILED_MAPPING_COLORS);
     } else {
       send_colors(ZERO_COLORS);
@@ -242,7 +254,8 @@ void loop(void) {
       failed_mapping_flag = false;
     }
   } else {
-    aunisoma->event_loop();
+
+    aunisoma->update();
 
     //panel_colors[0] = '\0';
     for (int i = 0; i < NUMBER_OF_PANELS; i++) {
@@ -251,9 +264,9 @@ void loop(void) {
       snprintf(current_panel_color,
                SIZE_OF_COLOR + 1,
               "%02x%02x%02x",
-              gamma_lut[color.red],
-              gamma_lut[color.green],
-              gamma_lut[color.blue]);
+              color.red,
+              color.green,
+              color.blue);
       for (int j = 0; j < 7; j++) {
         panel_colors[(i * SIZE_OF_COLOR) + j] = current_panel_color[j];
       }
