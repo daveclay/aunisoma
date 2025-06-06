@@ -115,7 +115,7 @@ void Uart::print(const char c) const {
             if (iteration >= 1390) {
                 strcpy(in, "OK 00000000000000000000");
             } else if (iteration >= 590) {
-                strcpy(in, "OK 01000000000001000010");
+                strcpy(in, "OK 01002333111233222010");
             } else if (iteration > 2 && iteration < 590) {
                 strcpy(in, "OK 11011011110110101110");
             } else {

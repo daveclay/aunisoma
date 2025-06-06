@@ -14,7 +14,7 @@
 #include "TransitionAnimation.h"
 #include "Aunisoma.h"
 
-char panel_ids[] = "1F22201213191E111A1D21152425171B18281614";
+char panel_ids[] = "22181F20121113191E1A211D152417251B281614";
 // char panel_ids[] = "0E";
 
 char ZERO_COLORS[] = "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
@@ -139,6 +139,7 @@ bool send_colors(char value[]) {
     // Serial.println(responseBuffer);
     // 3 - skip "OK " and get to the PIRs
     for (int i = 3; i < bytesRead; i++) {
+      Serial.println(responseBuffer);
       bool front_sensor_active = responseBuffer[i] == '1' || responseBuffer[i] == '3';
       bool back_sensor_active= responseBuffer[i] == '2' || responseBuffer[i] == '3';
       int panel_index = i - 3;
@@ -153,7 +154,7 @@ bool send_colors(char value[]) {
 }
 
 void setup(void) {
-//   Serial.begin(9600);
+  Serial.begin(9600);
   Serial2.setTimeout(1000);
   Serial2.begin(230400);
 
