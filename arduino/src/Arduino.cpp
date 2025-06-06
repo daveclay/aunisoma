@@ -115,17 +115,17 @@ void Uart::print(const char c) const {
             if (iteration >= 1390) {
                 strcpy(in, "OK 00000000000000000000");
             } else if (iteration >= 590) {
-                strcpy(in, "OK 01002333111233222010");
+                strcpy(in, "OK 22332223333323233322");
             } else if (iteration > 2 && iteration < 590) {
                 strcpy(in, "OK 11011011110110101110");
             } else {
-                strcpy(in, "OK 00000000001000010000");
+                strcpy(in, "OK 22332223323333231222");
             }
             iteration++;
         } else if (currentCommand == 'M') {
             // 1F22201213191E111A1D21152425171B18281614
             // strcmp(in, "FAILED 1D2416");
-            strcpy(in, "OK 00000000000000000000");
+            strcpy(in, "OK 22332223323333231222");
         }
     } else {
         out[outIndex] = c;
@@ -149,7 +149,7 @@ int Uart::readBytesUntil(char stop, char buffer[], int length) const {
         return 40;
     } else if (currentCommand == 'L') {
         strcpy(buffer, in);
-        return 20;
+        return 35;
     } else {
         return 0;
     }

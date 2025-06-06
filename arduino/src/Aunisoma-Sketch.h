@@ -14,7 +14,7 @@
 #include "TransitionAnimation.h"
 #include "Aunisoma.h"
 
-char panel_ids[] = "1F22201213191E111A1D21152425171B18281614";
+char panel_ids[] = "22181F20121113191E1A211D152417251B281614";
 // char panel_ids[] = "0E";
 
 char ZERO_COLORS[] = "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
@@ -22,6 +22,8 @@ char FAILED_MAPPING_COLORS[] = "C80000C80000C80000C80000C80000C80000C80000C80000
 char RAINBOW_COLORS[] = "FF0000FF4D00FF9900FFE600CCFF0080FF0033FF0000FF1A00FF6600FFB300FFFF00B2FF0066FF0019FF3300FF8000FFCC00FFFF00E5FF0099FF004C";
 
 #define NUMBER_OF_PANELS 20
+#define NUMBER_OF_SENSORS 40
+
 #define SIZE_OF_COLOR 6  // number of chars to send the SET_LIGHTS message per panel
 
 Uart Serial2(&sercom1, PIN_SERIAL3_RX, PIN_SERIAL3_TX, PAD_SERIAL3_RX, PAD_SERIAL3_TX);
@@ -47,7 +49,7 @@ char TERMINATOR = '\n';
 char responseBuffer[512];  // should be 20 panels * however big messages are
 char panel_colors[(NUMBER_OF_PANELS * SIZE_OF_COLOR)];
 
-Sensor sensors[NUMBER_OF_PANELS * 2];
+Sensor sensors[NUMBER_OF_SENSORS];
 
 Config config = Config();
 
@@ -114,6 +116,7 @@ bool failed_mapping_flag = false;
 bool map_panels() {
   int bytesRead = send_command(MAP_PANELS, panel_ids);
   if (bytesRead > 0) {
+    //Serial.println(responseBuffer);
     int success = strcmp(responseBuffer, "OK");
     if (success < 0) {
       failed_mapping_flag = true;
@@ -138,7 +141,10 @@ bool send_colors(char value[]) {
   if (bytesRead > 0) {
     // Serial.println(responseBuffer);
     // 3 - skip "OK " and get to the PIRs
-    for (int i = 3; i < bytesRead; i++) {
+    // Note: this `min(23, )` business is because I was getting a `bytesRead` value of `35`
+    // even though Serial.println(responseBuffer) returned the normal 23 length string,
+    // and that then writes beyond the sensor array lengths
+    for (int i = 3; i < min(23, bytesRead); i++) {
       bool front_sensor_active = responseBuffer[i] == '1' || responseBuffer[i] == '3';
       bool back_sensor_active= responseBuffer[i] == '2' || responseBuffer[i] == '3';
       int panel_index = i - 3;
@@ -153,7 +159,7 @@ bool send_colors(char value[]) {
 }
 
 void setup(void) {
-//   Serial.begin(9600);
+//  Serial.begin(9600);
   Serial2.setTimeout(1000);
   Serial2.begin(230400);
 
@@ -212,23 +218,23 @@ void setup(void) {
 
   config.reverberation_distance_range = new Range(3, 3);
   // how long to wait to trigger a neighbor Panel to reverberate
-  config.reverberation_panel_delay_ticks = 20;
-  config.trigger_panel_animation_loop_duration_ticks_range = new Range(100, 220);
+  config.reverberation_panel_delay_ticks = 4;
+  config.trigger_panel_animation_loop_duration_ticks_range = new Range(10, 20);
   config.max_interaction_threshold_percent = .7;
   config.intermediate_interaction_threshold_percent = .15;
-  config.min_max_interaction_gradient_transition_duration = 200;
-  config.odds_for_max_interaction_gradient_transition = 90;
+  config.min_max_interaction_gradient_transition_duration = 20;
+  config.odds_for_max_interaction_gradient_transition = 10;
 
   // how long to wait for a gradient transition
   // tODO: make this random and longer
-  config.delay_for_gradient_transition_duration = 200;
+  config.delay_for_gradient_transition_duration = 30;
 
   // smoothing amount for panel values. In the web mockup, 10 is a
   // little jumpy, 30 is smooth, 100 blurs so that it never goes
   // back to 0 even when the Reverberation is active (which I like)
-  config.smoothing_fn_window_size = 50;
+  config.smoothing_fn_window_size = 10;
   // How long it takes to transition from one gradient to another
-  config.gradient_transition_animation_duration = 200;
+  config.gradient_transition_animation_duration = 30;
 
   config.init();
 
@@ -244,7 +250,7 @@ int iterationCount = 0;
 
 void loop(void) {
   if (failed_mapping_flag) {
-    if (iterationCount % 500 < 400) {
+    if (iterationCount % 50 < 40) {
       send_colors(FAILED_MAPPING_COLORS);
     } else {
       send_colors(ZERO_COLORS);
@@ -254,7 +260,6 @@ void loop(void) {
       failed_mapping_flag = false;
     }
   } else {
-
     aunisoma->update();
 
     //panel_colors[0] = '\0';
@@ -264,9 +269,9 @@ void loop(void) {
       snprintf(current_panel_color,
                SIZE_OF_COLOR + 1,
               "%02x%02x%02x",
-              color.red,
-              color.green,
-              color.blue);
+              gamma_lut[color.red],
+              gamma_lut[color.green],
+              gamma_lut[color.blue]);
       for (int j = 0; j < 7; j++) {
         panel_colors[(i * SIZE_OF_COLOR) + j] = current_panel_color[j];
       }
