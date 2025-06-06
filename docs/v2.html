@@ -485,47 +485,97 @@ document.addEventListener("DOMContentLoaded",
     }
 
     /******************************************************************
+     * DistributedPanelAnimation
+     * This is an animation that distributes the panels evenly across
+     * a gradient, so that each panel gets a value distributed evenly
+     * between 0 and 1, incrementing with a Cycle, but continuously
+     * evenly spread.
+     *****************************************************************/
+    class DistributedPanelAnimation {
+
+      constructor(config) {
+        this.active;
+        this.cycle;
+        this.panel_distribution_ratio;
+
+        this.active = false;
+        // This Cycle is for how fast each panel iterates over the gradient
+        this.cycle = new Cycle(100, false, UP_ONLY_CYCLE);
+        this.panel_distribution_ratio = 1 / config.number_of_panels;
+      }
+
+      start() {
+        this.active = true;
+        this.cycle.restart();
+      }
+
+      update() {
+        this.cycle.update();
+      }
+
+      stop() {
+        this.cycle.stop();
+        this.active = false;
+      }
+
+      get_value_for_panel(panel_index) {
+        let value = this.cycle.current_value + (panel_index * this.panel_distribution_ratio);
+        if (value > 1) {
+          return value - 1;
+        }
+
+        return value;
+      }
+    }
+
+    /******************************************************************
      * ColorManager
      * manages the color gradients and transitions between them based
      * on interaction percentage.
      *****************************************************************/
 
     class ColorManager {
-      constructor(gradients, number_of_gradients, config) {
+      constructor(gradients, number_of_gradients, rainbow_gradient, config) {
         this.config;
-        this.intermediate_interaction_debounce;
-        this.intermediate_transition_delay_timer;
+        this.interaction_debounce;
+        this.transition_delay_timer;
         this.gradient_transition_animation;
+        this.distributed_panel_animation;
         this.gradients;
         this.number_of_gradients;
+        this.rainbow_gradient;
         this.current_gradient_index;
         this.next_gradient_index;
         this.current_gradient;
-        this.max_gradient_index;
         this.transition_active;
         this.current_interaction_percent;
 
         this.config = config;
         this.gradients = gradients;
         this.number_of_gradients = number_of_gradients;
+        this.rainbow_gradient = rainbow_gradient;
         // TODO: move debounce time to config
-        this.intermediate_interaction_debounce = new Debounce(10);
-        this.intermediate_transition_delay_timer = new Cycle(
+        this.interaction_debounce = new Debounce(10);
+        this.transition_delay_timer = new Cycle(
           this.config.delay_for_gradient_transition_duration,
           ONE_SHOT_CYCLE,
           UP_ONLY_CYCLE
         );
         this.gradient_transition_animation = new TransitionAnimation(config.gradient_transition_animation_duration)
+        this.distributed_panel_animation = new DistributedPanelAnimation(config);
         this.current_gradient_index = 0;
         this.next_gradient_index = 0;
         this.current_gradient = this.gradients[this.current_gradient_index];
-        this.max_gradient_index = this.number_of_gradients - 1;
         this.transition_active = false;
       }
 
       update(current_interaction_percent) {
         this.current_interaction_percent = current_interaction_percent;
-        this._update_intermediate_transition_state();
+        this._update_transition_state();
+
+        if (this.distributed_panel_animation.active) {
+          this.distributed_panel_animation.update();
+        }
 
         if (this.gradient_transition_animation.active) {
           // if the transition is active, update it's state/clock.
@@ -541,7 +591,7 @@ document.addEventListener("DOMContentLoaded",
             // gradient and reset the transition.
             this.gradient_transition_animation.reset();
             // TODO: make this a random time - and make it _minutes_
-            this.intermediate_transition_delay_timer.restart(config.delay_for_gradient_transition_duration)
+            this.transition_delay_timer.restart(config.delay_for_gradient_transition_duration)
             this.current_gradient_index = this.next_gradient_index;
             this.current_gradient = this.gradients[this.current_gradient_index];
             this.transition_active = false;
@@ -555,32 +605,39 @@ document.addEventListener("DOMContentLoaded",
         }
       }
 
-      get_color(value) {
-        if (this.transition_active) {
+      get_color(panel_index, value) {
+        if (this.distributed_panel_animation.active) {
+          let valueForPanel = this.distributed_panel_animation.get_value_for_panel(panel_index);
+          return this.rainbow_gradient.getColorForValue(valueForPanel)
+        } else if (this.transition_active) {
           return this.gradient_transition_animation.get_color(value);
         } else {
           return this.current_gradient.getColorForValue(value);
         }
       }
 
-      _update_intermediate_transition_state() {
-        if (this._is_intermediate_interaction()) {
+      _update_transition_state() {
+        if (this._is_interaction_high()) {
           // If we've reached the intermediate interaction level
-          if (this.intermediate_transition_delay_timer.isRunning()) {
+          if (this.transition_delay_timer.isRunning()) {
             // if the delay cycle is running, update it's state
-            this.intermediate_transition_delay_timer.update();
-            if (this.intermediate_transition_delay_timer.isDone() && !this.transition_active) {
+            this.transition_delay_timer.update();
+            if (this.transition_delay_timer.isDone() && !this.transition_active) {
               // if the timer is done, and we're not transitioning, it is time to transition!
               this._start_gradient_transition();
             }
           } else {
             // Otherwise we haven't started the cycle to trigger
             // intermediate transition, so start that cycle.
-            this.intermediate_transition_delay_timer.start();
+            this.transition_delay_timer.start();
           }
         } else {
           // if the intermediate interactivity isn't reached, stop the timer
-          this.intermediate_transition_delay_timer.stop();
+          this.transition_delay_timer.stop();
+          if (this.distributed_panel_animation.active) {
+            this.distributed_panel_animation.stop();
+            this._start_next_gradient_transition();
+          }
         }
       }
 
@@ -588,10 +645,23 @@ document.addEventListener("DOMContentLoaded",
        * Start the intermediate gradient transition
        */
       _start_gradient_transition() {
-        console.log("starting gradient transition!");
         this.transition_active = true;
-        // Note: The intermediate_transition_delay_timer shoudl have stopped if isDone is true.
-        // I think.
+        if (this._is_max_interaction()) {
+          console.log("starting max distribution animation")
+          this.distributed_panel_animation.start();
+        } else if (this._is_intermediate_interaction()) {
+          this._start_next_gradient_transition();
+        }
+      }
+
+      _start_rainbow_gradient_transition() {
+        this.gradient_transition_animation.start(
+          this.current_gradient,
+          this.rainbow_gradient
+        );
+      }
+
+      _start_next_gradient_transition() {
         this.next_gradient_index = this.current_gradient_index + 1;
         if (this.next_gradient_index == this.number_of_gradients) {
           // hit the max, loop around.
@@ -605,13 +675,18 @@ document.addEventListener("DOMContentLoaded",
         );
       }
 
+      _is_interaction_high() {
+        const currently_high = this.current_interaction_percent > this.config.intermediate_interaction_threshold_percent;
+        return this.interaction_debounce.update(currently_high);
+      }
+
       _is_intermediate_interaction() {
         const currently_high = this.current_interaction_percent > this.config.intermediate_interaction_threshold_percent;
-        return this.intermediate_interaction_debounce.update(currently_high);
+        return this.interaction_debounce.update(currently_high);
       }
 
       _is_max_interaction() {
-        return this.current_interaction_percent > this.config.intermediate_interaction_threshold_percent;
+        return this.current_interaction_percent > this.config.max_interaction_threshold_percent;
       }
     }
 
@@ -1174,6 +1249,7 @@ document.addEventListener("DOMContentLoaded",
       constructor(config,
                   maxAnimationGradient,
                   gradients,
+                  rainbow_gradient,
                   number_of_gradients,
                   sensors) {
         this.config;
@@ -1190,7 +1266,7 @@ document.addEventListener("DOMContentLoaded",
         this.panels = [];
         this.reverberations = [];
         this.panel_smoothing_functions = [];
-        this.color_manager = new ColorManager(gradients, number_of_gradients, config);
+        this.color_manager = new ColorManager(gradients, number_of_gradients, rainbow_gradient, config);
 
         this._create_panels();
         this._create_reverberations();
@@ -1242,14 +1318,14 @@ document.addEventListener("DOMContentLoaded",
           }
 
           const value = panel_smoothing_fn.get_smoothed_value(panel_value);
-          const color = this._calculate_color_for_value(value);
+          const color = this._calculate_color_for_value(panel_index, value);
           this.panels[panel_index].color = color;
           this.panels[panel_index].value = value;
         }
       }
 
-      _calculate_color_for_value(value) {
-        return this.color_manager.get_color(value);
+      _calculate_color_for_value(panel_index, value) {
+        return this.color_manager.get_color(panel_index, value);
       }
 
       _calculate_interaction_percent() {
@@ -1337,7 +1413,7 @@ document.addEventListener("DOMContentLoaded",
 
     let config = new Config();
 
-    let maxAnimationGradient = new LinearGradientValueMap();
+    let rainbowGradient = new LinearGradientValueMap();
     let initial_gradient = new LinearGradientValueMap();
     let blue_gradient = new LinearGradientValueMap();
     let green_gradient = new LinearGradientValueMap();
@@ -1355,21 +1431,21 @@ document.addEventListener("DOMContentLoaded",
     let aunisoma;
 
     function setup() {
-      maxAnimationGradient.add_rgb_point(0.00, 255, 0, 0);
-      maxAnimationGradient.add_rgb_point(0.02, 255, 127, 0);
-      maxAnimationGradient.add_rgb_point(0.20, 255, 255, 0);
-      maxAnimationGradient.add_rgb_point(0.29, 200, 255, 0);
-      maxAnimationGradient.add_rgb_point(0.30, 0, 255, 0);
-      maxAnimationGradient.add_rgb_point(0.31, 0, 255, 127);
-      maxAnimationGradient.add_rgb_point(0.40, 0, 255, 200);
-      maxAnimationGradient.add_rgb_point(0.45, 0, 255, 255);
-      maxAnimationGradient.add_rgb_point(0.59, 0, 120, 255);
-      maxAnimationGradient.add_rgb_point(0.60, 0, 0, 255);
-      maxAnimationGradient.add_rgb_point(0.61, 160, 0, 255);
-      maxAnimationGradient.add_rgb_point(0.80, 255, 0, 255);
-      maxAnimationGradient.add_rgb_point(0.80, 255, 0, 255);
-      maxAnimationGradient.add_rgb_point(0.89, 255, 0, 200);
-      maxAnimationGradient.add_rgb_point(1.00, 255, 0, 0);
+      rainbowGradient.add_rgb_point(0.00, 255, 0, 0);
+      rainbowGradient.add_rgb_point(0.02, 255, 127, 0);
+      rainbowGradient.add_rgb_point(0.20, 255, 255, 0);
+      rainbowGradient.add_rgb_point(0.29, 200, 255, 0);
+      rainbowGradient.add_rgb_point(0.30, 0, 255, 0);
+      rainbowGradient.add_rgb_point(0.31, 0, 255, 127);
+      rainbowGradient.add_rgb_point(0.40, 0, 255, 200);
+      rainbowGradient.add_rgb_point(0.45, 0, 255, 255);
+      rainbowGradient.add_rgb_point(0.59, 0, 120, 255);
+      rainbowGradient.add_rgb_point(0.60, 0, 0, 255);
+      rainbowGradient.add_rgb_point(0.61, 160, 0, 255);
+      rainbowGradient.add_rgb_point(0.80, 255, 0, 255);
+      rainbowGradient.add_rgb_point(0.80, 255, 0, 255);
+      rainbowGradient.add_rgb_point(0.89, 255, 0, 200);
+      rainbowGradient.add_rgb_point(1.00, 255, 0, 0);
 
       initial_gradient.add_rgb_point(0.0, 3, 0, 0);
       initial_gradient.add_rgb_point(.4, 255, 0, 0);
@@ -1401,6 +1477,8 @@ document.addEventListener("DOMContentLoaded",
       green_blue_gradient.add_rgb_point(2, 0, 0, 255);
       green_blue_gradient.add_rgb_point(3, 255, 0, 255);
 
+      config.number_of_panels = NUMBER_OF_PANELS;
+
       config.reverberation_distance_range = new Range(2, 5);
       // how long to wait to trigger a neighbor Panel to reverberate
       config.reverberation_panel_delay_ticks = 20;
@@ -1427,7 +1505,7 @@ document.addEventListener("DOMContentLoaded",
         sensors[i] = new Sensor();
       }
 
-      aunisoma = new Aunisoma(config, maxAnimationGradient, gradients, 5, sensors);
+      aunisoma = new Aunisoma(config, rainbowGradient, gradients, rainbowGradient, 5, sensors);
     }
 
     function loop() {
@@ -1648,7 +1726,7 @@ document.addEventListener("DOMContentLoaded",
 
     setup();
 
-    renderLinearGradient("max_gradient", maxAnimationGradient, 1);
+    renderLinearGradient("max_gradient", rainbowGradient, 1);
     renderLinearGradient("initial_gradient", initial_gradient);
     renderLinearGradient("blue_gradient", blue_gradient);
     renderLinearGradient("green_gradient", green_gradient);
