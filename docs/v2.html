@@ -604,6 +604,7 @@ document.addEventListener("DOMContentLoaded",
 
         if (this.transition_interpolation.is_reversed()) {
           // TODO: if we're at max we have to do something else? Or no?
+           console.log(`I think I was reversed on ${iterations}`);
         } else {
           this._switch_to_new_current_gradient();
         }
@@ -651,6 +652,12 @@ document.addEventListener("DOMContentLoaded",
 
       _update_transition_state() {
         if (this._is_interaction_high()) {
+
+          if (this.transition_interpolation.is_reversed()) {
+            console.log("reversing the reverse")
+            this.transition_interpolation.timer.reversed = false;
+          }
+
           // If we've reached the intermediate interaction level
           if (this.transition_delay_timer.isRunning()) {
             // if the _delay_ timer is running, update it to the next tick.
@@ -928,7 +935,7 @@ document.addEventListener("DOMContentLoaded",
       reverse() {
         // flag the Timer as reversed, so we can do the proper math with the
         // clock's ticks.
-        this.reversed = true;
+        this.reversed = !this.reversed;
         // set the clock's ticks to run for the length of time it takes to
         // return to 0: If the clock is at 35 / 100, we want the clock to run
         // 35 ticks back to 0. If the clock is at 98/100, we want it to run
