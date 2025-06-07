@@ -1724,7 +1724,7 @@ document.addEventListener("DOMContentLoaded",
 
     function findStepsToClearActiveForIteration(iteration) {
       return scriptSteps.filter((script) => {
-        return script.step + script.duration + 1 === iteration;
+        return script.step + script.duration === iteration;
       })
     }
 
