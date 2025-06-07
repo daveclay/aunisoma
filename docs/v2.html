@@ -426,17 +426,17 @@ document.addEventListener("DOMContentLoaded",
     class Interpolation {
       constructor(duration) {
         this.active;
-        this.cycle;
+        this.timer;
 
         this.active = false;
-        this.cycle = new Cycle(duration, ONE_SHOT_CYCLE, UP_ONLY_CYCLE);
+        this.timer = new Timer(duration);
       }
 
       start() {
         // TODO: if this was already started, this will jump...
         // Note: restart() will reset the `iterations` so we can
         // determine whether the animation has run once vs not run yet.
-        this.cycle.restart();
+        this.timer.restart();
         this.active = true;
       }
 
@@ -445,21 +445,22 @@ document.addEventListener("DOMContentLoaded",
           return;
         }
 
-        this.cycle.update();
+        this.timer.update();
 
-        if (this.cycle.isDone()) {
-          this.cycle.stop();
+        if (this.timer.isDone()) {
+          // Note/TODO: I _think_ if isDone returns true, the Timer is already stopped.
+          this.timer.stop();
           this.active = false;
         }
       }
 
       get_value() {
-        return this.cycle.current_value;
+        return this.timer.current_value;
       }
 
       is_done() {
         // how do I know if it's done? It has to have _run_ to be done.
-        return this.cycle.isDone();
+        return this.timer.isDone();
       }
 
       /**
@@ -467,71 +468,14 @@ document.addEventListener("DOMContentLoaded",
        * be started again, vs knowing it is done and has stopped.
        */
       reset() {
-        this.cycle.reset();
-      }
-    }
-
-    /******************************************************************
-     * TransitionAnimation
-     * Utility to transition between gradients
-     *****************************************************************/
-    class TransitionAnimation {
-      constructor(duration) {
-        this.current_value;
-        this.active;
-        this.cycle;
-        this.current_gradient;
-        this.next_gradient;
-
-        this.cycle = new Cycle(duration, ONE_SHOT_CYCLE, UP_ONLY_CYCLE);
-
-        this.current_value = 0;
-        this.active = false;
-      }
-
-      start(current_gradient, next_gradient) {
-        this.current_gradient = current_gradient;
-        this.next_gradient = next_gradient;
-        // TODO: if this was already started, this will jump...
-        // Note: restart() will reset the `iterations` so we can
-        // determine whether the animation has run once vs not run yet.
-        this.cycle.restart();
-        this.active = true;
-      }
-
-      update() {
-        if (!this.active) {
-          return;
-        }
-
-        this.cycle.update();
-
-        if (this.cycle.isDone()) {
-          this.cycle.stop();
-          this.active = false;
-        }
-      }
-
-      is_done() {
-        // how do I know if it's done? It has to have _run_ to be done.
-        return this.cycle.isDone();
+        this.timer.reset();
       }
 
       /**
-       * Used to reset the state of the transition animation so it can
-       * be started again, vs knowing it is done and has stopped.
+       * Reverses the direction of the interpolation, from 0 to 1
+       * to 1 back to 0, based on where it's cycle is at.
        */
-      reset() {
-        this.cycle.reset();
-      }
-
-      get_color(panel_value) {
-        let from_color = this.current_gradient.getColorForValue(panel_value);
-        let to_color = this.next_gradient.getColorForValue(panel_value);
-
-        let color = from_color.interpolate(to_color, this.cycle.current_value);
-
-        return color;
+      reverse() {
       }
     }
 
@@ -615,10 +559,8 @@ document.addEventListener("DOMContentLoaded",
         this.rainbow_gradient = rainbow_gradient;
         // TODO: move debounce time to config
         this.interaction_debounce = new Debounce(10);
-        this.transition_delay_timer = new Cycle(
+        this.transition_delay_timer = new Timer(
           this.config.delay_for_gradient_transition_duration,
-          ONE_SHOT_CYCLE,
-          UP_ONLY_CYCLE
         );
         this.transition_interpolation = new Interpolation(config.gradient_transition_animation_duration);
         this.distributed_panel_animation = new DistributedPanelAnimation(config);
@@ -668,7 +610,7 @@ document.addEventListener("DOMContentLoaded",
       get_color(panel_index, panel_value) {
         if (this.transition_interpolation.active) {
           const transition_value = this.transition_interpolation.get_value();
-          console.log(this.transition_interpolation.cycle.current_value, transition_value);
+          console.log(this.transition_interpolation.timer.current_value, transition_value);
           let current_gradient = this.current_gradient;
           let from_color = current_gradient.getColorForValue(panel_value);
 
@@ -709,19 +651,21 @@ document.addEventListener("DOMContentLoaded",
             this.transition_delay_timer.start();
           }
         } else {
-          // if the intermediate interactivity isn't reached, stop the timer
-          this.transition_delay_timer.stop();
+          if (this.transition_delay_timer.isRunning()) {
+            // if the _delay_ timer is running, stop it
+            this.transition_delay_timer.stop();
+          }
 
-          // TODO: probably not here - we want to transition _out_, not abandon it
-          if (this.distributed_panel_animation.active) {
-            this.distributed_panel_animation.stop();
-            this._start_next_gradient_transition();
+          if (this.transition_interpolation.active) {
+            // TODO: what about the distributed_panel_animation? I think we leave it,
+            //  as it should continue to _run_ up until the point we have reverted.
+            this.transition_interpolation.revert();
           }
         }
       }
 
       /**
-       * Start the intermediate gradient transition
+       * Start the transition state
        */
       _start_gradient_transition() {
         this.transition_interpolation.start();
@@ -881,6 +825,84 @@ document.addEventListener("DOMContentLoaded",
     }
 
     /******************************************************************
+     * Timer
+     * Runs for a duration and returns a float value between 0 and 1
+     * based on where it's clock's ticks are in the duration.
+     *****************************************************************/
+    class Timer {
+      constructor(duration_ticks,
+                  one_shot,
+                  cycle_type
+      ) {
+        this.duration_ticks;
+        this.clock;
+        this.current_value;
+        this.completed;
+
+        this.duration_ticks = duration_ticks;
+        this.one_shot = one_shot;
+        this.clock = new Clock();
+        this.completed = false;
+        this.current_value = 0;
+      }
+
+      start() {
+        this.completed = false;
+        this.clock.start();
+      }
+
+      restart() {
+        this.completed = false;
+        this.clock.restart();
+      }
+
+      /**
+       * Halts the timer, does not completed the timer.
+       * completed = true only if this Timer is allowed
+       * run its duration.
+       */
+      stop() {
+        this.clock.stop();
+        this.current_value = 0;
+      }
+
+      update() {
+        // always update the clock. If it's stopped, it's a no-op, otherwise ensures
+        // the click is up-to-date before doing any calculations.
+        this.clock.update();
+
+        if (this.clock.isStopped()) {
+          // if this cycle has stopped - it's no longer actively cycling, nor is it in the release state,
+          // there's nothing to do.
+          return;
+        }
+
+        if (this.clock.ticks > 0 && this.clock.ticks % this.duration_ticks == 0) {
+          // Mark that the timer completed, as opposed to _stopped_.
+          this.completed = true;
+
+          this.stop();
+          return;
+        }
+
+        let looping_elapsed_duration = this.clock.ticks % this.duration_ticks;
+        this.current_value = looping_elapsed_duration / this.duration_ticks;
+      }
+
+      isRunning() {
+        return this.clock.running;
+      }
+
+      isDone() {
+        return this.completed;
+      }
+
+      reset() {
+        this.completed = false;
+      }
+    }
+
+    /******************************************************************
      * Cycle
      * An LFO/Envelope-like utility that provides a continuously
      * changing value.May be set to a one-shot. Can be started,
@@ -935,14 +957,6 @@ document.addEventListener("DOMContentLoaded",
         this.clock.stop();
         this.current_value = 0;
         this.release_phase = false;
-      }
-
-      /**
-       * Reset the cycle so it can be run again.
-       */
-      reset() {
-        // The `iterations` tracks whether this cycle has run or not.
-        this.iterations = 0;
       }
 
       /**

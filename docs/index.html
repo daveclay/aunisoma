@@ -749,7 +749,7 @@ document.addEventListener("DOMContentLoaded", () => {
       let reverberation_panel_delay_ticks = this.config.reverberation_panel_delay_ticks;
       let delay_for_panel_to_start_ticks = panel_reverberation.distanceFromTrigger * reverberation_panel_delay_ticks;
       if (this.clock.ticks >= delay_for_panel_to_start_ticks) {
-        if (!panel_reverberation.cycle.clock.running) {
+        if (!panel_reverberation.timer.clock.running) {
           // TODO: sometimes the PanelReverberation has not had start() called
           panel_reverberation.start();
         }
