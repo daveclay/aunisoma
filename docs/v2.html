@@ -62,23 +62,17 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
             <p>
                 <label for="triggerScript">Panel interaction script</label>
             </p>
-            <textarea id="triggerScript" rows="10" cols="30">
-3 at 0ms for 1500ms
-8 at 200ms for 2000ms
-6 at 500ms for 3000ms
-7 at 600ms for 3000ms
-9 at 1000ms for 5000ms
-10 at 1500ms for 2000ms
-11 at 2000ms for 2000ms
-12 at 3000ms for 3000ms
+            <textarea id="triggerScript" rows="10" cols="60">
+panels 1, 2, 3 at step 0 for 1500 steps
+panels 8 at step 200 for 2000 steps
 </textarea>
-            <p>
-                <button id="triggerScriptButton" value="run">Run</button>
-            </p>
         </td>
-        <td style="width: 150px">
+        <td style="width: 100px">
             <p>
-                <button id="pauseButton" value="pause">Pause</button>
+                <div id="step">-</div>
+            </p>
+            <p>
+                <button id="pauseButton" value="pause">Run</button>
             </p>
         </td>
         <td>
@@ -583,8 +577,16 @@ document.addEventListener("DOMContentLoaded",
      * ColorManager
      * manages the color gradients and transitions between them based
      * on interaction percentage.
+     *
+     * States:
+     * low interaction
+     * mid interaction
+     * high interaction
+     *
+     * transitioning between gradient values
+     * transitioning between interaction levels -> don't do this one. Let one transition finish.
+     *
      *****************************************************************/
-
     class ColorManager {
       constructor(gradients, number_of_gradients, rainbow_gradient, config) {
         this.config;
@@ -612,7 +614,6 @@ document.addEventListener("DOMContentLoaded",
           ONE_SHOT_CYCLE,
           UP_ONLY_CYCLE
         );
-        // tODO: replace gradient_transition_animation with this, since it 's just htat.
         this.transition_interpolation = new Interpolation(config.gradient_transition_animation_duration);
         this.distributed_panel_animation = new DistributedPanelAnimation(config);
         this.current_gradient_index = 0;
@@ -623,6 +624,7 @@ document.addEventListener("DOMContentLoaded",
 
       update(current_interaction_percent) {
         this.current_interaction_percent = current_interaction_percent;
+        // Update the delay timer and transition state
         this._update_transition_state();
 
         if (this.distributed_panel_animation.active) {
@@ -687,20 +689,24 @@ document.addEventListener("DOMContentLoaded",
         if (this._is_interaction_high()) {
           // If we've reached the intermediate interaction level
           if (this.transition_delay_timer.isRunning()) {
-            // if the delay cycle is running, update it's state
+            // if the _delay_ timer is running, update it to the next tick.
+            // Note this isn't the "transition", this is the delay timer
+            // that will trigger the transition when the timer ends
             this.transition_delay_timer.update();
             if (this.transition_delay_timer.isDone() && !this.transition_interpolation.active) {
               // if the timer is done, and we're not transitioning, it is time to transition!
               this._start_gradient_transition();
             }
           } else {
-            // Otherwise we haven't started the cycle to trigger
-            // intermediate transition, so start that cycle.
+            // Otherwise we haven't started the timer to trigger
+            // transition - start the _delay_ timer.
             this.transition_delay_timer.start();
           }
         } else {
           // if the intermediate interactivity isn't reached, stop the timer
           this.transition_delay_timer.stop();
+
+          // TODO: probably not here - we want to transition _out_, not abandon it
           if (this.distributed_panel_animation.active) {
             this.distributed_panel_animation.stop();
             this._start_next_gradient_transition();
@@ -1615,14 +1621,67 @@ document.addEventListener("DOMContentLoaded",
 
     const GRADIENT_CONTAINER_ELEMENT = document.getElementById("gradientContainer");
     const GRADIENT_TEMPLATE_ELEMENT = document.getElementById("gradientTemplate");
-    const PAUSE_BUTTON = document.getElementById("pauseButton");
+    const RUN_BUTTON = document.getElementById("pauseButton");
 
     const TRIGGER_SCRIPT_TEXTAREA = document.getElementById("triggerScript");
-    const TRIGGER_SCRIPT_BUTTON = document.getElementById("triggerScriptButton");
     const TRIGGER_WALK_DOWN_BUTTON = document.getElementById("triggerWalkDownButton");
-    document
-      .getElementById("triggerMaxInteractionsButton")
-      .addEventListener("click", () => triggerMaxInteraction());
+
+    const CURRENT_POWER_DRAW_ELEMENT = document.getElementById("currentPowerDraw");
+    const MAX_POWER_DRAW_ELEMENT = document.getElementById("maxPowerDraw");
+    const AVERAGE_POWER_DRAW_ELEMENT = document.getElementById("averagePowerDraw");
+
+    const ELAPSED_TIME_ELEMENT = document.getElementById("elapsedTimeElement");
+    const LOOP_TIME_ELEMENT = document.getElementById("loopTime")
+    const STEP_ELEMENT = document.getElementById("step");
+    const MAX_INTERACTIONS_BUTTON = document.getElementById("triggerMaxInteractionsButton");
+    const CLEAR_INTERACTIONS_BUTTON = document.getElementById("clearInteractionsButton");
+
+    MAX_INTERACTIONS_BUTTON.addEventListener("click", () => triggerMaxInteraction());
+
+    const SCRIPT_STEP_REGEXP = /panels ([\w\s,]+) at step (\d+) for (\d+) steps/;
+
+    const scriptSteps = [];
+
+    function parseScript() {
+      const stepStrings = TRIGGER_SCRIPT_TEXTAREA.value.split("\n");
+      const steps = stepStrings.filter((s) => s.trim().length > 0).map((stepString) => parseScriptStep(stepString));
+      scriptSteps.splice(0, scriptSteps.length, ...steps);
+      console.log(scriptSteps);
+    }
+
+    /**
+     *  panels 1, 2, 3 at step 0 for 1500 steps
+     *  panels 8 at step 200 for 2000 steps
+     */
+    function parseScriptStep(stepString) {
+      const match = stepString.match(SCRIPT_STEP_REGEXP);
+      const panelsString = match[1];
+      const panels = panelsString === 'all'
+        ? Array.from({ length: PANEL_UI_OBJECTS.length }, (_, index) => index)
+        : panelsString.split(",").map((s) => parseInt(s.trim()));
+
+      return {
+        panels,
+        step: parseInt(match[2]),
+        duration: parseInt(match[3])
+      }
+    }
+
+    function findStepsForIteration(iteration) {
+      return scriptSteps.filter((script) => {
+        return iteration >= script.step && iteration <= script.step + script.duration;
+      })
+    }
+
+    function handleScript(iteration) {
+      const steps = findStepsForIteration(iteration);
+      steps.forEach((step) => {
+        step.panels.forEach((index) => {
+          sensors[index].update(true);
+          PANEL_UI_OBJECTS[index].active = true;
+        });
+      });
+    }
 
     function triggerMaxInteraction() {
       let numberOfSensorsToTrigger = (config.max_interaction_threshold_percent * NUMBER_OF_PANELS) + 1;
@@ -1642,9 +1701,7 @@ document.addEventListener("DOMContentLoaded",
       });
     }
 
-    document
-      .getElementById("clearInteractionsButton")
-      .addEventListener("click", () => {
+    CLEAR_INTERACTIONS_BUTTON.addEventListener("click", () => {
         for (let i = 0; i < sensors.length; i++) {
           sensors[i].update(false);
         }
@@ -1653,32 +1710,39 @@ document.addEventListener("DOMContentLoaded",
         }
       });
 
-    PAUSE_BUTTON.addEventListener("click", () => {
+    RUN_BUTTON.addEventListener("click", () => {
       togglePause();
     });
 
     function togglePause() {
       if (MAIN_RUN_LOOP_INTERVAL) {
-        clearInterval(MAIN_RUN_LOOP_INTERVAL);
-        MAIN_RUN_LOOP_INTERVAL = null;
-        PAUSE_BUTTON.innerText = "Continue";
+        pause();
       } else {
-        runMainLoop();
-        PAUSE_BUTTON.innerText = "Pause";
+        run();
       }
     }
 
-    const CURRENT_POWER_DRAW_ELEMENT = document.getElementById("currentPowerDraw");
-    const MAX_POWER_DRAW_ELEMENT = document.getElementById("maxPowerDraw");
-    const AVERAGE_POWER_DRAW_ELEMENT = document.getElementById("averagePowerDraw");
+    function pause() {
+      clearInterval(MAIN_RUN_LOOP_INTERVAL);
+      MAIN_RUN_LOOP_INTERVAL = null;
+      RUN_BUTTON.innerText = "Continue";
+    }
 
-    const ELAPSED_TIME_ELEMENT = document.getElementById("elapsedTimeElement");
-    const LOOP_TIME_ELEMENT = document.getElementById("loopTime")
+    function run() {
+      parseScript();
+      RUN_BUTTON.innerText = "Pause";
+      runMainLoop();
+    }
 
-    // TODO: show which panels have someone interacting
-    const REVERBERATIONS_INFO_ELEMENT = document.getElementById("reverberationsInfo");
-    const REVERBERATION_INFO_TEMPLATE_ELEMENT = document.getElementById("reverberationInfoTemplate");
-    const PANEL_REVERBERATION_INFO_TEMPLATE_ELEMENT = document.getElementById("panelReverberationInfoTemplate");
+    function updateTime() {
+      let elapsedSeconds = Math.round((new Date().getTime() - START_TIME) / 1000);
+      if (elapsedSeconds > 59) {
+        let elapsedMinutes = Math.round(elapsedSeconds / 60);
+        ELAPSED_TIME_ELEMENT.innerText = elapsedMinutes + " minutes";
+      } else {
+        ELAPSED_TIME_ELEMENT.innerText = elapsedSeconds + " seconds";
+      }
+    }
 
     function renderLinearGradient(name, gradient, valueRange) {
       let rgbGradientElement = clone(GRADIENT_TEMPLATE_ELEMENT);
@@ -1806,13 +1870,10 @@ document.addEventListener("DOMContentLoaded",
     function runMainLoop() {
       MAIN_RUN_LOOP_INTERVAL = setInterval(() => {
         currentAmps = 0;
-        let elapsedSeconds = Math.round((new Date().getTime() - START_TIME) / 1000);
-        if (elapsedSeconds > 59) {
-          let elapsedMinutes = Math.round(elapsedSeconds / 60);
-          ELAPSED_TIME_ELEMENT.innerText = elapsedMinutes + " minutes";
-        } else {
-          ELAPSED_TIME_ELEMENT.innerText = elapsedSeconds + " seconds";
-        }
+        updateTime();
+        handleScript(iterations);
+
+        STEP_ELEMENT.innerText = iterations;
 
         loop();
 
@@ -1820,7 +1881,7 @@ document.addEventListener("DOMContentLoaded",
       }, 1);
     }
 
-    runMainLoop();
+    // runMainLoop();
   });
 
 </script>
