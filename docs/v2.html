@@ -20,6 +20,9 @@
         border: 1px solid #222222;
         margin: 5px;
     }
+    .panelIndex {
+        text-align: center;
+    }
     .panelInfo {
         display: block;
         width: 50px; /* 24" */
@@ -51,6 +54,7 @@
 </style>
 <div id="stage"></div>
 <div id="panelTemplate" class="panelContainer">
+    <div class="panelIndex"></div>
     <div class="panel"></div>
     <div class="panelInfo">&nbsp;</div>
 </div>
@@ -59,20 +63,22 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
 <table class="controlTable">
     <tr>
         <td>
-            <p>
-                <label for="triggerScript">Panel interaction script</label>
-            </p>
-            <textarea id="triggerScript" rows="10" cols="60">
+            <label for="scriptSteps">Panel interaction script</label>
+            <pre>
 panels 1, 2, 3 at step 0 for 1500 steps
 panels 8 at step 200 for 2000 steps
-</textarea>
+            </pre>
+            <textarea id="scriptSteps" rows="10" cols="60"></textarea>
         </td>
         <td style="width: 100px">
             <p>
                 <div id="step">-</div>
             </p>
             <p>
-                <button id="pauseButton" value="pause">Run</button>
+                <button id="runButton" value="pause">Run</button>
+            </p>
+            <p>
+                <button id="stepButton" value="pause">Step</button>
             </p>
         </td>
         <td>
@@ -1621,9 +1627,10 @@ document.addEventListener("DOMContentLoaded",
 
     const GRADIENT_CONTAINER_ELEMENT = document.getElementById("gradientContainer");
     const GRADIENT_TEMPLATE_ELEMENT = document.getElementById("gradientTemplate");
-    const RUN_BUTTON = document.getElementById("pauseButton");
+    const RUN_BUTTON = document.getElementById("runButton");
+    const STEP_BUTTON = document.getElementById("stepButton");
 
-    const TRIGGER_SCRIPT_TEXTAREA = document.getElementById("triggerScript");
+    const SCRIPT_STEPS_TEXTAREA = document.getElementById("scriptSteps");
     const TRIGGER_WALK_DOWN_BUTTON = document.getElementById("triggerWalkDownButton");
 
     const CURRENT_POWER_DRAW_ELEMENT = document.getElementById("currentPowerDraw");
@@ -1643,7 +1650,7 @@ document.addEventListener("DOMContentLoaded",
     const scriptSteps = [];
 
     function parseScript() {
-      const stepStrings = TRIGGER_SCRIPT_TEXTAREA.value.split("\n");
+      const stepStrings = SCRIPT_STEPS_TEXTAREA.value.split("\n");
       const steps = stepStrings.filter((s) => s.trim().length > 0).map((stepString) => parseScriptStep(stepString));
       scriptSteps.splice(0, scriptSteps.length, ...steps);
       console.log(scriptSteps);
@@ -1667,17 +1674,30 @@ document.addEventListener("DOMContentLoaded",
       }
     }
 
-    function findStepsForIteration(iteration) {
+    function findStepsToClearActiveForIteration(iteration) {
       return scriptSteps.filter((script) => {
-        return iteration >= script.step && iteration <= script.step + script.duration;
+        return script.step + script.duration + 1 === iteration;
+      })
+    }
+
+    function findStepsToTriggerActiveForIteration(iteration) {
+      return scriptSteps.filter((script) => {
+        return script.step === iteration;
       })
     }
 
     function handleScript(iteration) {
-      const steps = findStepsForIteration(iteration);
-      steps.forEach((step) => {
+      // clear first, as we may re-trigger them if a later script chose to trigger them.
+      const stepsToClear = findStepsToClearActiveForIteration(iteration);
+      stepsToClear.forEach((step) => {
         step.panels.forEach((index) => {
-          sensors[index].update(true);
+          PANEL_UI_OBJECTS[index].active = false;
+        });
+      });
+
+      const stepToTrigger = findStepsToTriggerActiveForIteration(iteration);
+      stepToTrigger.forEach((step) => {
+        step.panels.forEach((index) => {
           PANEL_UI_OBJECTS[index].active = true;
         });
       });
@@ -1696,15 +1716,11 @@ document.addEventListener("DOMContentLoaded",
 
       Object.keys(indexesToTrigger).forEach(s => {
         let i = parseInt(s);
-        sensors[i * 2].update(true);
         PANEL_UI_OBJECTS[i].active = true;
       });
     }
 
     CLEAR_INTERACTIONS_BUTTON.addEventListener("click", () => {
-        for (let i = 0; i < sensors.length; i++) {
-          sensors[i].update(false);
-        }
         for (let i = 0; i < PANEL_UI_OBJECTS.length; i++) {
           PANEL_UI_OBJECTS[i].active = false;
         }
@@ -1714,10 +1730,17 @@ document.addEventListener("DOMContentLoaded",
       togglePause();
     });
 
+    STEP_BUTTON.addEventListener("click", () => {
+      parseScript();
+      runIteration();
+    })
+
     function togglePause() {
       if (MAIN_RUN_LOOP_INTERVAL) {
         pause();
+        STEP_BUTTON.removeAttribute("disabled", "true");
       } else {
+        STEP_BUTTON.setAttribute("disabled", "false");
         run();
       }
     }
@@ -1732,6 +1755,13 @@ document.addEventListener("DOMContentLoaded",
       parseScript();
       RUN_BUTTON.innerText = "Pause";
       runMainLoop();
+    }
+
+    function updateSensors() {
+      for (let i = 0; i < NUMBER_OF_PANELS; i++) {
+        const active = PANEL_UI_OBJECTS[i].active;
+        sensors[i].update(active);
+      }
     }
 
     function updateTime() {
@@ -1798,12 +1828,14 @@ document.addEventListener("DOMContentLoaded",
     class PanelUI {
       constructor(index, panelElement) {
         this.index = index;
-        this.panelElement = panelElement;
         this.value = 0;
         this.active = false;
         this.maxValue = 0;
         this.panelUIElement = panelElement.querySelector("div[class='panel']");
+        this.panelIndexElement = panelElement.querySelector("div[class='panelIndex']");
         this.panelInfoElement = panelElement.querySelector("div[class='panelInfo']");
+
+        this.panelIndexElement.innerHTML = index;
       }
 
       setColor(red, green, blue) {
@@ -1867,18 +1899,22 @@ document.addEventListener("DOMContentLoaded",
 
     let MAIN_RUN_LOOP_INTERVAL = null;
 
+    function runIteration() {
+      currentAmps = 0;
+      updateTime();
+      handleScript(iterations);
+      updateSensors();
+
+      STEP_ELEMENT.innerText = iterations;
+
+      loop();
+      iterations++;
+    }
+
     function runMainLoop() {
       MAIN_RUN_LOOP_INTERVAL = setInterval(() => {
-        currentAmps = 0;
-        updateTime();
-        handleScript(iterations);
-
-        STEP_ELEMENT.innerText = iterations;
-
-        loop();
-
-        iterations++;
-      }, 1);
+        runIteration();
+      }, 10);
     }
 
     // runMainLoop();
