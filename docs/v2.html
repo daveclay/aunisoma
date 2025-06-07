@@ -426,11 +426,9 @@ document.addEventListener("DOMContentLoaded",
     class Interpolation {
       constructor(duration) {
         this.active;
-        this.reversed;
         this.timer;
 
         this.active = false;
-        this.reversed = false;
         this.timer = new Timer(duration);
       }
 
@@ -440,7 +438,6 @@ document.addEventListener("DOMContentLoaded",
         // determine whether the animation has run once vs not run yet.
         this.timer.restart();
         this.active = true;
-        this.reversed = false;
       }
 
       update() {
@@ -454,7 +451,6 @@ document.addEventListener("DOMContentLoaded",
           // Note/TODO: I _think_ if isDone returns true, the Timer is already stopped.
           this.timer.stop();
           this.active = false;
-          this.reversed = false;
         }
       }
 
@@ -481,6 +477,10 @@ document.addEventListener("DOMContentLoaded",
        */
       reverse() {
         this.timer.reverse();
+      }
+
+      is_reversed() {
+        return this.timer.reversed;
       }
     }
 
@@ -594,17 +594,27 @@ document.addEventListener("DOMContentLoaded",
           // the current_gradient, and 0% of the next_gradient, even though last
           // update() it was at 99%. Checking here ensures we catch that state.
           if (this.transition_interpolation.is_done()) {
-            this._switch_to_new_current_gradient();
+            this._handle_transition_done();
           }
         }
+      }
+
+      _handle_transition_done() {
+        if (this.transition_interpolation.is_reversed()) {
+          // TODO: if we're at max we have to do something else? Or no?
+        } else {
+          this._switch_to_new_current_gradient();
+        }
+
+        this.transition_interpolation.reset();
+
+        // TODO: make this a random time - and make it _minutes_
+        this.transition_delay_timer.restart(config.delay_for_gradient_transition_duration)
       }
 
       _switch_to_new_current_gradient() {
         // If the transition animation is done, swap the gradients to the next
         // gradient and reset the transition.
-        this.transition_interpolation.reset();
-        // TODO: make this a random time - and make it _minutes_
-        this.transition_delay_timer.restart(config.delay_for_gradient_transition_duration)
         if (!this._is_max_interaction()) {
           // if we're at max, leave the original gradient.
           this.current_gradient_index = this.next_gradient_index;
@@ -615,7 +625,6 @@ document.addEventListener("DOMContentLoaded",
       get_color(panel_index, panel_value) {
         if (this.transition_interpolation.active) {
           const transition_value = this.transition_interpolation.get_value();
-          console.log(this.transition_interpolation.timer.current_value, transition_value);
           let current_gradient = this.current_gradient;
           let from_color = current_gradient.getColorForValue(panel_value);
 
@@ -661,10 +670,11 @@ document.addEventListener("DOMContentLoaded",
             this.transition_delay_timer.stop();
           }
 
-          if (this.transition_interpolation.active) {
+          if (this.transition_interpolation.active && !this.transition_interpolation.is_reversed()) {
             // Note: what about the distributed_panel_animation? I think we leave it,
             //  as it should continue to _run_ up until the point we have reverted.
             this.transition_interpolation.reverse();
+            console.log("reversing the transition animation");
           }
         }
       }
@@ -674,8 +684,8 @@ document.addEventListener("DOMContentLoaded",
        */
       _start_gradient_transition() {
         this.transition_interpolation.start();
+        console.log(`starting transition at ${iterations}`)
         if (this._is_max_interaction()) {
-          console.log("starting max distribution animation")
           this.distributed_panel_animation.start();
         } else if (this._is_intermediate_interaction()) {
           this._start_next_gradient_transition();
