@@ -600,6 +600,8 @@ document.addEventListener("DOMContentLoaded",
       }
 
       _handle_transition_done() {
+        console.log(`transition done on ${iterations}`);
+
         if (this.transition_interpolation.is_reversed()) {
           // TODO: if we're at max we have to do something else? Or no?
         } else {
@@ -878,7 +880,6 @@ document.addEventListener("DOMContentLoaded",
        */
       stop() {
         this.clock.stop();
-        this.reversed = false;
         this.current_value = 0;
       }
 
