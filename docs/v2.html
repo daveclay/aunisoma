@@ -420,10 +420,61 @@ document.addEventListener("DOMContentLoaded",
     }
 
     /******************************************************************
+     * Interpolation
+     * Utility to interpolate over a Cycle
+     *****************************************************************/
+    class Interpolation {
+      constructor(duration) {
+        this.active;
+        this.cycle;
+
+        this.active = false;
+        this.cycle = new Cycle(duration, ONE_SHOT_CYCLE, UP_ONLY_CYCLE);
+      }
+
+      start() {
+        // TODO: if this was already started, this will jump...
+        // Note: restart() will reset the `iterations` so we can
+        // determine whether the animation has run once vs not run yet.
+        this.cycle.restart();
+        this.active = true;
+      }
+
+      update() {
+        if (!this.active) {
+          return;
+        }
+
+        this.cycle.update();
+
+        if (this.cycle.isDone()) {
+          this.cycle.stop();
+          this.active = false;
+        }
+      }
+
+      get_value() {
+        return this.cycle.current_value;
+      }
+
+      is_done() {
+        // how do I know if it's done? It has to have _run_ to be done.
+        return this.cycle.isDone();
+      }
+
+      /**
+       * Used to reset the state of the transition animation so it can
+       * be started again, vs knowing it is done and has stopped.
+       */
+      reset() {
+        this.cycle.reset();
+      }
+    }
+
+    /******************************************************************
      * TransitionAnimation
      * Utility to transition between gradients
      *****************************************************************/
-
     class TransitionAnimation {
       constructor(duration) {
         this.current_value;
@@ -539,7 +590,7 @@ document.addEventListener("DOMContentLoaded",
         this.config;
         this.interaction_debounce;
         this.transition_delay_timer;
-        this.gradient_transition_animation;
+        this.transition_interpolation;
         this.distributed_panel_animation;
         this.gradients;
         this.number_of_gradients;
@@ -561,7 +612,8 @@ document.addEventListener("DOMContentLoaded",
           ONE_SHOT_CYCLE,
           UP_ONLY_CYCLE
         );
-        this.gradient_transition_animation = new TransitionAnimation(config.gradient_transition_animation_duration)
+        // tODO: replace gradient_transition_animation with this, since it 's just htat.
+        this.transition_interpolation = new Interpolation(config.gradient_transition_animation_duration);
         this.distributed_panel_animation = new DistributedPanelAnimation(config);
         this.current_gradient_index = 0;
         this.next_gradient_index = 0;
@@ -577,42 +629,57 @@ document.addEventListener("DOMContentLoaded",
           this.distributed_panel_animation.update();
         }
 
-        if (this.gradient_transition_animation.active) {
+        if (this.transition_interpolation.active) {
           // if the transition is active, update it's state/clock.
-          this.gradient_transition_animation.update();
+          this.transition_interpolation.update();
 
           // Once gradient_transition_animation->update() is called, it may result
           // in the gradient animation timer being "done". If we don't catch it here,
           // the resulting transition value will be 0 and this will return 100% of
           // the current_gradient, and 0% of the next_gradient, even though last
           // update() it was at 99%. Checking here ensures we catch that state.
-          if (this.gradient_transition_animation.is_done()) {
-            // If the transition animation is done, swap the gradients to the next
-            // gradient and reset the transition.
-            this.gradient_transition_animation.reset();
-            // TODO: make this a random time - and make it _minutes_
-            this.transition_delay_timer.restart(config.delay_for_gradient_transition_duration)
-            this.current_gradient_index = this.next_gradient_index;
-            this.current_gradient = this.gradients[this.current_gradient_index];
-            this.transition_active = false;
-            // TODO: ok, so the new problem is that this will constantly cycle through gradients because
-            // there is no state where we say "don't run the timer and don't transition."
-            // Note: which is probably fine because we always want to shift through
-            // gradients, just on a long, random timescale. We don't have to, but that's
-            // the best idea I've had so far.
-            console.log("finished gradient transition!");
+          if (this.transition_interpolation.is_done()) {
+            this._switch_to_new_current_gradient();
           }
         }
       }
 
-      get_color(panel_index, value) {
-        if (this.distributed_panel_animation.active) {
-          let valueForPanel = this.distributed_panel_animation.get_value_for_panel(panel_index);
-          return this.rainbow_gradient.getColorForValue(valueForPanel)
-        } else if (this.transition_active) {
-          return this.gradient_transition_animation.get_color(value);
+      _switch_to_new_current_gradient() {
+        // If the transition animation is done, swap the gradients to the next
+        // gradient and reset the transition.
+        this.transition_interpolation.reset();
+        // TODO: make this a random time - and make it _minutes_
+        this.transition_delay_timer.restart(config.delay_for_gradient_transition_duration)
+        if (!this._is_max_interaction()) {
+          // if we're at max, leave the original gradient.
+          this.current_gradient_index = this.next_gradient_index;
+          this.current_gradient = this.gradients[this.current_gradient_index];
+        }
+      }
+
+      get_color(panel_index, panel_value) {
+        if (this.transition_interpolation.active) {
+          const transition_value = this.transition_interpolation.get_value();
+          console.log(this.transition_interpolation.cycle.current_value, transition_value);
+          let current_gradient = this.current_gradient;
+          let from_color = current_gradient.getColorForValue(panel_value);
+
+          if (this.distributed_panel_animation.active) {
+            let rainbow_value = this.distributed_panel_animation.get_value_for_panel(panel_index);
+            const to_color = this.rainbow_gradient.getColorForValue(rainbow_value)
+            return from_color.interpolate(to_color, transition_value);
+          } else {
+            let next_gradient = this.gradients[this.next_gradient_index];
+            let to_color = next_gradient.getColorForValue(panel_value);
+            return from_color.interpolate(to_color, transition_value);
+          }
         } else {
-          return this.current_gradient.getColorForValue(value);
+          if (this._is_max_interaction() && this.distributed_panel_animation.active) {
+            let rainbow_value = this.distributed_panel_animation.get_value_for_panel(panel_index);
+            return this.rainbow_gradient.getColorForValue(rainbow_value)
+          } else {
+            return this.current_gradient.getColorForValue(panel_value);
+          }
         }
       }
 
@@ -622,7 +689,7 @@ document.addEventListener("DOMContentLoaded",
           if (this.transition_delay_timer.isRunning()) {
             // if the delay cycle is running, update it's state
             this.transition_delay_timer.update();
-            if (this.transition_delay_timer.isDone() && !this.transition_active) {
+            if (this.transition_delay_timer.isDone() && !this.transition_interpolation.active) {
               // if the timer is done, and we're not transitioning, it is time to transition!
               this._start_gradient_transition();
             }
@@ -645,7 +712,7 @@ document.addEventListener("DOMContentLoaded",
        * Start the intermediate gradient transition
        */
       _start_gradient_transition() {
-        this.transition_active = true;
+        this.transition_interpolation.start();
         if (this._is_max_interaction()) {
           console.log("starting max distribution animation")
           this.distributed_panel_animation.start();
@@ -654,25 +721,12 @@ document.addEventListener("DOMContentLoaded",
         }
       }
 
-      _start_rainbow_gradient_transition() {
-        this.gradient_transition_animation.start(
-          this.current_gradient,
-          this.rainbow_gradient
-        );
-      }
-
       _start_next_gradient_transition() {
         this.next_gradient_index = this.current_gradient_index + 1;
         if (this.next_gradient_index == this.number_of_gradients) {
           // hit the max, loop around.
           this.next_gradient_index = 0;
         }
-
-        let next_gradient = this.gradients[this.next_gradient_index];
-        this.gradient_transition_animation.start(
-          this.current_gradient,
-          next_gradient
-        );
       }
 
       _is_interaction_high() {
@@ -1485,9 +1539,9 @@ document.addEventListener("DOMContentLoaded",
       // total duration of a pulse wave from low to high back to low
       config.trigger_panel_animation_loop_duration_ticks_range = new Range(80, 220);
       // How many sensors need to be high to trigger the max interaction state
-      config.max_interaction_threshold_percent = .85;
+      config.max_interaction_threshold_percent = .45;
       // how many sensors need to be high to trigger a gradient transition "intermediate" state
-      config.intermediate_interaction_threshold_percent = .1;
+      config.intermediate_interaction_threshold_percent = .3;
       // how long to wait for a gradient transition
       // tODO: make this random and longer
       config.delay_for_gradient_transition_duration = 2000;
@@ -1763,7 +1817,7 @@ document.addEventListener("DOMContentLoaded",
         loop();
 
         iterations++;
-      }, 10);
+      }, 1);
     }
 
     runMainLoop();
