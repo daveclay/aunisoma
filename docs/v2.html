@@ -426,9 +426,11 @@ document.addEventListener("DOMContentLoaded",
     class Interpolation {
       constructor(duration) {
         this.active;
+        this.reversed;
         this.timer;
 
         this.active = false;
+        this.reversed = false;
         this.timer = new Timer(duration);
       }
 
@@ -438,6 +440,7 @@ document.addEventListener("DOMContentLoaded",
         // determine whether the animation has run once vs not run yet.
         this.timer.restart();
         this.active = true;
+        this.reversed = false;
       }
 
       update() {
@@ -451,6 +454,7 @@ document.addEventListener("DOMContentLoaded",
           // Note/TODO: I _think_ if isDone returns true, the Timer is already stopped.
           this.timer.stop();
           this.active = false;
+          this.reversed = false;
         }
       }
 
@@ -476,6 +480,7 @@ document.addEventListener("DOMContentLoaded",
        * to 1 back to 0, based on where it's cycle is at.
        */
       reverse() {
+        this.timer.reverse();
       }
     }
 
@@ -657,9 +662,9 @@ document.addEventListener("DOMContentLoaded",
           }
 
           if (this.transition_interpolation.active) {
-            // TODO: what about the distributed_panel_animation? I think we leave it,
+            // Note: what about the distributed_panel_animation? I think we leave it,
             //  as it should continue to _run_ up until the point we have reverted.
-            this.transition_interpolation.revert();
+            this.transition_interpolation.reverse();
           }
         }
       }
@@ -830,29 +835,29 @@ document.addEventListener("DOMContentLoaded",
      * based on where it's clock's ticks are in the duration.
      *****************************************************************/
     class Timer {
-      constructor(duration_ticks,
-                  one_shot,
-                  cycle_type
-      ) {
+      constructor(duration_ticks) {
         this.duration_ticks;
         this.clock;
         this.current_value;
         this.completed;
+        this.reversed;
 
         this.duration_ticks = duration_ticks;
-        this.one_shot = one_shot;
         this.clock = new Clock();
         this.completed = false;
+        this.reversed = false;
         this.current_value = 0;
       }
 
       start() {
         this.completed = false;
+        this.reversed = false;
         this.clock.start();
       }
 
       restart() {
         this.completed = false;
+        this.reversed = false;
         this.clock.restart();
       }
 
@@ -863,6 +868,7 @@ document.addEventListener("DOMContentLoaded",
        */
       stop() {
         this.clock.stop();
+        this.reversed = false;
         this.current_value = 0;
       }
 
@@ -887,6 +893,12 @@ document.addEventListener("DOMContentLoaded",
 
         let looping_elapsed_duration = this.clock.ticks % this.duration_ticks;
         this.current_value = looping_elapsed_duration / this.duration_ticks;
+        if (this.reversed) {
+          // OK, the clock is going to run for as long as it _was_ running up to the point this was
+          // reversed. So if the clock had run 95 ticks, it'll run another 95 ticks.
+          // But I need the value to _decrease_ incrementally from where it was at.
+          this.current_value = 1 - this.current_value;
+        }
       }
 
       isRunning() {
@@ -899,6 +911,18 @@ document.addEventListener("DOMContentLoaded",
 
       reset() {
         this.completed = false;
+        this.reversed = false;
+      }
+
+      reverse() {
+        // flag the Timer as reversed, so we can do the proper math with the
+        // clock's ticks.
+        this.reversed = true;
+        // set the clock's ticks to run for the length of time it takes to
+        // return to 0: If the clock is at 35 / 100, we want the clock to run
+        // 35 ticks back to 0. If the clock is at 98/100, we want it to run
+        // 98 ticks back to 0.
+        this.clock.ticks = max(0, this.duration_ticks - this.clock.ticks);
       }
     }
 
@@ -1895,20 +1919,6 @@ document.addEventListener("DOMContentLoaded",
     renderLinearGradient("purple_red_gradient", purple_red_gradient);
     renderLinearGradient("green_blue_gradient", green_blue_gradient);
 
-    // const testCycle = new Cycle(100, LOOP_CYCLE);
-    // testCycle.start();
-    // for (let i = 0; i < 300; i++) {
-    //   testCycle.update();
-    //   if (i === 120) {
-    //     testCycle.release();
-    //   }
-    //
-    //   if (i === 135) {
-    //     testCycle.start();
-    //   }
-    //   console.log(i, testCycle.current_value, testCycle.clock.ticks, testCycle.isRising() ? "rising" : "falling", testCycle.isAtZeroPoint() ? `zero point` : null);
-    // }
-
     let MAIN_RUN_LOOP_INTERVAL = null;
 
     function runIteration() {
@@ -1930,6 +1940,38 @@ document.addEventListener("DOMContentLoaded",
     }
 
     // runMainLoop();
+
+    const testTimer = new Timer(100);
+    testTimer.start();
+    for (let i = 0; i < 90; i++) {
+      testTimer.update();
+      console.log(i, testTimer.current_value);
+    }
+    console.log(testTimer.isDone());
+    testTimer.reverse();
+    console.log("reversed");
+    for (let i = 0; i < 90; i++) {
+      testTimer.update();
+      console.log(i, testTimer.current_value, testTimer.isDone());
+    }
+
+    console.log(testTimer.isDone());
+
+
+// const testCycle = new Cycle(100, LOOP_CYCLE);
+// testCycle.start();
+// for (let i = 0; i < 300; i++) {
+//   testCycle.update();
+//   if (i === 120) {
+//     testCycle.release();
+//   }
+//
+//   if (i === 135) {
+//     testCycle.start();
+//   }
+//   console.log(i, testCycle.current_value, testCycle.clock.ticks, testCycle.isRising() ? "rising" : "falling", testCycle.isAtZeroPoint() ? `zero point` : null);
+// }
+
   });
 
 </script>
