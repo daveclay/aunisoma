@@ -654,8 +654,15 @@ document.addEventListener("DOMContentLoaded",
         if (this._is_interaction_high()) {
 
           if (this.transition_interpolation.is_reversed()) {
-            console.log("reversing the reverse")
-            this.transition_interpolation.timer.reversed = false;
+            /**
+             * Script to trigger transition, then bail out before it's finished to
+             * trigger the reverse, then reverse the reverse with more interaction
+             panels 0,1, 2, 3,4,5,6,7,8,9,10,11,12 at step 0 for 2200 steps
+             panels 8,1,2,3 at step 2200 for 100 steps
+             panels 0,1, 2, 3,4,5,6,7,8,9,10,11,12 at step 2300 for 4000 steps
+             */
+            console.log(`reversing the reverse at ${iterations}`);
+            this.transition_interpolation.reverse();
           }
 
           // If we've reached the intermediate interaction level
@@ -668,9 +675,10 @@ document.addEventListener("DOMContentLoaded",
               // if the timer is done, and we're not transitioning, it is time to transition!
               this._start_gradient_transition();
             }
-          } else {
-            // Otherwise we haven't started the timer to trigger
-            // transition - start the _delay_ timer.
+          } else if (!this.transition_interpolation.active) {
+            // Otherwise if we're not actively transitioning, and we haven't
+            // started the timer to trigger transition - start the _delay_
+            // timer that will kick off another transition
             this.transition_delay_timer.start();
           }
         } else {
@@ -702,6 +710,7 @@ document.addEventListener("DOMContentLoaded",
       }
 
       _start_next_gradient_transition() {
+        console.log(`_start_next_gradient_transition at ${iterations}`);
         this.next_gradient_index = this.current_gradient_index + 1;
         if (this.next_gradient_index == this.number_of_gradients) {
           // hit the max, loop around.
@@ -936,6 +945,7 @@ document.addEventListener("DOMContentLoaded",
         // flag the Timer as reversed, so we can do the proper math with the
         // clock's ticks.
         this.reversed = !this.reversed;
+
         // set the clock's ticks to run for the length of time it takes to
         // return to 0: If the clock is at 35 / 100, we want the clock to run
         // 35 ticks back to 0. If the clock is at 98/100, we want it to run
