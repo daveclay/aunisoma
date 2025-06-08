@@ -59,8 +59,15 @@
     <div class="panelInfo">&nbsp;</div>
 </div>
 Click on a panel to simulate a person interacting with a panel. Click on the panel again to simulate a person walking away from the panel.
-<hr/>
 <table class="controlTable">
+    <tr>
+        <td colspan="4">
+            <div id="step" style="margin-bottom: 10px">-</div>
+            <button id="runButton" value="pause">Run</button>
+            <button id="stepButton" value="pause">Step</button>
+            <div id="colorManagerState" style="margin-top: 10px"></div>
+        </td>
+    </tr>
     <tr>
         <td>
             <label for="scriptSteps">Panel interaction script</label>
@@ -69,17 +76,6 @@ panels 1, 2, 3 at step 0 for 1500 steps
 panels 8 at step 200 for 2000 steps
             </pre>
             <textarea id="scriptSteps" rows="10" cols="60"></textarea>
-        </td>
-        <td style="width: 100px">
-            <p>
-                <div id="step">-</div>
-            </p>
-            <p>
-                <button id="runButton" value="pause">Run</button>
-            </p>
-            <p>
-                <button id="stepButton" value="pause">Step</button>
-            </p>
         </td>
         <td>
             <p>
@@ -447,7 +443,7 @@ document.addEventListener("DOMContentLoaded",
 
         this.timer.update();
 
-        if (this.timer.isDone()) {
+        if (this.timer.is_done()) {
           // Note/TODO: I _think_ if isDone returns true, the Timer is already stopped.
           this.timer.stop();
           this.active = false;
@@ -460,7 +456,11 @@ document.addEventListener("DOMContentLoaded",
 
       is_done() {
         // how do I know if it's done? It has to have _run_ to be done.
-        return this.timer.isDone();
+        return this.timer.is_done();
+      }
+
+      is_running() {
+        return this.timer.is_running();
       }
 
       /**
@@ -532,16 +532,15 @@ document.addEventListener("DOMContentLoaded",
      * ColorManager
      * manages the color gradients and transitions between them based
      * on interaction percentage.
-     *
-     * States:
-     * low interaction
-     * mid interaction
-     * high interaction
-     *
-     * transitioning between gradient values
-     * transitioning between interaction levels -> don't do this one. Let one transition finish.
-     *
      *****************************************************************/
+    const LOW_INTERACTION_STATE = 1;
+    const TRANSITIONING_GRADIENT_STATE = 2;
+    const TRANSITIONING_FROM_MID_TO_LOW_STATE = 3;
+    const TRANSITIONING_FROM_MID_TO_HIGH_STATE = 4;
+    const GRADIENT_SWAP_DELAY_STATE = 5;
+    const HIGH_INTERACTION_STATE = 6;
+    const TRANSITIONING_FROM_HIGH_TO_MID_STATE = 7;
+
     class ColorManager {
       constructor(gradients, number_of_gradients, rainbow_gradient, config) {
         this.config;
@@ -555,8 +554,8 @@ document.addEventListener("DOMContentLoaded",
         this.current_gradient_index;
         this.next_gradient_index;
         this.current_gradient;
-        this.transition_active;
         this.current_interaction_percent;
+        this.state;
 
         this.config = config;
         this.gradients = gradients;
@@ -564,153 +563,159 @@ document.addEventListener("DOMContentLoaded",
         this.rainbow_gradient = rainbow_gradient;
         // TODO: move debounce time to config
         this.interaction_debounce = new Debounce(10);
+        // clocks (need to be updated in update())
         this.transition_delay_timer = new Timer(
           this.config.delay_for_gradient_transition_duration,
         );
         this.transition_interpolation = new Interpolation(config.gradient_transition_animation_duration);
         this.distributed_panel_animation = new DistributedPanelAnimation(config);
+        // gradients
         this.current_gradient_index = 0;
         this.next_gradient_index = 0;
         this.current_gradient = this.gradients[this.current_gradient_index];
-        this.transition_active = false;
+        this.current_interaction_percent = 0;
+        this.state = LOW_INTERACTION_STATE;
       }
 
+      /**
+       * Note: Think of two states: one is the global _current_ interactivity state,
+       * the other is the state of this ColorManager. While the current interactivity
+       * state fluctuates from tick to tick, the ColorManager interpolates colors
+       * for longer-running interactivity states.
+       */
       update(current_interaction_percent) {
         this.current_interaction_percent = current_interaction_percent;
-        // Update the delay timer and transition state
-        this._update_transition_state();
-
-        if (this.distributed_panel_animation.active) {
-          this.distributed_panel_animation.update();
-        }
-
-        if (this.transition_interpolation.active) {
-          // if the transition is active, update it's state/clock.
-          this.transition_interpolation.update();
-
-          // Once gradient_transition_animation->update() is called, it may result
-          // in the gradient animation timer being "done". If we don't catch it here,
-          // the resulting transition value will be 0 and this will return 100% of
-          // the current_gradient, and 0% of the next_gradient, even though last
-          // update() it was at 99%. Checking here ensures we catch that state.
-          if (this.transition_interpolation.is_done()) {
-            this._handle_transition_done();
-          }
-        }
-      }
-
-      _handle_transition_done() {
-        console.log(`transition done on ${iterations}`);
-
-        if (this.transition_interpolation.is_reversed()) {
-          // TODO: if we're at max we have to do something else? Or no?
-           console.log(`I think I was reversed on ${iterations}`);
-        } else {
-          this._switch_to_new_current_gradient();
-        }
-
-        this.transition_interpolation.reset();
-
-        // TODO: make this a random time - and make it _minutes_
-        this.transition_delay_timer.restart(config.delay_for_gradient_transition_duration)
+        this._update_clocks();
+        this._update_state();
       }
 
       _switch_to_new_current_gradient() {
-        // If the transition animation is done, swap the gradients to the next
-        // gradient and reset the transition.
-        if (!this._is_max_interaction()) {
-          // if we're at max, leave the original gradient.
-          this.current_gradient_index = this.next_gradient_index;
-          this.current_gradient = this.gradients[this.current_gradient_index];
-        }
+        this.current_gradient_index = this.next_gradient_index;
+        this.current_gradient = this.gradients[this.current_gradient_index];
       }
 
       get_color(panel_index, panel_value) {
-        if (this.transition_interpolation.active) {
-          const transition_value = this.transition_interpolation.get_value();
-          let current_gradient = this.current_gradient;
-          let from_color = current_gradient.getColorForValue(panel_value);
-
-          if (this.distributed_panel_animation.active) {
-            let rainbow_value = this.distributed_panel_animation.get_value_for_panel(panel_index);
-            const to_color = this.rainbow_gradient.getColorForValue(rainbow_value)
-            return from_color.interpolate(to_color, transition_value);
-          } else {
-            let next_gradient = this.gradients[this.next_gradient_index];
-            let to_color = next_gradient.getColorForValue(panel_value);
-            return from_color.interpolate(to_color, transition_value);
-          }
-        } else {
-          if (this._is_max_interaction() && this.distributed_panel_animation.active) {
-            let rainbow_value = this.distributed_panel_animation.get_value_for_panel(panel_index);
-            return this.rainbow_gradient.getColorForValue(rainbow_value)
-          } else {
+        let from_color;
+        let to_color;
+        switch (this.state) {
+          case TRANSITIONING_FROM_MID_TO_LOW_STATE:
+            // Note this isn't really a transition, it's just leaving the current gradient as is,
+            // clearing the transition interpolation
+          case GRADIENT_SWAP_DELAY_STATE:
+            // This state just sits on the current_gradient until we swap to the next
+            // or transition away
+          case LOW_INTERACTION_STATE:
             return this.current_gradient.getColorForValue(panel_value);
-          }
+          case TRANSITIONING_GRADIENT_STATE:
+            from_color = this.current_gradient.getColorForValue(panel_value);
+            to_color = this.gradients[this.next_gradient_index].getColorForValue(panel_value);
+            return this._get_transition_color(from_color, to_color);
+          case TRANSITIONING_FROM_MID_TO_HIGH_STATE:
+            from_color = this.current_gradient.getColorForValue(panel_value);
+            to_color = this._get_rainbow_color_for_panel_index(panel_index);
+            return this._get_transition_color(from_color, to_color);
+          case HIGH_INTERACTION_STATE:
+            return this._get_rainbow_color_for_panel_index(panel_index);
+          case TRANSITIONING_FROM_HIGH_TO_MID_STATE:
+            from_color = this._get_rainbow_color_for_panel_index(panel_index);
+            to_color = this.current_gradient.getColorForValue(panel_value);
+            return this._get_transition_color(from_color, to_color);
         }
       }
 
-      _update_transition_state() {
-        if (this._is_interaction_high()) {
+      _get_transition_color(from_color, to_color) {
+        const transition_value = this.transition_interpolation.get_value();
+        return from_color.interpolate(to_color, transition_value);
+      }
 
-          if (this.transition_interpolation.is_reversed()) {
-            /**
-             * Script to trigger transition, then bail out before it's finished to
-             * trigger the reverse, then reverse the reverse with more interaction
-             panels 0,1, 2, 3,4,5,6,7,8,9,10,11,12 at step 0 for 2200 steps
-             panels 8,1,2,3 at step 2200 for 100 steps
-             panels 0,1, 2, 3,4,5,6,7,8,9,10,11,12 at step 2300 for 4000 steps
-             */
-            console.log(`reversing the reverse at ${iterations}`);
-            this.transition_interpolation.reverse();
-          }
+      _get_rainbow_color_for_panel_index(panel_index) {
+        let rainbow_value = this.distributed_panel_animation.get_value_for_panel(panel_index);
+        return this.rainbow_gradient.getColorForValue(rainbow_value)
+      }
 
-          // If we've reached the intermediate interaction level
-          if (this.transition_delay_timer.isRunning()) {
-            // if the _delay_ timer is running, update it to the next tick.
-            // Note this isn't the "transition", this is the delay timer
-            // that will trigger the transition when the timer ends
-            this.transition_delay_timer.update();
-            if (this.transition_delay_timer.isDone() && !this.transition_interpolation.active) {
-              // if the timer is done, and we're not transitioning, it is time to transition!
-              this._start_gradient_transition();
+      _update_clocks() {
+        if (this.transition_interpolation.is_running()) {
+          this.transition_interpolation.update();
+        }
+        if (this.transition_delay_timer.is_running()) {
+          this.transition_delay_timer.update()
+        }
+        if (this.distributed_panel_animation.active) {
+          this.distributed_panel_animation.update();
+        }
+      }
+
+      _update_state() {
+        switch (this.state) {
+          case LOW_INTERACTION_STATE:
+            if (!this._is_low_interaction()) {
+              this._set_state(TRANSITIONING_GRADIENT_STATE);
             }
-          } else if (!this.transition_interpolation.active) {
-            // Otherwise if we're not actively transitioning, and we haven't
-            // started the timer to trigger transition - start the _delay_
-            // timer that will kick off another transition
-            this.transition_delay_timer.start();
-          }
-        } else {
-          if (this.transition_delay_timer.isRunning()) {
-            // if the _delay_ timer is running, stop it
-            this.transition_delay_timer.stop();
-          }
+            break;
+          case TRANSITIONING_GRADIENT_STATE:
+            if (this._is_transition_done()) {
+              this._switch_to_new_current_gradient();
+              if (this._is_high_interaction()) {
+                this._set_state(TRANSITIONING_FROM_MID_TO_HIGH_STATE);
+              } else {
+                this._set_state(GRADIENT_SWAP_DELAY_STATE);
+              }
+            }
+            break;
+          case GRADIENT_SWAP_DELAY_STATE:
+            if (this._is_low_interaction()) {
+              this._set_state(TRANSITIONING_FROM_MID_TO_LOW_STATE);
+            } else if (this._is_gradient_swap_delay_done()) {
+              this._set_state(TRANSITIONING_GRADIENT_STATE);
+            }
+            break;
+          case TRANSITIONING_FROM_MID_TO_LOW_STATE:
+            if (this._is_transition_done()) {
+              this._set_state(LOW_INTERACTION_STATE);
+            }
+            break;
+          case TRANSITIONING_FROM_MID_TO_HIGH_STATE:
+            if (this._is_transition_done()) {
+              this._set_state(HIGH_INTERACTION_STATE);
+            }
+          case HIGH_INTERACTION_STATE:
+            if (!this._is_high_interaction()) {
+              this._set_state(TRANSITIONING_FROM_HIGH_TO_MID_STATE);
+            }
+            break;
+          case TRANSITIONING_FROM_HIGH_TO_MID_STATE:
+            if (this._is_low_interaction()) {
+            }
+            break;
+        }
+      }
 
-          if (this.transition_interpolation.active && !this.transition_interpolation.is_reversed()) {
-            // Note: what about the distributed_panel_animation? I think we leave it,
-            //  as it should continue to _run_ up until the point we have reverted.
-            this.transition_interpolation.reverse();
-            console.log("reversing the transition animation");
-          }
+      _set_state(state) {
+        this.state = state;
+        switch(this.state) {
+          case TRANSITIONING_GRADIENT_STATE:
+            this._start_gradient_swap_transition();
+            break;
+          case GRADIENT_SWAP_DELAY_STATE:
+            this.transition_delay_timer.restart(config.delay_for_gradient_transition_duration)
+            break;
+          case TRANSITIONING_FROM_MID_TO_LOW_STATE:
+            this._start_transition_to_low_interactivity();
+            break;
+          case TRANSITIONING_FROM_MID_TO_HIGH_STATE:
+            this._start_transition_to_high_interactivity();
+            break;
+          case TRANSITIONING_FROM_HIGH_TO_MID_STATE:
+            this._start_transition_from_high_to_mid_interactivity();
+            break;
         }
       }
 
       /**
-       * Start the transition state
+       * Start the transition interpolation timer to swap gradients
        */
-      _start_gradient_transition() {
+      _start_gradient_swap_transition() {
         this.transition_interpolation.start();
-        console.log(`starting transition at ${iterations}`)
-        if (this._is_max_interaction()) {
-          this.distributed_panel_animation.start();
-        } else if (this._is_intermediate_interaction()) {
-          this._start_next_gradient_transition();
-        }
-      }
-
-      _start_next_gradient_transition() {
-        console.log(`_start_next_gradient_transition at ${iterations}`);
         this.next_gradient_index = this.current_gradient_index + 1;
         if (this.next_gradient_index == this.number_of_gradients) {
           // hit the max, loop around.
@@ -718,18 +723,36 @@ document.addEventListener("DOMContentLoaded",
         }
       }
 
-      _is_interaction_high() {
-        const currently_high = this.current_interaction_percent > this.config.intermediate_interaction_threshold_percent;
-        return this.interaction_debounce.update(currently_high);
+      _start_transition_to_low_interactivity() {
+        this.transition_interpolation.start();
+        this.next_gradient_index = 0
       }
 
-      _is_intermediate_interaction() {
-        const currently_high = this.current_interaction_percent > this.config.intermediate_interaction_threshold_percent;
-        return this.interaction_debounce.update(currently_high);
+      _start_transition_to_high_interactivity() {
+        this.transition_interpolation.start();
+        this.distributed_panel_animation.start();
       }
 
-      _is_max_interaction() {
-        return this.current_interaction_percent > this.config.max_interaction_threshold_percent;
+      _start_transition_from_high_to_mid_interactivity() {
+        this.transition_interpolation.start();
+        this.distributed_panel_animation.stop();
+      }
+
+      _is_gradient_swap_delay_done() {
+        return this.transition_delay_timer.is_done();
+      }
+
+      _is_transition_done() {
+        return this.transition_interpolation.is_done();
+      }
+
+      _is_low_interaction() {
+        const currently_low = this.current_interaction_percent < this.config.intermediate_interaction_threshold_percent;
+        return this.interaction_debounce.update(currently_low);
+      }
+
+      _is_high_interaction() {
+        return this.current_interaction_percent > this.config.high_interaction_threshold_percent;
       }
     }
 
@@ -928,11 +951,11 @@ document.addEventListener("DOMContentLoaded",
         }
       }
 
-      isRunning() {
+      is_running() {
         return this.clock.running;
       }
 
-      isDone() {
+      is_done() {
         return this.completed;
       }
 
@@ -1102,7 +1125,7 @@ document.addEventListener("DOMContentLoaded",
         return this.clock.isStopped();
       }
 
-      isRunning() {
+      is_running() {
         return this.clock.running;
       }
     }
@@ -1617,12 +1640,12 @@ document.addEventListener("DOMContentLoaded",
       // total duration of a pulse wave from low to high back to low
       config.trigger_panel_animation_loop_duration_ticks_range = new Range(80, 220);
       // How many sensors need to be high to trigger the max interaction state
-      config.max_interaction_threshold_percent = .45;
+      config.high_interaction_threshold_percent = .45;
       // how many sensors need to be high to trigger a gradient transition "intermediate" state
-      config.intermediate_interaction_threshold_percent = .3;
+      config.intermediate_interaction_threshold_percent = .2;
       // how long to wait for a gradient transition
       // tODO: make this random and longer
-      config.delay_for_gradient_transition_duration = 2000;
+      config.delay_for_gradient_transition_duration = 300;
 
       // smoothing amount for panel values. In the web mockup, 10 is a
       // little jumpy, 30 is smooth, 100 blurs so that it never goes
@@ -1695,6 +1718,7 @@ document.addEventListener("DOMContentLoaded",
     const GRADIENT_TEMPLATE_ELEMENT = document.getElementById("gradientTemplate");
     const RUN_BUTTON = document.getElementById("runButton");
     const STEP_BUTTON = document.getElementById("stepButton");
+    const COLOR_MANAGER_STATE_ELEMENT = document.getElementById("colorManagerState");
 
     const SCRIPT_STEPS_TEXTAREA = document.getElementById("scriptSteps");
     const TRIGGER_WALK_DOWN_BUTTON = document.getElementById("triggerWalkDownButton");
@@ -1770,7 +1794,7 @@ document.addEventListener("DOMContentLoaded",
     }
 
     function triggerMaxInteraction() {
-      let numberOfSensorsToTrigger = (config.max_interaction_threshold_percent * NUMBER_OF_PANELS) + 1;
+      let numberOfSensorsToTrigger = (config.high_interaction_threshold_percent * NUMBER_OF_PANELS) + 1;
       let indexesToTrigger = {};
       while (Object.keys(indexesToTrigger).length < numberOfSensorsToTrigger) {
         let panelIndex;
@@ -1949,6 +1973,27 @@ document.addEventListener("DOMContentLoaded",
 
     let MAIN_RUN_LOOP_INTERVAL = null;
 
+    function getColorManagerState(state) {
+      switch (state) {
+        case LOW_INTERACTION_STATE:
+          return "LOW_INTERACTION_STATE";
+        case TRANSITIONING_GRADIENT_STATE:
+          return "TRANSITIONING_GRADIENT_STATE";
+        case GRADIENT_SWAP_DELAY_STATE:
+          return "GRADIENT_SWAP_DELAY_STATE";
+        case TRANSITIONING_FROM_MID_TO_LOW_STATE:
+          return "TRANSITIONING_FROM_MID_TO_LOW_STATE";
+        case TRANSITIONING_FROM_MID_TO_HIGH_STATE:
+          return "TRANSITIONING_FROM_MID_TO_HIGH_STATE";
+        case HIGH_INTERACTION_STATE:
+          return "HIGH_INTERACTION_STATE";
+        case TRANSITIONING_FROM_HIGH_TO_MID_STATE:
+          return "TRANSITIONING_FROM_HIGH_TO_MID_STATE";
+        default:
+          return "unknown";
+      }
+    }
+
     function runIteration() {
       currentAmps = 0;
       updateTime();
@@ -1956,6 +2001,7 @@ document.addEventListener("DOMContentLoaded",
       updateSensors();
 
       STEP_ELEMENT.innerText = iterations;
+      COLOR_MANAGER_STATE_ELEMENT.innerText = getColorManagerState(aunisoma.color_manager.state);
 
       loop();
       iterations++;
@@ -1975,15 +2021,15 @@ document.addEventListener("DOMContentLoaded",
       testTimer.update();
       console.log(i, testTimer.current_value);
     }
-    console.log(testTimer.isDone());
+    console.log(testTimer.is_done());
     testTimer.reverse();
     console.log("reversed");
     for (let i = 0; i < 90; i++) {
       testTimer.update();
-      console.log(i, testTimer.current_value, testTimer.isDone());
+      console.log(i, testTimer.current_value, testTimer.is_done());
     }
 
-    console.log(testTimer.isDone());
+    console.log(testTimer.is_done());
 
 
 // const testCycle = new Cycle(100, LOOP_CYCLE);

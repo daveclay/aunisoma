@@ -726,9 +726,9 @@ document.addEventListener("DOMContentLoaded", () => {
       // This is looping through _eligible_ panels, not _all_ panels.
       for (let i = 0; i < this.numberOfEligiblePanelReverberations; i++) {
         let panelReverberation = this.eligible_panel_reverberations[i];
-        if (!panelReverberation.isDone()) {
+        if (!panelReverberation.is_done()) {
           this._start_panel_reverberation(panelReverberation);
-          if (panelReverberation.isDone()) {
+          if (panelReverberation.is_done()) {
             // maybe it's down now that it's been updated? TODO: is this necessary or will the next update() catch it?
             panelReverberation.stop();
           } else {

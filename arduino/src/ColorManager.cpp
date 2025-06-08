@@ -26,6 +26,15 @@ ColorManager::ColorManager(GradientValueMap* gradients, int number_of_gradients,
 
 void ColorManager::update(float current_interaction_percent) {
   this->current_interaction_percent = current_interaction_percent;
+
+
+  int hi = 1;
+  switch (hi) {
+    case 1:
+    case 2:
+    default:
+  }
+
   this->_update_intermediate_transition_state();
 
   if (this->gradient_transition_animation->active) {
