@@ -534,18 +534,21 @@ document.addEventListener("DOMContentLoaded",
      * on interaction percentage.
      *****************************************************************/
     const LOW_INTERACTION_STATE = 1;
-    const TRANSITIONING_GRADIENT_STATE = 2;
-    const TRANSITIONING_FROM_MID_TO_LOW_STATE = 3;
-    const TRANSITIONING_FROM_MID_TO_HIGH_STATE = 4;
-    const GRADIENT_SWAP_DELAY_STATE = 5;
-    const HIGH_INTERACTION_STATE = 6;
-    const TRANSITIONING_FROM_HIGH_TO_MID_STATE = 7;
+    const START_DEFAULT_GRADIENT_DELAY_STATE = 2;
+    const TRANSITIONING_TO_DEFAULT_GRADIENT_STATE = 3;
+    const TRANSITIONING_GRADIENT_STATE = 4;
+    const TRANSITIONING_FROM_MID_TO_LOW_STATE = 5;
+    const TRANSITIONING_FROM_MID_TO_HIGH_STATE = 6;
+    const GRADIENT_SWAP_DELAY_STATE = 7;
+    const HIGH_INTERACTION_STATE = 8;
+    const TRANSITIONING_FROM_HIGH_TO_MID_STATE = 9;
 
     class ColorManager {
       constructor(gradients, number_of_gradients, rainbow_gradient, config) {
         this.config;
         this.high_interaction_debounce;
         this.med_interaction_debounce;
+        this.default_gradient_delay_timer;
         this.transition_delay_timer;
         this.transition_interpolation;
         this.distributed_panel_animation;
@@ -567,6 +570,9 @@ document.addEventListener("DOMContentLoaded",
         this.med_interaction_debounce = new Debounce(10);
         this.high_interaction_debounce = new Debounce(10);
         // clocks (need to be updated in update())
+        this.default_gradient_delay_timer = new Timer(
+          this.config.default_gradient_delay_duration_range.random_int_between()
+        );
         this.transition_delay_timer = new Timer(
           this.config.delay_for_gradient_transition_duration,
         );
@@ -608,6 +614,8 @@ document.addEventListener("DOMContentLoaded",
         let from_color;
         let to_color;
         switch (this.state) {
+          case START_DEFAULT_GRADIENT_DELAY_STATE:
+            // simply stays on the current gradient while the delay timer runs
           case TRANSITIONING_FROM_MID_TO_LOW_STATE:
             // Note this isn't really a transition, it's just leaving the current gradient as is,
             // clearing the transition interpolation
@@ -630,6 +638,13 @@ document.addEventListener("DOMContentLoaded",
             from_color = this._get_rainbow_color_for_panel_index(panel_index);
             to_color = this.current_gradient.getColorForValue(panel_value);
             return this._get_transition_color(from_color, to_color);
+          case TRANSITIONING_TO_DEFAULT_GRADIENT_STATE:
+            from_color = this.current_gradient.getColorForValue(panel_value);
+            to_color = this.gradients[0].getColorForValue(panel_value);
+            return this._get_transition_color(from_color, to_color);
+          default:
+            console.log(`unknown state: ${this.state}`);
+            new Color(1, 1, 1);
         }
       }
 
@@ -644,6 +659,9 @@ document.addEventListener("DOMContentLoaded",
       }
 
       _update_clocks() {
+        if (this.default_gradient_delay_timer.is_running()) {
+          this.default_gradient_delay_timer.update();
+        }
         if (this.transition_interpolation.is_running()) {
           this.transition_interpolation.update();
         }
@@ -658,8 +676,21 @@ document.addEventListener("DOMContentLoaded",
       _update_state() {
         switch (this.state) {
           case LOW_INTERACTION_STATE:
-            if (!this._is_low_interaction()) {
+            if (this.current_gradient_index != 0) {
+              this._set_state(START_DEFAULT_GRADIENT_DELAY_STATE);
+            } else if (!this._is_low_interaction()) {
               this._set_state(TRANSITIONING_GRADIENT_STATE);
+            }
+            break;
+          case START_DEFAULT_GRADIENT_DELAY_STATE:
+            if (this.default_gradient_delay_timer.is_done()) {
+              this._set_state(TRANSITIONING_TO_DEFAULT_GRADIENT_STATE);
+            }
+            break;
+          case TRANSITIONING_TO_DEFAULT_GRADIENT_STATE:
+            if (this._is_transition_done()) {
+              this._switch_to_new_current_gradient();
+              this._set_state(LOW_INTERACTION_STATE);
             }
             break;
           case TRANSITIONING_GRADIENT_STATE:
@@ -710,6 +741,12 @@ document.addEventListener("DOMContentLoaded",
       _set_state(state) {
         this.state = state;
         switch(this.state) {
+          case START_DEFAULT_GRADIENT_DELAY_STATE:
+            this.default_gradient_delay_timer.restart(this.config.default_gradient_delay_duration_range.random_int_between());
+            break;
+          case TRANSITIONING_TO_DEFAULT_GRADIENT_STATE:
+            this._start_swap_to_default_gradient_transition();
+            break;
           case TRANSITIONING_GRADIENT_STATE:
             this._start_gradient_swap_transition();
             break;
@@ -740,9 +777,13 @@ document.addEventListener("DOMContentLoaded",
         }
       }
 
+      _start_swap_to_default_gradient_transition() {
+        this.transition_interpolation.start();
+        this.next_gradient_index = 0;
+      }
+
       _start_transition_to_low_interactivity() {
         this.transition_interpolation.start();
-        this.next_gradient_index = 0
       }
 
       _start_transition_to_high_interactivity() {
@@ -1658,6 +1699,8 @@ document.addEventListener("DOMContentLoaded",
       config.reverberation_panel_delay_ticks = 20;
       // total duration of a pulse wave from low to high back to low
       config.trigger_panel_animation_loop_duration_ticks_range = new Range(80, 220);
+      // how long during low interactivity to wait to revert back to the default gradient from a non-default gradient
+      config.default_gradient_delay_duration_range = new Range(500, 1000);
       // How many sensors need to be high to trigger the max interaction state
       config.high_interaction_threshold_percent = .45;
       // how many sensors need to be high to trigger a gradient transition "intermediate" state
@@ -2008,6 +2051,10 @@ document.addEventListener("DOMContentLoaded",
           return "HIGH_INTERACTION_STATE";
         case TRANSITIONING_FROM_HIGH_TO_MID_STATE:
           return "TRANSITIONING_FROM_HIGH_TO_MID_STATE";
+        case TRANSITIONING_TO_DEFAULT_GRADIENT_STATE:
+          return "TRANSITIONING_TO_DEFAULT_GRADIENT_STATE";
+        case START_DEFAULT_GRADIENT_DELAY_STATE:
+          return "START_DEFAULT_GRADIENT_DELAY_STATE";
         default:
           return "unknown";
       }
