@@ -220,11 +220,11 @@ void setup(void) {
   // how long to wait to trigger a neighbor Panel to reverberate
   config.reverberation_panel_delay_ticks = 4;
   config.trigger_panel_animation_loop_duration_ticks_range = new Range(10, 20);
+  // TODO make longer (several minutes)
+  config.default_gradient_delay_duration_range = new Range(50, 100);
   config.high_interaction_threshold_percent = .45;
   config.intermediate_interaction_threshold_percent = .25;
   config.min_max_interaction_gradient_transition_duration = 20;
-  config.odds_for_max_interaction_gradient_transition = 10;
-
   // how long to wait for a gradient transition
   // tODO: make this random and longer
   config.delay_for_gradient_transition_duration = 30;

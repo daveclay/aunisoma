@@ -18,7 +18,6 @@ public:
     float high_interaction_threshold_percent;
     float intermediate_interaction_threshold_percent;
     int min_max_interaction_gradient_transition_duration;
-    int odds_for_max_interaction_gradient_transition;
     Range* default_gradient_delay_duration_range;
 
     int delay_for_gradient_transition_duration;

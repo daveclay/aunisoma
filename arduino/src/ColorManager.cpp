@@ -211,6 +211,9 @@ void ColorManager::_set_state(ColorManagerState state) {
     case TRANSITIONING_FROM_HIGH_TO_MID_STATE:
       this->_start_transition_from_high_to_mid_interactivity();
       break;
+    case LOW_INTERACTION_STATE:
+    case HIGH_INTERACTION_STATE:
+      break;
   }
 }
 
