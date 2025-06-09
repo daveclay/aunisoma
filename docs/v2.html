@@ -963,8 +963,10 @@ document.addEventListener("DOMContentLoaded",
         this.current_value = 0;
       }
 
-      restart(duration) {
-        this.duration_ticks = duration;
+      restart(new_duration_ticks) {
+        if (new_duration_ticks) {
+          this.duration_ticks = new_duration_ticks;
+        }
         this.completed = false;
         this.clock.restart();
       }
