@@ -554,15 +554,17 @@ document.addEventListener("DOMContentLoaded",
         this.current_gradient_index;
         this.next_gradient_index;
         this.current_gradient;
-        this.current_interaction_percent;
         this.state;
 
         this.config = config;
         this.gradients = gradients;
         this.number_of_gradients = number_of_gradients;
         this.rainbow_gradient = rainbow_gradient;
+        // Debounces - don't flicker number of interactions, they have to stay high for a
+        // few cycles
         // TODO: move debounce time to config
-        this.interaction_debounce = new Debounce(10);
+        this.med_interaction_debounce = new Debounce(10);
+        this.high_interaction_debounce = new Debounce(10);
         // clocks (need to be updated in update())
         this.transition_delay_timer = new Timer(
           this.config.delay_for_gradient_transition_duration,
@@ -573,7 +575,6 @@ document.addEventListener("DOMContentLoaded",
         this.current_gradient_index = 0;
         this.next_gradient_index = 0;
         this.current_gradient = this.gradients[this.current_gradient_index];
-        this.current_interaction_percent = 0;
         this.state = LOW_INTERACTION_STATE;
       }
 
@@ -584,9 +585,17 @@ document.addEventListener("DOMContentLoaded",
        * for longer-running interactivity states.
        */
       update(current_interaction_percent) {
-        this.current_interaction_percent = current_interaction_percent;
+        this._update_interaction_reading(current_interaction_percent);
         this._update_clocks();
         this._update_state();
+      }
+
+      _update_interaction_reading(current_interaction_percent) {
+        const currently_mid = current_interaction_percent > this.config.intermediate_interaction_threshold_percent;
+        this.med_interaction_debounce.update(currently_mid);
+
+        const currently_high = current_interaction_percent > this.config.intermediate_interaction_threshold_percent;
+        this.high_interaction_debounce.update(currently_high);
       }
 
       _switch_to_new_current_gradient() {
@@ -747,12 +756,15 @@ document.addEventListener("DOMContentLoaded",
       }
 
       _is_low_interaction() {
-        const currently_low = this.current_interaction_percent < this.config.intermediate_interaction_threshold_percent;
-        return this.interaction_debounce.update(currently_low);
+        return !this._is_med_interaction() && !this._is_high_interaction();
+      }
+
+      _is_med_interaction() {
+        return this.med_interaction_debounce.reading;
       }
 
       _is_high_interaction() {
-        return this.current_interaction_percent > this.config.high_interaction_threshold_percent;
+        return this.high_interaction_debounce.reading;
       }
     }
 
