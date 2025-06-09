@@ -3,6 +3,9 @@
 ## Mockup Webpage
 [Mockup](https://aftxr.com/aunisoma)
 
+## ColorManager State Flow Diagram
+![aunisoma color manager](https://github.com/user-attachments/assets/3ff5d709-38e4-4a97-a030-e0aae866f612)
+
 # TODO
 ## Code
 * idle should animate "pulse" occasionally
