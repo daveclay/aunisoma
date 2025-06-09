@@ -11,7 +11,7 @@
 #include "Panel.h"
 #include "Reverberation.h"
 #include "Sensor.h"
-#include "TransitionAnimation.h"
+#include "Interpolation.h"
 #include "Aunisoma.h"
 
 char panel_ids[] = "22181F20121113191E1A211D152417251B281614";
@@ -53,7 +53,7 @@ Sensor sensors[NUMBER_OF_SENSORS];
 
 Config config = Config();
 
-GradientValueMap maxAnimationGradient = GradientValueMap();
+GradientValueMap rainbow_gradient = GradientValueMap();
 GradientValueMap initial_gradient = GradientValueMap();
 GradientValueMap blue_gradient = GradientValueMap();
 GradientValueMap green_gradient = GradientValueMap();
@@ -168,21 +168,21 @@ void setup(void) {
   pinPeripheral(PIN_SERIAL3_RX, PIO_SERCOM);
   pinPeripheral(PIN_SERIAL3_TX, PIO_SERCOM);
 
-  maxAnimationGradient.add_rgb_point(0.00, 255, 0, 0);
-  maxAnimationGradient.add_rgb_point(0.02, 255, 127, 0);
-  maxAnimationGradient.add_rgb_point(0.20, 255, 255, 0);
-  maxAnimationGradient.add_rgb_point(0.29, 200, 255, 0);
-  maxAnimationGradient.add_rgb_point(0.30, 0, 255, 0);
-  maxAnimationGradient.add_rgb_point(0.37, 0, 255, 127);
-  maxAnimationGradient.add_rgb_point(0.40, 0, 255, 200);
-  maxAnimationGradient.add_rgb_point(0.45, 0, 255, 255);
-  maxAnimationGradient.add_rgb_point(0.52, 0, 120, 255);
-  maxAnimationGradient.add_rgb_point(0.60, 0, 0, 255);
-  maxAnimationGradient.add_rgb_point(0.65, 160, 0, 255);
-  maxAnimationGradient.add_rgb_point(0.70, 255, 0, 255);
-  maxAnimationGradient.add_rgb_point(0.80, 255, 0, 255);
-  maxAnimationGradient.add_rgb_point(0.89, 255, 0, 200);
-  maxAnimationGradient.add_rgb_point(1.00, 255, 0, 0);
+  rainbow_gradient.add_rgb_point(0.00, 255, 0, 0);
+  rainbow_gradient.add_rgb_point(0.02, 255, 127, 0);
+  rainbow_gradient.add_rgb_point(0.20, 255, 255, 0);
+  rainbow_gradient.add_rgb_point(0.29, 200, 255, 0);
+  rainbow_gradient.add_rgb_point(0.30, 0, 255, 0);
+  rainbow_gradient.add_rgb_point(0.37, 0, 255, 127);
+  rainbow_gradient.add_rgb_point(0.40, 0, 255, 200);
+  rainbow_gradient.add_rgb_point(0.45, 0, 255, 255);
+  rainbow_gradient.add_rgb_point(0.52, 0, 120, 255);
+  rainbow_gradient.add_rgb_point(0.60, 0, 0, 255);
+  rainbow_gradient.add_rgb_point(0.65, 160, 0, 255);
+  rainbow_gradient.add_rgb_point(0.70, 255, 0, 255);
+  rainbow_gradient.add_rgb_point(0.80, 255, 0, 255);
+  rainbow_gradient.add_rgb_point(0.89, 255, 0, 200);
+  rainbow_gradient.add_rgb_point(1.00, 255, 0, 0);
 
   initial_gradient.add_rgb_point(0.0, 10, 0, 0);
   initial_gradient.add_rgb_point(.4, 255, 0, 0);
@@ -220,8 +220,8 @@ void setup(void) {
   // how long to wait to trigger a neighbor Panel to reverberate
   config.reverberation_panel_delay_ticks = 4;
   config.trigger_panel_animation_loop_duration_ticks_range = new Range(10, 20);
-  config.max_interaction_threshold_percent = .7;
-  config.intermediate_interaction_threshold_percent = .15;
+  config.high_interaction_threshold_percent = .45;
+  config.intermediate_interaction_threshold_percent = .25;
   config.min_max_interaction_gradient_transition_duration = 20;
   config.odds_for_max_interaction_gradient_transition = 10;
 
@@ -238,7 +238,7 @@ void setup(void) {
 
   config.init();
 
-  aunisoma = new Aunisoma(&config, gradients, 5, sensors);
+  aunisoma = new Aunisoma(&config, gradients, 5, &rainbow_gradient, sensors);
 
   initializePanels();
 }

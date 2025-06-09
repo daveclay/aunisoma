@@ -9,10 +9,10 @@
 #include "Cycle.h"
 #include "Gradient.h"
 
-class TransitionAnimation {
+class Interpolation {
 public:
     bool active;
-    TransitionAnimation(int duration);
+    Interpolation(int duration);
     void start(GradientValueMap* current_gradient, GradientValueMap* next_gradient);
     void update();
     bool is_done();

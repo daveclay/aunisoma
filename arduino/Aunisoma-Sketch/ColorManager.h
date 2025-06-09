@@ -7,7 +7,7 @@
 #include "Config.h"
 #include "Debounce.h"
 #include "Gradient.h"
-#include "TransitionAnimation.h"
+#include "Interpolation.h"
 
 
 /******************************************************************
@@ -25,7 +25,7 @@ private:
     Config* config;
     Debounce* intermediate_interaction_debounce;
     Cycle* intermediate_transition_delay_timer;
-    TransitionAnimation* gradient_transition_animation;
+    Interpolation* gradient_transition_animation;
     GradientValueMap* gradients;
     int number_of_gradients;
     int current_gradient_index;

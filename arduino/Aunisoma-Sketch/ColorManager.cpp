@@ -16,7 +16,7 @@ ColorManager::ColorManager(GradientValueMap* gradients, int number_of_gradients,
     this->intermediate_interaction_debounce = new Debounce(10);
     this->intermediate_transition_delay_timer = new Cycle(
       this->config->delay_for_gradient_transition_duration, ONE_SHOT, UP_ONLY_CYCLE);
-    this->gradient_transition_animation = new TransitionAnimation(config->gradient_transition_animation_duration);
+    this->gradient_transition_animation = new Interpolation(config->gradient_transition_animation_duration);
     this->current_gradient_index = 0;
     this->next_gradient_index = 0;
     this->current_gradient = &this->gradients[this->current_gradient_index];

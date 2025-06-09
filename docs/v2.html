@@ -470,18 +470,6 @@ document.addEventListener("DOMContentLoaded",
       reset() {
         this.timer.reset();
       }
-
-      /**
-       * Reverses the direction of the interpolation, from 0 to 1
-       * to 1 back to 0, based on where it's cycle is at.
-       */
-      reverse() {
-        this.timer.reverse();
-      }
-
-      is_reversed() {
-        return this.timer.reversed;
-      }
     }
 
     /******************************************************************
@@ -533,6 +521,7 @@ document.addEventListener("DOMContentLoaded",
      * manages the color gradients and transitions between them based
      * on interaction percentage.
      *****************************************************************/
+    // enum ColorManagerState = {
     const LOW_INTERACTION_STATE = 1;
     const START_DEFAULT_GRADIENT_DELAY_STATE = 2;
     const TRANSITIONING_TO_DEFAULT_GRADIENT_STATE = 3;
@@ -683,6 +672,7 @@ document.addEventListener("DOMContentLoaded",
             }
             break;
           case START_DEFAULT_GRADIENT_DELAY_STATE:
+            // TODO: don't hang out here if there's interactions to be done!
             if (this.default_gradient_delay_timer.is_done()) {
               this._set_state(TRANSITIONING_TO_DEFAULT_GRADIENT_STATE);
             }
@@ -951,25 +941,16 @@ document.addEventListener("DOMContentLoaded",
         this.clock;
         this.current_value;
         this.completed;
-        this.reversed;
 
         this.duration_ticks = duration_ticks;
         this.clock = new Clock();
         this.completed = false;
-        this.reversed = false;
         this.current_value = 0;
       }
 
       start() {
         this.completed = false;
-        this.reversed = false;
         this.clock.start();
-      }
-
-      restart() {
-        this.completed = false;
-        this.reversed = false;
-        this.clock.restart();
       }
 
       /**
@@ -980,6 +961,12 @@ document.addEventListener("DOMContentLoaded",
       stop() {
         this.clock.stop();
         this.current_value = 0;
+      }
+
+      restart(duration) {
+        this.duration_ticks = duration;
+        this.completed = false;
+        this.clock.restart();
       }
 
       update() {
@@ -1003,12 +990,6 @@ document.addEventListener("DOMContentLoaded",
 
         let looping_elapsed_duration = this.clock.ticks % this.duration_ticks;
         this.current_value = looping_elapsed_duration / this.duration_ticks;
-        if (this.reversed) {
-          // OK, the clock is going to run for as long as it _was_ running up to the point this was
-          // reversed. So if the clock had run 95 ticks, it'll run another 95 ticks.
-          // But I need the value to _decrease_ incrementally from where it was at.
-          this.current_value = 1 - this.current_value;
-        }
       }
 
       is_running() {
@@ -1021,19 +1002,6 @@ document.addEventListener("DOMContentLoaded",
 
       reset() {
         this.completed = false;
-        this.reversed = false;
-      }
-
-      reverse() {
-        // flag the Timer as reversed, so we can do the proper math with the
-        // clock's ticks.
-        this.reversed = !this.reversed;
-
-        // set the clock's ticks to run for the length of time it takes to
-        // return to 0: If the clock is at 35 / 100, we want the clock to run
-        // 35 ticks back to 0. If the clock is at 98/100, we want it to run
-        // 98 ticks back to 0.
-        this.clock.ticks = max(0, this.duration_ticks - this.clock.ticks);
       }
     }
 
@@ -1462,10 +1430,9 @@ document.addEventListener("DOMContentLoaded",
      *****************************************************************/
     class Aunisoma {
       constructor(config,
-                  maxAnimationGradient,
                   gradients,
-                  rainbow_gradient,
                   number_of_gradients,
+                  rainbow_gradient,
                   sensors) {
         this.config;
         this.sensors;
@@ -1722,7 +1689,7 @@ document.addEventListener("DOMContentLoaded",
         sensors[i] = new Sensor();
       }
 
-      aunisoma = new Aunisoma(config, rainbowGradient, gradients, rainbowGradient, 5, sensors);
+      aunisoma = new Aunisoma(config, gradients, 5, rainbowGradient, sensors);
     }
 
     function loop() {
@@ -2080,23 +2047,6 @@ document.addEventListener("DOMContentLoaded",
     }
 
     // runMainLoop();
-
-    const testTimer = new Timer(100);
-    testTimer.start();
-    for (let i = 0; i < 90; i++) {
-      testTimer.update();
-      console.log(i, testTimer.current_value);
-    }
-    console.log(testTimer.is_done());
-    testTimer.reverse();
-    console.log("reversed");
-    for (let i = 0; i < 90; i++) {
-      testTimer.update();
-      console.log(i, testTimer.current_value, testTimer.is_done());
-    }
-
-    console.log(testTimer.is_done());
-
 
 // const testCycle = new Cycle(100, LOOP_CYCLE);
 // testCycle.start();
