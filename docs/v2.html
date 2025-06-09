@@ -544,7 +544,8 @@ document.addEventListener("DOMContentLoaded",
     class ColorManager {
       constructor(gradients, number_of_gradients, rainbow_gradient, config) {
         this.config;
-        this.interaction_debounce;
+        this.high_interaction_debounce;
+        this.med_interaction_debounce;
         this.transition_delay_timer;
         this.transition_interpolation;
         this.distributed_panel_animation;
@@ -594,7 +595,7 @@ document.addEventListener("DOMContentLoaded",
         const currently_mid = current_interaction_percent > this.config.intermediate_interaction_threshold_percent;
         this.med_interaction_debounce.update(currently_mid);
 
-        const currently_high = current_interaction_percent > this.config.intermediate_interaction_threshold_percent;
+        const currently_high = current_interaction_percent > this.config.high_interaction_threshold_percent;
         this.high_interaction_debounce.update(currently_high);
       }
 
@@ -693,7 +694,14 @@ document.addEventListener("DOMContentLoaded",
             }
             break;
           case TRANSITIONING_FROM_HIGH_TO_MID_STATE:
-            if (this._is_low_interaction()) {
+            if (this._is_transition_done()) {
+              if (this._is_high_interaction()) {
+                this._set_state(TRANSITIONING_FROM_MID_TO_HIGH_STATE);
+              } else if (this._is_med_interaction()) {
+                this._set_state(TRANSITIONING_GRADIENT_STATE);
+              } else {
+                this._set_state(TRANSITIONING_FROM_MID_TO_LOW_STATE);
+              }
             }
             break;
         }
@@ -744,7 +752,6 @@ document.addEventListener("DOMContentLoaded",
 
       _start_transition_from_high_to_mid_interactivity() {
         this.transition_interpolation.start();
-        this.distributed_panel_animation.stop();
       }
 
       _is_gradient_swap_delay_done() {
