@@ -4,7 +4,7 @@
 [Mockup](https://aftxr.com/aunisoma)
 
 ## ColorManager State Flow Diagram
-![aunisoma color manager](https://github.com/user-attachments/assets/3ff5d709-38e4-4a97-a030-e0aae866f612)
+![Aunisoma ColorManager Flow Diagram](https://github.com/user-attachments/assets/d62a4196-0e61-4de8-b65d-50e73889ca3e)
 
 # TODO
 ## Code
