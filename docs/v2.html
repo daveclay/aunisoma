@@ -1601,13 +1601,15 @@ document.addEventListener("DOMContentLoaded",
     let green_gradient = new LinearGradientValueMap();
     let purple_red_gradient = new LinearGradientValueMap();
     let green_blue_gradient = new LinearGradientValueMap();
+    let trans_gradient = new LinearGradientValueMap();
 
     let gradients = [
       initial_gradient,
       blue_gradient,
       purple_red_gradient,
       green_blue_gradient,
-      green_gradient
+      green_gradient,
+      trans_gradient
     ];
 
     let aunisoma;
@@ -1659,6 +1661,10 @@ document.addEventListener("DOMContentLoaded",
       green_blue_gradient.add_rgb_point(2, 0, 0, 255);
       green_blue_gradient.add_rgb_point(3, 255, 0, 255);
 
+      trans_gradient.add_rgb_point(0, 3, 0, 1);
+      trans_gradient.add_rgb_point(.7, 255, 0, 105);
+      trans_gradient.add_rgb_point(2, 0, 155, 255);
+
       config.number_of_panels = NUMBER_OF_PANELS;
 
       config.reverberation_distance_range = new Range(2, 5);
@@ -1689,7 +1695,7 @@ document.addEventListener("DOMContentLoaded",
         sensors[i] = new Sensor();
       }
 
-      aunisoma = new Aunisoma(config, gradients, 5, rainbowGradient, sensors);
+      aunisoma = new Aunisoma(config, gradients, 6, rainbowGradient, sensors);
     }
 
     function loop() {
@@ -1999,6 +2005,7 @@ document.addEventListener("DOMContentLoaded",
     renderLinearGradient("green_gradient", green_gradient);
     renderLinearGradient("purple_red_gradient", purple_red_gradient);
     renderLinearGradient("green_blue_gradient", green_blue_gradient);
+    renderLinearGradient("trans_gradient", trans_gradient);
 
     let MAIN_RUN_LOOP_INTERVAL = null;
 
