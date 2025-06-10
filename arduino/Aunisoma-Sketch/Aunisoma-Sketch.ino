@@ -220,10 +220,11 @@ void setup(void) {
   // how long to wait to trigger a neighbor Panel to reverberate
   config.reverberation_panel_delay_ticks = 10;
   config.trigger_panel_animation_loop_duration_ticks_range = new Range(15, 30);
-  config.max_interaction_threshold_percent = .7;
+  // TODO make longer (several minutes)
+  config.default_gradient_delay_duration_range = new Range(50, 100);
+  config.high_interaction_threshold_percent = .45;
   config.intermediate_interaction_threshold_percent = .25;
   config.min_max_interaction_gradient_transition_duration = 26;
-  config.odds_for_max_interaction_gradient_transition = 10;
 
   // how long to wait for a gradient transition
   // tODO: make this random and longer
@@ -238,7 +239,7 @@ void setup(void) {
 
   config.init();
 
-  aunisoma = new Aunisoma(&config, gradients, 5, sensors);
+  aunisoma = new Aunisoma(&config, gradients, 5, &rainbow_gradient, sensors);
 
   initializePanels();
 }

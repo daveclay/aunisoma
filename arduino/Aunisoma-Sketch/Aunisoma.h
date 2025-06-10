@@ -22,6 +22,7 @@ public:
     Aunisoma(Config* config,
              GradientValueMap* gradients,
              int number_of_gradients,
+             GradientValueMap* rainbow_gradient,
              Sensor* sensors);
     Panel* get_panel_at(int);
     void update();
@@ -37,7 +38,7 @@ private:
     void _create_panels();
     void _create_reverberations();
     void _create_panel_smoothing_functions();
-    Color _calculate_color_for_value(float value);
+    Color _calculate_color_for_value(int panel_index, float value) const;
     void _calculate_interaction_percent();
 };
 

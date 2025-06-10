@@ -5,25 +5,21 @@
 #ifndef C_AUNISOMA_TRANSITIONANIMATION_H
 #define C_AUNISOMA_TRANSITIONANIMATION_H
 
-
-#include "Cycle.h"
-#include "Gradient.h"
+#include "Timer.h"
 
 class Interpolation {
 public:
-    bool active;
     Interpolation(int duration);
-    void start(GradientValueMap* current_gradient, GradientValueMap* next_gradient);
+    void start();
     void update();
+    float get_value();
     bool is_done();
+    bool is_running();
     void reset();
-    Color get_color(float panel_value);
 
 private:
-    float current_value;
-    Cycle* cycle;
-    GradientValueMap* current_gradient;
-    GradientValueMap* next_gradient;
+    bool active;
+    Timer* timer;
 };
 
 #endif //C_AUNISOMA_TRANSITIONANIMATION_H

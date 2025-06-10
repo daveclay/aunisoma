@@ -7,10 +7,10 @@
 
 class Debounce {
 public:
+    bool reading;
     Debounce(int debounce_ticks);
     bool update(bool new_reading);
 private:
-    bool reading;
     long last_debounce_time;
     bool previous_reading;
     int debounce_ticks;

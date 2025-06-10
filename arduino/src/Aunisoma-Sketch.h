@@ -218,13 +218,14 @@ void setup(void) {
 
   config.reverberation_distance_range = new Range(3, 3);
   // how long to wait to trigger a neighbor Panel to reverberate
-  config.reverberation_panel_delay_ticks = 4;
-  config.trigger_panel_animation_loop_duration_ticks_range = new Range(10, 20);
+  config.reverberation_panel_delay_ticks = 10;
+  config.trigger_panel_animation_loop_duration_ticks_range = new Range(15, 30);
   // TODO make longer (several minutes)
   config.default_gradient_delay_duration_range = new Range(50, 100);
   config.high_interaction_threshold_percent = .45;
   config.intermediate_interaction_threshold_percent = .25;
-  config.min_max_interaction_gradient_transition_duration = 20;
+  config.min_max_interaction_gradient_transition_duration = 26;
+
   // how long to wait for a gradient transition
   // tODO: make this random and longer
   config.delay_for_gradient_transition_duration = 30;
@@ -234,7 +235,7 @@ void setup(void) {
   // back to 0 even when the Reverberation is active (which I like)
   config.smoothing_fn_window_size = 10;
   // How long it takes to transition from one gradient to another
-  config.gradient_transition_animation_duration = 30;
+  config.gradient_transition_animation_duration = 50;
 
   config.init();
 

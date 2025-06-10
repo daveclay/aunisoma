@@ -4,7 +4,6 @@
 
 #include "Sensor.h"
 #define DEBOUNCE_PIR_DELAY 20 // ms debounce
-#include "Arduino.h"
 
 Sensor::Sensor() {
     this->debounce = new Debounce(DEBOUNCE_PIR_DELAY);
