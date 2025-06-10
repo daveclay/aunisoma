@@ -1597,7 +1597,7 @@ document.addEventListener("DOMContentLoaded",
 
     let config = new Config();
 
-    let rainbowGradient = new LinearGradientValueMap();
+    let rainbow_gradient = new LinearGradientValueMap();
     let initial_gradient = new LinearGradientValueMap();
     let blue_gradient = new LinearGradientValueMap();
     let green_gradient = new LinearGradientValueMap();
@@ -1607,31 +1607,23 @@ document.addEventListener("DOMContentLoaded",
 
     let gradients = [
       initial_gradient,
+      trans_gradient,
       blue_gradient,
-      purple_red_gradient,
       green_blue_gradient,
+      purple_red_gradient,
       green_gradient,
-      trans_gradient
     ];
 
     let aunisoma;
 
     function setup() {
-      rainbowGradient.add_rgb_point(0.00, 255, 0, 0);
-      rainbowGradient.add_rgb_point(0.02, 255, 127, 0);
-      rainbowGradient.add_rgb_point(0.20, 255, 255, 0);
-      rainbowGradient.add_rgb_point(0.29, 200, 255, 0);
-      rainbowGradient.add_rgb_point(0.30, 0, 255, 0);
-      rainbowGradient.add_rgb_point(0.31, 0, 255, 127);
-      rainbowGradient.add_rgb_point(0.40, 0, 255, 200);
-      rainbowGradient.add_rgb_point(0.45, 0, 255, 255);
-      rainbowGradient.add_rgb_point(0.59, 0, 120, 255);
-      rainbowGradient.add_rgb_point(0.60, 0, 0, 255);
-      rainbowGradient.add_rgb_point(0.61, 160, 0, 255);
-      rainbowGradient.add_rgb_point(0.80, 255, 0, 255);
-      rainbowGradient.add_rgb_point(0.80, 255, 0, 255);
-      rainbowGradient.add_rgb_point(0.89, 255, 0, 200);
-      rainbowGradient.add_rgb_point(1.00, 255, 0, 0);
+      rainbow_gradient.add_rgb_point(0.00, 255, 0, 0);
+      rainbow_gradient.add_rgb_point(0.14, 255, 255, 0);
+      rainbow_gradient.add_rgb_point(0.25, 0, 255, 0);
+      rainbow_gradient.add_rgb_point(0.35, 0, 255, 255);
+      rainbow_gradient.add_rgb_point(0.50, 0, 0, 255);
+      rainbow_gradient.add_rgb_point(0.80, 255, 0, 255);
+      rainbow_gradient.add_rgb_point(1.00, 255, 0, 0);
 
       initial_gradient.add_rgb_point(0.0, 3, 0, 0);
       initial_gradient.add_rgb_point(.4, 255, 0, 0);
@@ -1669,27 +1661,25 @@ document.addEventListener("DOMContentLoaded",
 
       config.number_of_panels = NUMBER_OF_PANELS;
 
-      config.reverberation_distance_range = new Range(2, 5);
+      config.reverberation_distance_range = new Range(3, 5);
       // how long to wait to trigger a neighbor Panel to reverberate
       config.reverberation_panel_delay_ticks = 20;
-      // total duration of a pulse wave from low to high back to low
-      config.trigger_panel_animation_loop_duration_ticks_range = new Range(80, 220);
-      // how long during low interactivity to wait to revert back to the default gradient from a non-default gradient
-      config.default_gradient_delay_duration_range = new Range(500, 1000);
-      // How many sensors need to be high to trigger the max interaction state
+      config.trigger_panel_animation_loop_duration_ticks_range = new Range(20, 50);
+      // TODO make longer (several minutes)
+      config.default_gradient_delay_duration_range = new Range(100, 300);
       config.high_interaction_threshold_percent = .45;
-      // how many sensors need to be high to trigger a gradient transition "intermediate" state
       config.intermediate_interaction_threshold_percent = .2;
+
       // how long to wait for a gradient transition
       // tODO: make this random and longer
-      config.delay_for_gradient_transition_duration = 300;
+      config.delay_for_gradient_transition_duration = 500;
 
       // smoothing amount for panel values. In the web mockup, 10 is a
       // little jumpy, 30 is smooth, 100 blurs so that it never goes
       // back to 0 even when the Reverberation is active (which I like)
-      config.smoothing_fn_window_size = 50;
+      config.smoothing_fn_window_size = 10;
       // How long it takes to transition from one gradient to another
-      config.gradient_transition_animation_duration = 500;
+      config.gradient_transition_animation_duration = 200;
 
       config.init();
 
@@ -1697,7 +1687,7 @@ document.addEventListener("DOMContentLoaded",
         sensors[i] = new Sensor();
       }
 
-      aunisoma = new Aunisoma(config, gradients, 6, rainbowGradient, sensors);
+      aunisoma = new Aunisoma(config, gradients, 6, rainbow_gradient, sensors);
     }
 
     function loop() {
@@ -2001,7 +1991,7 @@ document.addEventListener("DOMContentLoaded",
 
     setup();
 
-    renderLinearGradient("max_gradient", rainbowGradient, 1);
+    renderLinearGradient("max_gradient", rainbow_gradient, 1);
     renderLinearGradient("initial_gradient", initial_gradient);
     renderLinearGradient("blue_gradient", blue_gradient);
     renderLinearGradient("green_gradient", green_gradient);
@@ -2052,7 +2042,7 @@ document.addEventListener("DOMContentLoaded",
     function runMainLoop() {
       MAIN_RUN_LOOP_INTERVAL = setInterval(() => {
         runIteration();
-      }, 10);
+      }, 80);
     }
 
     // runMainLoop();

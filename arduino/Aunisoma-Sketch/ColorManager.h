@@ -49,6 +49,8 @@ private:
     GradientValueMap* current_gradient;
     ColorManagerState state;
 
+    const char* getColorManagerState(ColorManagerState state);
+
     void _update_interaction_reading(float current_interaction_percent) const;
     void _switch_to_new_current_gradient();
     Color _get_transition_color(Color from_color, Color to_color) const;
