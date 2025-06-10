@@ -3,6 +3,7 @@
 //
 #include "algorithm"
 #include "stdlib.h"
+#include <chrono>
 #include "Arduino.h"
 #include <iostream>
 
@@ -39,6 +40,14 @@ void delay(int) {
 
 long millis() {
     return iteration;
+}
+
+long micros() {
+    uint64_t us = std::chrono::duration_cast<std::chrono::microseconds>(
+        std::chrono::high_resolution_clock::now().time_since_epoch())
+        .count();
+
+    return iteration * 1000;
 }
 
 void pinMode(int pin, int mode) {

@@ -53,6 +53,7 @@ int digitalRead(int pin);
 void setPIRPinSensor(int panelIndex, int pinValue);
 const int DOTSTAR_BGR = 1;
 void delay(int);
+long micros();
 
 const Uart Serial = Uart();
 
