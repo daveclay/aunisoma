@@ -6,8 +6,6 @@
 
 #include "Config.h"
 #include "Gradient.h"
-#include "Arduino.h"
-
 #define ONE_SHOT true
 
 ColorManager::ColorManager(GradientValueMap* gradients, int number_of_gradients, GradientValueMap* rainbow_gradient, Config* config) {
@@ -17,9 +15,9 @@ ColorManager::ColorManager(GradientValueMap* gradients, int number_of_gradients,
   this->rainbow_gradient = rainbow_gradient;
   // Debounces - don't flicker number of interactions, they have to stay high for a
   // few cycles
-  // TODO: move debounce time to config, also smoothing fn?
-  this->med_interaction_debounce = new Debounce(3);
-  this->high_interaction_debounce = new Debounce(3);
+  // TODO: move debounce time to config
+  this->med_interaction_debounce = new Debounce(10);
+  this->high_interaction_debounce = new Debounce(10);
   // clocks (need to be updated in update())
   this->default_gradient_delay_timer = new Timer(
     this->config->default_gradient_delay_duration_range->random_int_between()
@@ -190,7 +188,6 @@ void ColorManager::_update_state() {
 }
 
 void ColorManager::_set_state(ColorManagerState state) {
-  Serial.println(this->getColorManagerState(this->state));
   this->state = state;
   switch(this->state) {
     case START_DEFAULT_GRADIENT_DELAY_STATE:
@@ -219,31 +216,6 @@ void ColorManager::_set_state(ColorManagerState state) {
       break;
   }
 }
-
- const char* ColorManager::getColorManagerState(ColorManagerState state) {
-      switch (state) {
-        case LOW_INTERACTION_STATE:
-          return "LOW_INTERACTION_STATE";
-        case TRANSITIONING_GRADIENT_STATE:
-          return "TRANSITIONING_GRADIENT_STATE";
-        case GRADIENT_SWAP_DELAY_STATE:
-          return "GRADIENT_SWAP_DELAY_STATE";
-        case TRANSITIONING_FROM_MID_TO_LOW_STATE:
-          return "TRANSITIONING_FROM_MID_TO_LOW_STATE";
-        case TRANSITIONING_FROM_MID_TO_HIGH_STATE:
-          return "TRANSITIONING_FROM_MID_TO_HIGH_STATE";
-        case HIGH_INTERACTION_STATE:
-          return "HIGH_INTERACTION_STATE";
-        case TRANSITIONING_FROM_HIGH_TO_MID_STATE:
-          return "TRANSITIONING_FROM_HIGH_TO_MID_STATE";
-        case TRANSITIONING_TO_DEFAULT_GRADIENT_STATE:
-          return "TRANSITIONING_TO_DEFAULT_GRADIENT_STATE";
-        case START_DEFAULT_GRADIENT_DELAY_STATE:
-          return "START_DEFAULT_GRADIENT_DELAY_STATE";
-        default:
-          return "unknown";
-      }
-    }
 
 /**
  * Start the transition interpolation timer to swap gradients

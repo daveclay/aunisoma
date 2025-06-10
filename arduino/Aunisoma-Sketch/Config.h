@@ -12,9 +12,8 @@ class Config {
 public:
     int initial_trigger_panel_animation_loop_duration_ticks;
     Range* reverberation_distance_range;
-    int max_reverberation_distance;
     int reverberation_panel_delay_ticks;
-    Range* trigger_panel_animation_loop_duration_ticks_range;
+    Range* single_panel_pulse_duration;
     float high_interaction_threshold_percent;
     float intermediate_interaction_threshold_percent;
     int min_max_interaction_gradient_transition_duration;
@@ -30,7 +29,7 @@ public:
     Config();
 
     void init();
-    int getTriggerPanelAnimationLoopDurationTicks() const;
+    int get_single_panel_pulse_duration() const;
     int get_reverberation_distance() const;
 };
 

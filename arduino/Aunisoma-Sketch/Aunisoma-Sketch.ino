@@ -215,11 +215,17 @@ void setup(void) {
   config.number_of_panels = NUMBER_OF_PANELS;
 
   config.reverberation_distance_range = new Range(3, 5);
-  // how long to wait to trigger a neighbor Panel to reverberate
-  config.reverberation_panel_delay_ticks = 20;
-  config.trigger_panel_animation_loop_duration_ticks_range = new Range(20, 50);
-  // TODO make longer (several minutes)
-  config.default_gradient_delay_duration_range = new Range(100, 300);
+  // the duration for pulses in a reverberation. This has to be longer than
+  // the reverberation_panel_delay_ticks or it won't trigger before the
+  // source panel is finished animating. 10x seems to be an organic
+  // flow - duration taking 20-30 ticks and the delay being 2.
+  config.single_panel_pulse_duration = new Range(20, 30);
+  // how long to wait to trigger a neighbor Panel to reverberate. If this is longer
+  // than the single panel pulse, they won't fire because neighbors are one-shots
+  // triggered by the start of the source panel.
+  config.reverberation_panel_delay_ticks = 2;
+  // TODO make longer (several minutes?) but smooth out interactivity requirements
+  config.default_gradient_delay_duration_range = new Range(30, 50);
   config.high_interaction_threshold_percent = .45;
   config.intermediate_interaction_threshold_percent = .2;
 

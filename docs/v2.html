@@ -1168,13 +1168,10 @@ document.addEventListener("DOMContentLoaded",
       }
 
       init() {
-        this.max_reverberation_distance = this.reverberation_distance_range.max;
-        this.initial_trigger_panel_animation_loop_duration_ticks =
-          (this.trigger_panel_animation_loop_duration_ticks_range.max + this.trigger_panel_animation_loop_duration_ticks_range.min) / 2;
       }
 
-      getTriggerPanelAnimationLoopDurationTicks() {
-        return this.trigger_panel_animation_loop_duration_ticks_range.random_int_between();
+      getSinglePanelPulseDuration() {
+        return this.single_panel_pulse_duration.random_int_between();
       }
 
       get_reverberation_distance() {
@@ -1277,16 +1274,10 @@ document.addEventListener("DOMContentLoaded",
         this._calculate_new_distance();
 
         // number _per side_.
-        let durationTicks = config.getTriggerPanelAnimationLoopDurationTicks();
+        // TODO: duration is static - make random or don't bother making it random
+        let durationTicks = config.getSinglePanelPulseDuration();
         for (let i = 0; i < this.max_distance; i++) {
           const amplitude = (this.max_distance - i) / this.max_distance;
-          // TODO: if the duration is the same, the lower amplitude colors shift slower. With the gamma map,
-          //  that means those slow color changes are perceptible as "jank". Might have to fix the gamma to cycle
-          //  through darker colors more quickly than the low-mids?
-          //  I'd say the same cycle duration isn't as nice either - the further cycles through the colors slower,
-          //  while the front panel cycles really quickly. It does pulse, but it's not as natural.
-          // TODO: I think the delay should be a similar value or calc to the duration and amplitude to make a more natural flow.
-          //  it looks janky when the far panel animates really quickly after a short delay.
           const one_shot = i == 0 ? LOOP_CYCLE : ONE_SHOT_CYCLE;
           this.pulses[i] = new Pulse(amplitude, durationTicks, one_shot);
         }
@@ -1662,11 +1653,17 @@ document.addEventListener("DOMContentLoaded",
       config.number_of_panels = NUMBER_OF_PANELS;
 
       config.reverberation_distance_range = new Range(3, 5);
-      // how long to wait to trigger a neighbor Panel to reverberate
-      config.reverberation_panel_delay_ticks = 20;
-      config.trigger_panel_animation_loop_duration_ticks_range = new Range(20, 50);
-      // TODO make longer (several minutes)
-      config.default_gradient_delay_duration_range = new Range(100, 300);
+      // the duration for pulses in a reverberation. This has to be longer than
+      // the reverberation_panel_delay_ticks or it won't trigger before the
+      // source panel is finished animating. 10x seems to be an organic
+      // flow - duration taking 20-30 ticks and the delay being 2.
+      config.single_panel_pulse_duration = new Range(20, 30);
+      // how long to wait to trigger a neighbor Panel to reverberate. If this is longer
+      // than the single panel pulse, they won't fire because neighbors are one-shots
+      // triggered by the start of the source panel.
+      config.reverberation_panel_delay_ticks = 2;
+      // TODO make longer (several minutes?) but smooth out interactivity requirements
+      config.default_gradient_delay_duration_range = new Range(30, 50);
       config.high_interaction_threshold_percent = .45;
       config.intermediate_interaction_threshold_percent = .2;
 
@@ -1677,11 +1674,9 @@ document.addEventListener("DOMContentLoaded",
       // smoothing amount for panel values. In the web mockup, 10 is a
       // little jumpy, 30 is smooth, 100 blurs so that it never goes
       // back to 0 even when the Reverberation is active (which I like)
-      config.smoothing_fn_window_size = 10;
+      config.smoothing_fn_window_size = 3;
       // How long it takes to transition from one gradient to another
       config.gradient_transition_animation_duration = 200;
-
-      config.init();
 
       for (let i = 0; i < NUMBER_OF_SENSORS; i++) {
         sensors[i] = new Sensor();

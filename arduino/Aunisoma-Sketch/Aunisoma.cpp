@@ -3,7 +3,6 @@
 //
 
 #include "Aunisoma.h"
-#include "Arduino.h"
 
 Aunisoma::Aunisoma(Config* config,
                    GradientValueMap* gradients,
@@ -82,6 +81,4 @@ void Aunisoma::_calculate_interaction_percent() {
         }
     }
     this->current_interaction_percent = (float) active_sensor_count / (float) NUMBER_OF_SENSORS;
-    Serial.print(this->current_interaction_percent * (float) 100);
-    Serial.println("%");
 }

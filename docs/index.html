@@ -594,7 +594,7 @@ document.addEventListener("DOMContentLoaded", () => {
     update() {
       this.cycle.next();
       if (this.isSourceInteraction && this.panel.active && this.isAnimationLoopDone()) {
-        let newDurationTicks = this.config.getTriggerPanelAnimationLoopDurationTicks();
+        let newDurationTicks = this.config.getSinglePanelPulseDuration();
         this.cycle.restart(newDurationTicks);
       }
     }

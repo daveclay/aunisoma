@@ -22,16 +22,9 @@ Reverberation::Reverberation(Sensor* sensor,
     this->_calculate_new_distance();
 
     // number _per side_.
-    int durationTicks = config->getTriggerPanelAnimationLoopDurationTicks();
+    int durationTicks = config->get_single_panel_pulse_duration();
     for (int i = 0; i < this->max_distance; i++) {
         float amplitude = ((float)this->max_distance - (float)i) / (float)this->max_distance;
-        // TODO: if the duration is the same, the lower amplitude colors shift slower. With the gamma map,
-        //  that means those slow color changes are perceptible as "jank". Might have to fix the gamma to cycle
-        //  through darker colors more quickly than the low-mids?
-        //  I'd say the same cycle duration isn't as nice either - the further cycles through the colors slower,
-        //  while the front panel cycles really quickly. It does pulse, but it's not as natural.
-        // TODO: I think the delay should be a similar value or calc to the duration and amplitude to make a more natural flow.
-        //  it looks janky when the far panel animates really quickly after a short delay.
         bool one_shot = i != 0; // one shot if this isn't index 0
         this->pulses[i] = new Pulse(amplitude, durationTicks, one_shot);
     }
