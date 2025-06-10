@@ -11,6 +11,7 @@
 class Sensor {
 public:
     bool active;
+    bool last_reading;
     Sensor();
     void update(bool reading);
 private:

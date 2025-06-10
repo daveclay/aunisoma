@@ -16,8 +16,8 @@ ColorManager::ColorManager(GradientValueMap* gradients, int number_of_gradients,
   // Debounces - don't flicker number of interactions, they have to stay high for a
   // few cycles
   // TODO: move debounce time to config
-  this->med_interaction_debounce = new Debounce(10);
-  this->high_interaction_debounce = new Debounce(10);
+  this->med_interaction_debounce = new Debounce(100);
+  this->high_interaction_debounce = new Debounce(100);
   // clocks (need to be updated in update())
   this->default_gradient_delay_timer = new Timer(
     this->config->default_gradient_delay_duration_range->random_int_between()

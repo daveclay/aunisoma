@@ -14,6 +14,8 @@
 #include "Interpolation.h"
 #include "Aunisoma.h"
 
+#define MOCK_INTERACTIONS true
+
 char panel_ids[] = "22181F20121113191E1A211D152417251B281614";
 // char panel_ids[] = "0E";
 
@@ -138,6 +140,9 @@ void initializePanels() {
   digitalWrite(LED_BUILTIN, LOW);
 }
 
+int iterationCount = 0;
+int mockInteractionPeriod = 200;
+
 bool send_colors(char value[]) {
   int bytesRead = send_command(SET_LIGHTS, value);
   if (bytesRead > 0) {
@@ -146,14 +151,35 @@ bool send_colors(char value[]) {
     // Note: this `min(23, )` business is because I was getting a `bytesRead` value of `35`
     // even though Serial.println(responseBuffer) returned the normal 23 length string,
     // and that then writes beyond the sensor array lengths
+    // if (iterationCount % mockInteractionPeriod == 0) {
+    //   std::cout << "WTF " << iterationCount << ": ";
+    // }
     for (int i = 3; i < min(23, bytesRead); i++) {
-      bool front_sensor_active = responseBuffer[i] == '1' || responseBuffer[i] == '3';
-      bool back_sensor_active = responseBuffer[i] == '2' || responseBuffer[i] == '3';
       int panel_index = i - 3;
       int sensor_index = panel_index * 2;
-      sensors[sensor_index].update(front_sensor_active);
-      sensors[sensor_index + 1].update(back_sensor_active);
+
+      if (MOCK_INTERACTIONS) {
+        if (iterationCount % mockInteractionPeriod == 0) {
+          bool mock_interactivity = random(0, 11) > 5;
+          // std::cout << sensor_index << ": " << (mock_interactivity ? "1" : "0") << ", ";
+          sensors[sensor_index].update(mock_interactivity);
+          sensors[sensor_index + 1].update(false);
+        } else {
+          // If we don't ping them with the previous value, they never reach the
+          // debounce threshold. The debounce has to be called multiple times.
+          sensors[sensor_index].update(sensors[sensor_index].last_reading);
+          sensors[sensor_index + 1].update(sensors[sensor_index + 1].last_reading);
+        }
+      } else {
+        bool front_sensor_active = responseBuffer[i] == '1' || responseBuffer[i] == '3';
+        bool back_sensor_active = responseBuffer[i] == '2' || responseBuffer[i] == '3';
+        sensors[sensor_index].update(front_sensor_active);
+        sensors[sensor_index + 1].update(back_sensor_active);
+      }
     }
+    // if (iterationCount % mockInteractionPeriod == 0) {
+    //   std::cout << std::endl;
+    // }
     return true;
   } else {
     return false;
@@ -249,8 +275,6 @@ void setup(void) {
 
 // + 1 for \0 terminated, which snprintf wants
 char current_panel_color[(SIZE_OF_COLOR + 1)];
-
-int iterationCount = 0;
 
 void loop(void) {
   long start = micros();

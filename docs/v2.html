@@ -149,6 +149,10 @@ document.addEventListener("DOMContentLoaded",
       return Math.round(value);
     }
 
+    function random(min, max) {
+      return Math.floor(Math.random() * (max - min) + min);
+    }
+
     function send_colors(i, red, green, blue) {
       PANEL_UI_OBJECTS[i].setColor(red, green, blue);
       let panel = aunisoma.get_panel_at(i);
@@ -556,8 +560,8 @@ document.addEventListener("DOMContentLoaded",
         // Debounces - don't flicker number of interactions, they have to stay high for a
         // few cycles
         // TODO: move debounce time to config
-        this.med_interaction_debounce = new Debounce(10);
-        this.high_interaction_debounce = new Debounce(10);
+        this.med_interaction_debounce = new Debounce(100);
+        this.high_interaction_debounce = new Debounce(100);
         // clocks (need to be updated in update())
         this.default_gradient_delay_timer = new Timer(
           this.config.default_gradient_delay_duration_range.random_int_between()
@@ -695,6 +699,12 @@ document.addEventListener("DOMContentLoaded",
             break;
           case GRADIENT_SWAP_DELAY_STATE:
             if (this._is_low_interaction()) {
+              // TODO: With real sensors, we seem to rarely hit TRANSITIONING_GRADIENT_STATE,
+              // while the web mockup does hit TRANSITIONING_GRADIENT_STATE if we leave the
+              // "active" states high. I think that's because in reality the sensors are
+              // flickering off and on quite a bit, and it only takes one tick of low
+              // interactivity to trigger TRANSITIONING_FROM_MID_TO_LOW_STATE, while it takes
+              // a long time of high activity to get to TRANSITIONING_GRADIENT_STATE.
               this._set_state(TRANSITIONING_FROM_MID_TO_LOW_STATE);
             } else if (this._is_gradient_swap_delay_done()) {
               this._set_state(TRANSITIONING_GRADIENT_STATE);
@@ -794,6 +804,8 @@ document.addEventListener("DOMContentLoaded",
       }
 
       _is_low_interaction() {
+        // TODO: don't make this a hair trigger - we want the "mid" and "high" states
+        //  even if the threshold dips for a few moments. XXX
         return !this._is_med_interaction() && !this._is_high_interaction();
       }
 
@@ -1521,16 +1533,16 @@ document.addEventListener("DOMContentLoaded",
      * Utility to debounce boolean value
      *****************************************************************/
     class Debounce {
-      constructor(debounce_ticks) {
+      constructor(debounce_ms) {
         this.reading;
         this.last_debounce_time;
         this.previous_reading;
-        this.debounce_ticks;
+        this.debounce_ms;
 
         this.reading = false;
         this.last_debounce_time = -1;
         this.previous_reading = false;
-        this.debounce_ticks = debounce_ticks;
+        this.debounce_ms = debounce_ms;
       }
 
       update(new_reading) {
@@ -1539,7 +1551,7 @@ document.addEventListener("DOMContentLoaded",
           this.last_debounce_time = currentMillis;
         }
 
-        if ((currentMillis - this.last_debounce_time) >= this.debounce_ticks) {
+        if ((currentMillis - this.last_debounce_time) >= this.debounce_ms) {
           // whatever the reading is at, it's been there for longer than the debounce
           // delay, so take it as the actual current state:
           if (this.reading != new_reading) {
@@ -1872,7 +1884,10 @@ document.addEventListener("DOMContentLoaded",
     function updateSensors() {
       for (let i = 0; i < NUMBER_OF_PANELS; i++) {
         const active = PANEL_UI_OBJECTS[i].active;
-        sensors[i].update(active);
+
+        const mock_interactivity = random(0, 10) > 2;
+
+        sensors[i].update(mock_interactivity);
       }
     }
 

@@ -6,8 +6,8 @@
 
 #include "Arduino.h"
 
-Debounce::Debounce(int debounce_ticks) {
-    this->debounce_ticks = debounce_ticks;
+Debounce::Debounce(int debounce_ms) {
+    this->debounce_ms = debounce_ms;
 }
 
 bool Debounce::update(bool new_reading) {
@@ -16,7 +16,7 @@ bool Debounce::update(bool new_reading) {
         this->last_debounce_time = currentMillis;
     }
 
-    if ((currentMillis - this->last_debounce_time) >= this->debounce_ticks) {
+    if ((currentMillis - this->last_debounce_time) >= this->debounce_ms) {
         // whatever the reading is at, it's been there for longer than the debounce
         // delay, so take it as the actual current state:
         if (this->reading != new_reading) {

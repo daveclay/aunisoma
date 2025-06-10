@@ -10,7 +10,7 @@
 // Note: this avoids having to #include Aunisoma-Sketch.h which defines it globally
 #define NUMBER_OF_PANELS 20
 
-const int ITERATIONS = 3000;
+const int ITERATIONS = 30000;
 
 const int PIN_SERIAL3_RX = 1;
 const int PIN_SERIAL3_TX = 2;

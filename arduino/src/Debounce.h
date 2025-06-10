@@ -8,11 +8,11 @@
 class Debounce {
 public:
     bool reading;
-    Debounce(int debounce_ticks);
+    Debounce(int debounce_ms);
     bool update(bool new_reading);
 private:
     long last_debounce_time;
     bool previous_reading;
-    int debounce_ticks;
+    int debounce_ms;
 };
 #endif //DEBOUNCE_H
