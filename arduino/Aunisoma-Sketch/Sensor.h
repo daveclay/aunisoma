@@ -5,6 +5,7 @@
 #ifndef C_AUNISOMA_SENSOR_H
 #define C_AUNISOMA_SENSOR_H
 #include "Debounce.h"
+#include "ValueSmoothingFn.h"
 
 
 class Sensor {
@@ -13,6 +14,7 @@ public:
     Sensor();
     void update(bool reading);
 private:
+    ValueSmoothingFn* smoothing_fn;
     Debounce* debounce;
 };
 

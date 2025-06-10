@@ -3,10 +3,11 @@
 //
 
 #include "ColorManager.h"
-#include "Arduino.h"
 
 #include "Config.h"
 #include "Gradient.h"
+#include "Arduino.h"
+
 #define ONE_SHOT true
 
 ColorManager::ColorManager(GradientValueMap* gradients, int number_of_gradients, GradientValueMap* rainbow_gradient, Config* config) {
@@ -16,7 +17,7 @@ ColorManager::ColorManager(GradientValueMap* gradients, int number_of_gradients,
   this->rainbow_gradient = rainbow_gradient;
   // Debounces - don't flicker number of interactions, they have to stay high for a
   // few cycles
-  // TODO: move debounce time to config
+  // TODO: move debounce time to config, also smoothing fn?
   this->med_interaction_debounce = new Debounce(3);
   this->high_interaction_debounce = new Debounce(3);
   // clocks (need to be updated in update())

@@ -3,13 +3,16 @@
 //
 
 #include "Sensor.h"
+#include "ValueSmoothingFn.h"
 #define DEBOUNCE_PIR_DELAY 20 // ms debounce
 
 Sensor::Sensor() {
+    this->smoothing_fn = new ValueSmoothingFn(20);
     this->debounce = new Debounce(DEBOUNCE_PIR_DELAY);
     this->active = false;
 }
 
 void Sensor::update(bool reading) {
-    this->active = this->debounce->update(reading);
+    float ave = this->smoothing_fn->get_smoothed_value(reading ? 1 : 0);
+    this->active = ave > .75;// this->debounce->update(reading);
 }

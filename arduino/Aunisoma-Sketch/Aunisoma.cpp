@@ -1,8 +1,9 @@
 //
 // Created by David Clay on 6/16/23.
 //
-#include "Arduino.h"
+
 #include "Aunisoma.h"
+#include "Arduino.h"
 
 Aunisoma::Aunisoma(Config* config,
                    GradientValueMap* gradients,
@@ -46,9 +47,6 @@ Panel* Aunisoma::get_panel_at(int index) {
 
 void Aunisoma::update() {
     this->_calculate_interaction_percent();
-    Serial.print(this->current_interaction_percent * 100);
-    Serial.println("%");
-
     this->color_manager->update(this->current_interaction_percent);
 
     for (int reverberation_index = 0; reverberation_index < NUMBER_OF_PANELS; reverberation_index++) {
@@ -84,4 +82,6 @@ void Aunisoma::_calculate_interaction_percent() {
         }
     }
     this->current_interaction_percent = (float) active_sensor_count / (float) NUMBER_OF_SENSORS;
+    Serial.print(this->current_interaction_percent * (float) 100);
+    Serial.println("%");
 }
