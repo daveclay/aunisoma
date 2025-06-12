@@ -35,8 +35,9 @@ public:
 
 private:
     Config* config;
-    Debounce* high_interaction_debounce;
+    Debounce* low_interaction_debounce;
     Debounce* med_interaction_debounce;
+    Debounce* high_interaction_debounce;
     Timer* default_gradient_delay_timer;
     Timer* transition_delay_timer;
     Interpolation* transition_interpolation;

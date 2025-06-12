@@ -14,10 +14,12 @@ ColorManager::ColorManager(GradientValueMap* gradients, int number_of_gradients,
   this->number_of_gradients = number_of_gradients;
   this->rainbow_gradient = rainbow_gradient;
   // Debounces - don't flicker number of interactions, they have to stay high for a
-  // few cycles
+  // few cycles. Note the values are in ms, not ticks.
   // TODO: move debounce time to config
-  this->med_interaction_debounce = new Debounce(100);
-  this->high_interaction_debounce = new Debounce(100);
+  // going low should take longer
+  this->low_interaction_debounce = new Debounce(2000);
+  this->med_interaction_debounce = new Debounce(300);
+  this->high_interaction_debounce = new Debounce(300);
   // clocks (need to be updated in update())
   this->default_gradient_delay_timer = new Timer(
     this->config->default_gradient_delay_duration_range->random_int_between()
@@ -47,6 +49,9 @@ void ColorManager::update(float current_interaction_percent) {
 }
 
 void ColorManager::_update_interaction_reading(float current_interaction_percent) const {
+  bool currently_low = current_interaction_percent < this->config->intermediate_interaction_threshold_percent;
+  this->low_interaction_debounce->update(currently_low);
+
   bool currently_mid = current_interaction_percent > this->config->intermediate_interaction_threshold_percent;
   this->med_interaction_debounce->update(currently_mid);
 
@@ -256,7 +261,7 @@ bool ColorManager::_is_transition_done() const {
 }
 
 bool ColorManager::_is_low_interaction() const {
-  return !this->_is_med_interaction() && !this->_is_high_interaction();
+return this->low_interaction_debounce->reading;
 }
 
 bool ColorManager::_is_med_interaction() const {

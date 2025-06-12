@@ -558,10 +558,12 @@ document.addEventListener("DOMContentLoaded",
         this.number_of_gradients = number_of_gradients;
         this.rainbow_gradient = rainbow_gradient;
         // Debounces - don't flicker number of interactions, they have to stay high for a
-        // few cycles
+        // few cycles. Note the values are in ms, not ticks.
         // TODO: move debounce time to config
-        this.med_interaction_debounce = new Debounce(100);
-        this.high_interaction_debounce = new Debounce(100);
+        // going low should take longer
+        this.low_interaction_debounce = new Debounce(2000);
+        this.med_interaction_debounce = new Debounce(300);
+        this.high_interaction_debounce = new Debounce(300);
         // clocks (need to be updated in update())
         this.default_gradient_delay_timer = new Timer(
           this.config.default_gradient_delay_duration_range.random_int_between()
@@ -591,6 +593,9 @@ document.addEventListener("DOMContentLoaded",
       }
 
       _update_interaction_reading(current_interaction_percent) {
+        const currently_low = current_interaction_percent < this.config.intermediate_interaction_threshold_percent;
+        this.low_interaction_debounce.update(currently_low);
+
         const currently_mid = current_interaction_percent > this.config.intermediate_interaction_threshold_percent;
         this.med_interaction_debounce.update(currently_mid);
 
@@ -804,9 +809,7 @@ document.addEventListener("DOMContentLoaded",
       }
 
       _is_low_interaction() {
-        // TODO: don't make this a hair trigger - we want the "mid" and "high" states
-        //  even if the threshold dips for a few moments. XXX
-        return !this._is_med_interaction() && !this._is_high_interaction();
+        return this.low_interaction_debounce.reading;
       }
 
       _is_med_interaction() {
@@ -1886,8 +1889,7 @@ document.addEventListener("DOMContentLoaded",
         const active = PANEL_UI_OBJECTS[i].active;
 
         const mock_interactivity = random(0, 10) > 2;
-
-        sensors[i].update(mock_interactivity);
+        sensors[i].update(active);
       }
     }
 
