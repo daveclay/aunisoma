@@ -7,7 +7,6 @@
 #include "Arduino.h"
 #include "Config.h"
 #include "Gradient.h"
-#define ONE_SHOT true
 
 ColorManager::ColorManager(GradientValueMap* gradients, int number_of_gradients, GradientValueMap* rainbow_gradient, Config* config) {
   this->config = config;
@@ -237,7 +236,7 @@ void ColorManager::_start_gradient_swap_transition() {
   this->transition_interpolation->start();
   do {
     this->next_gradient_index = random(1, this->number_of_gradients);
-  } while (this->next_gradient_index != this->current_gradient_index);
+  } while (this->next_gradient_index == this->current_gradient_index);
 }
 
 void ColorManager::_start_swap_to_default_gradient_transition() {
