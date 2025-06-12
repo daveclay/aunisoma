@@ -251,12 +251,13 @@ void setup(void) {
   // triggered by the start of the source panel.
   config.reverberation_panel_delay_ticks = 2;
   // TODO make longer (several minutes?) but smooth out interactivity requirements
-  config.default_gradient_delay_duration_range = new Range(30, 50);
-  config.high_interaction_threshold_percent = .45;
+  config.default_gradient_delay_duration_range = new Range(500, 800);
+  config.high_interaction_threshold_percent = .3;
   config.intermediate_interaction_threshold_percent = .2;
 
-  // how long to wait for a gradient transition
-  // tODO: make this random and longer
+  // how long to wait for a gradient transition while in the
+  // medium interactivity state. Longer means people have to
+  // move their butts for longer to get it to switch color.
   config.delay_for_gradient_transition_duration = 500;
 
   // smoothing amount for panel values. In the web mockup, 10 is a
@@ -264,7 +265,7 @@ void setup(void) {
   // back to 0 even when the Reverberation is active (which I like)
   config.smoothing_fn_window_size = 10;
   // How long it takes to transition from one gradient to another
-  config.gradient_transition_animation_duration = 200;
+  config.gradient_transition_animation_duration = 40;
 
   config.init();
 

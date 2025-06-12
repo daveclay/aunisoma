@@ -4,6 +4,7 @@
 
 #include "ColorManager.h"
 
+#include "Arduino.h"
 #include "Config.h"
 #include "Gradient.h"
 #define ONE_SHOT true
@@ -17,9 +18,9 @@ ColorManager::ColorManager(GradientValueMap* gradients, int number_of_gradients,
   // few cycles. Note the values are in ms, not ticks.
   // TODO: move debounce time to config
   // going low should take longer
-  this->low_interaction_debounce = new Debounce(2000);
-  this->med_interaction_debounce = new Debounce(300);
-  this->high_interaction_debounce = new Debounce(300);
+  this->low_interaction_debounce = new Debounce(10000);
+  this->med_interaction_debounce = new Debounce(200);
+  this->high_interaction_debounce = new Debounce(200);
   // clocks (need to be updated in update())
   this->default_gradient_delay_timer = new Timer(
     this->config->default_gradient_delay_duration_range->random_int_between()
@@ -131,13 +132,18 @@ void ColorManager::_update_state() {
     case LOW_INTERACTION_STATE:
       if (this->current_gradient_index != 0) {
         this->_set_state(START_DEFAULT_GRADIENT_DELAY_STATE);
-      } else if (!this->_is_low_interaction()) {
+      } else if (this->_is_med_interaction()) {
         this->_set_state(TRANSITIONING_GRADIENT_STATE);
+      } else if (this->_is_high_interaction()) {
+        this->_set_state(TRANSITIONING_FROM_MID_TO_HIGH_STATE);
       }
       break;
     case START_DEFAULT_GRADIENT_DELAY_STATE:
-      // TODO: don't hang out here if there's interactions to be done!
-      if (this->default_gradient_delay_timer->is_done()) {
+      if (this->_is_med_interaction()) {
+        this->_set_state(TRANSITIONING_GRADIENT_STATE);
+      } else if (this->_is_high_interaction()) {
+        this->_set_state(TRANSITIONING_FROM_MID_TO_HIGH_STATE);
+      } else if (this->default_gradient_delay_timer->is_done()) {
         this->_set_state(TRANSITIONING_TO_DEFAULT_GRADIENT_STATE);
       }
       break;
@@ -153,6 +159,8 @@ void ColorManager::_update_state() {
         if (this->_is_high_interaction()) {
           this->_set_state(TRANSITIONING_FROM_MID_TO_HIGH_STATE);
         } else {
+          // Note: this is how long it's going to stay on a single gradient while
+          // the med interaction is maintained, meaning people have to be moving about.
           this->_set_state(GRADIENT_SWAP_DELAY_STATE);
         }
       }
@@ -227,11 +235,9 @@ void ColorManager::_set_state(ColorManagerState state) {
  */
 void ColorManager::_start_gradient_swap_transition() {
   this->transition_interpolation->start();
-  this->next_gradient_index = this->current_gradient_index + 1;
-  if (this->next_gradient_index == this->number_of_gradients) {
-    // hit the max, loop around->
-    this->next_gradient_index = 0;
-  }
+  do {
+    this->next_gradient_index = random(1, this->number_of_gradients);
+  } while (this->next_gradient_index != this->current_gradient_index);
 }
 
 void ColorManager::_start_swap_to_default_gradient_transition() {

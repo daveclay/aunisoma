@@ -8,7 +8,7 @@ DistributedPanelAnimation::DistributedPanelAnimation(Config* config) {
     this->active = false;
     // This Cycle is for how fast each panel iterates over the gradient
     // TODO: duration_ticks to Config
-    this->cycle = new Cycle(100, false, UP_ONLY_CYCLE);
+    this->cycle = new Cycle(30, false, UP_ONLY_CYCLE);
     this->panel_distribution_ratio = (float) 1 / (float) config->number_of_panels;
 }
 

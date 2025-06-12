@@ -66,6 +66,7 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
             <button id="runButton" value="pause">Run</button>
             <button id="stepButton" value="pause">Step</button>
             <div id="colorManagerState" style="margin-top: 10px"></div>
+            <div id="interactionPercent" style="margin-top: 10px"></div>
         </td>
     </tr>
     <tr>
@@ -492,7 +493,7 @@ document.addEventListener("DOMContentLoaded",
 
         this.active = false;
         // This Cycle is for how fast each panel iterates over the gradient
-        this.cycle = new Cycle(100, false, UP_ONLY_CYCLE);
+        this.cycle = new Cycle(30, false, UP_ONLY_CYCLE);
         this.panel_distribution_ratio = 1 / config.number_of_panels;
       }
 
@@ -561,9 +562,9 @@ document.addEventListener("DOMContentLoaded",
         // few cycles. Note the values are in ms, not ticks.
         // TODO: move debounce time to config
         // going low should take longer
-        this.low_interaction_debounce = new Debounce(2000);
-        this.med_interaction_debounce = new Debounce(300);
-        this.high_interaction_debounce = new Debounce(300);
+        this.low_interaction_debounce = new Debounce(10000);
+        this.med_interaction_debounce = new Debounce(200);
+        this.high_interaction_debounce = new Debounce(200);
         // clocks (need to be updated in update())
         this.default_gradient_delay_timer = new Timer(
           this.config.default_gradient_delay_duration_range.random_int_between()
@@ -1691,7 +1692,7 @@ document.addEventListener("DOMContentLoaded",
       // back to 0 even when the Reverberation is active (which I like)
       config.smoothing_fn_window_size = 3;
       // How long it takes to transition from one gradient to another
-      config.gradient_transition_animation_duration = 200;
+      config.gradient_transition_animation_duration = 100;
 
       for (let i = 0; i < NUMBER_OF_SENSORS; i++) {
         sensors[i] = new Sensor();
@@ -1756,6 +1757,7 @@ document.addEventListener("DOMContentLoaded",
     const RUN_BUTTON = document.getElementById("runButton");
     const STEP_BUTTON = document.getElementById("stepButton");
     const COLOR_MANAGER_STATE_ELEMENT = document.getElementById("colorManagerState");
+    const INTERACTION_PERCENT_ELEMENT = document.getElementById("interactionPercent");
 
     const SCRIPT_STEPS_TEXTAREA = document.getElementById("scriptSteps");
     const TRIGGER_WALK_DOWN_BUTTON = document.getElementById("triggerWalkDownButton");
@@ -2038,6 +2040,8 @@ document.addEventListener("DOMContentLoaded",
       }
     }
 
+    let previousColorManagerState;
+
     function runIteration() {
       currentAmps = 0;
       updateTime();
@@ -2045,7 +2049,12 @@ document.addEventListener("DOMContentLoaded",
       updateSensors();
 
       STEP_ELEMENT.innerText = iterations;
-      COLOR_MANAGER_STATE_ELEMENT.innerText = getColorManagerState(aunisoma.color_manager.state);
+      const colorManagerState = getColorManagerState(aunisoma.color_manager.state);
+      if (previousColorManagerState !== colorManagerState) {
+        previousColorManagerState = colorManagerState;
+        COLOR_MANAGER_STATE_ELEMENT.innerText = `${colorManagerState} on ${iterations}`;
+      }
+      INTERACTION_PERCENT_ELEMENT.innerText = `${(aunisoma.current_interaction_percent * 100).toFixed(3)}%`;
 
       loop();
       iterations++;
