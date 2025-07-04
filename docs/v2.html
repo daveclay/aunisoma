@@ -564,6 +564,8 @@ document.addEventListener("DOMContentLoaded",
         // going low should take longer
         this.low_interaction_debounce = new Debounce(10000);
         this.med_interaction_debounce = new Debounce(200);
+        // TODO: it was kinda hard to keep it in the high state, maybe it should be
+        // biased to stay high longer?
         this.high_interaction_debounce = new Debounce(200);
         // clocks (need to be updated in update())
         this.default_gradient_delay_timer = new Timer(

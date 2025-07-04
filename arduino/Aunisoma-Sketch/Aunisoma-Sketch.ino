@@ -88,7 +88,9 @@ int send_command(char cmd_byte, char params[]) {
   Serial2.print(TERMINATOR);
   Serial2.flush();
 
-  return Serial2.readBytesUntil(TERMINATOR, responseBuffer, sizeof(responseBuffer));
+  int bytesRead = Serial2.readBytesUntil(TERMINATOR, responseBuffer, sizeof(responseBuffer));
+  responseBuffer[bytesRead] = '\0';  // Null-terminate the string
+  return bytesRead;
 }
 
 bool send_enumerate() {
@@ -97,12 +99,12 @@ bool send_enumerate() {
   if (bytesRead > 0) {
     // two bytes per panel
     int activePanels = bytesRead / 2;
-    // Serial.print("Initialized ");
-    // Serial.print(activePanels);
-    // Serial.print(" panels from ");
-    // Serial.print(bytesRead);
-    // Serial.print(" bytes: ");
-    // Serial.println(responseBuffer);
+    Serial.print("Initialized ");
+    Serial.print(activePanels);
+    Serial.print(" panels from ");
+    Serial.print(bytesRead);
+    Serial.print(" bytes: ");
+    Serial.println(responseBuffer);
     for (int i = 0; i < bytesRead; i += 2) {
       if (responseBuffer[i] != 'V') {
         return false;
@@ -119,13 +121,11 @@ bool failed_mapping_flag = false;
 
 bool map_panels() {
   int bytesRead = send_command(MAP_PANELS, panel_ids);
-  if (bytesRead > 0) {
-    //Serial.println(responseBuffer);
-    int success = strcmp(responseBuffer, "OK");
-    if (success < 0) {
-      failed_mapping_flag = true;
+  if (bytesRead > 1) {
+    Serial.println(responseBuffer);
+    if (responseBuffer[0] == 'O' && responseBuffer[1] == 'K') {
+      return true;
     }
-    return true;
   }
   return false;
 }
@@ -133,8 +133,9 @@ bool map_panels() {
 void initializePanels() {
   digitalWrite(LED_BUILTIN, HIGH);
   while (!map_panels()) {
+    delay(250);
     digitalWrite(LED_BUILTIN, LOW);
-    delay(500);
+    delay(250);
     digitalWrite(LED_BUILTIN, HIGH);
   }
   digitalWrite(LED_BUILTIN, LOW);
@@ -279,42 +280,30 @@ char current_panel_color[(SIZE_OF_COLOR + 1)];
 
 void loop(void) {
   long start = micros();
-  if (failed_mapping_flag) {
-    if (iterationCount % 50 < 40) {
-      send_colors(FAILED_MAPPING_COLORS);
-    } else {
-      send_colors(ZERO_COLORS);
-    }
-    if (iterationCount > 5000) {
-      // clear it, let it run with whatever panels did respond.
-      failed_mapping_flag = false;
-    }
-  } else {
-    aunisoma->update();
+  aunisoma->update();
 
-    //panel_colors[0] = '\0';
-    for (int i = 0; i < NUMBER_OF_PANELS; i++) {
-      Panel* panel = aunisoma->get_panel_at(i);
-      Color color = panel->color;
-      snprintf(current_panel_color,
-               SIZE_OF_COLOR + 1,
-               "%02x%02x%02x",
-               gamma_lut[color.red],
-               gamma_lut[color.green],
-               gamma_lut[color.blue]);
-      for (int j = 0; j < 7; j++) {
-        panel_colors[(i * SIZE_OF_COLOR) + j] = current_panel_color[j];
-      }
-      // strcat(panel_colors, current_panel_color);
+  //panel_colors[0] = '\0';
+  for (int i = 0; i < NUMBER_OF_PANELS; i++) {
+    Panel* panel = aunisoma->get_panel_at(i);
+    Color color = panel->color;
+    snprintf(current_panel_color,
+             SIZE_OF_COLOR + 1,
+             "%02x%02x%02x",
+             gamma_lut[color.red],
+             gamma_lut[color.green],
+             gamma_lut[color.blue]);
+    for (int j = 0; j < 7; j++) {
+      panel_colors[(i * SIZE_OF_COLOR) + j] = current_panel_color[j];
     }
-
-    send_colors(panel_colors);
+    // strcat(panel_colors, current_panel_color);
   }
+
+  send_colors(panel_colors);
 
   iterationCount++;
 
-  if (iterationCount == 60000) {
-    //initializePanels();
+  if (iterationCount == 600000) {
+    map_panels();
     iterationCount = 0;
   }
 
