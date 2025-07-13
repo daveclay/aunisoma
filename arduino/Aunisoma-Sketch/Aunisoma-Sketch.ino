@@ -16,7 +16,7 @@
 
 #define MOCK_INTERACTIONS false
 
-char panel_ids[] = "22181F20121113191E1A211D152417251B281614";
+char panel_ids[] = "241621281D17251E12111814131920221B1F1A15";
 // char panel_ids[] = "0E";
 
 char ZERO_COLORS[] = "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
@@ -302,7 +302,7 @@ void loop(void) {
 
   iterationCount++;
 
-  if (iterationCount == 600000) {
+  if (iterationCount == 500) {
     map_panels();
     iterationCount = 0;
   }
