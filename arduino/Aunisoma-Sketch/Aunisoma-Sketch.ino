@@ -1,4 +1,6 @@
 #include "SPI.h"
+#include <string.h>
+#include <stdio.h>
 #include "Arduino.h"         // required before wiring_private.h
 #include "wiring_private.h"  // pinPeripheral() function
 #include "Clock.h"
@@ -7,13 +9,14 @@
 #include "Config.h"
 #include "Gradient.h"
 #include "Panel.h"
-#include "PanelContext.h"
-#include "PanelReverberation.h"
+#include "Reverberation.h"
 #include "Sensor.h"
-#include "TransitionAnimation.h"
+#include "Interpolation.h"
 #include "Aunisoma.h"
 
-char panel_ids[] = "1F22201213191E111A1D21152425171B18281614";
+#define MOCK_INTERACTIONS false
+
+char panel_ids[] = "241621281D17251E12111814131920221B1F1A15";
 // char panel_ids[] = "0E";
 
 char ZERO_COLORS[] = "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
@@ -21,6 +24,8 @@ char FAILED_MAPPING_COLORS[] = "C80000C80000C80000C80000C80000C80000C80000C80000
 char RAINBOW_COLORS[] = "FF0000FF4D00FF9900FFE600CCFF0080FF0033FF0000FF1A00FF6600FFB300FFFF00B2FF0066FF0019FF3300FF8000FFCC00FFFF00E5FF0099FF004C";
 
 #define NUMBER_OF_PANELS 20
+#define NUMBER_OF_SENSORS 40
+
 #define SIZE_OF_COLOR 6  // number of chars to send the SET_LIGHTS message per panel
 
 Uart Serial2(&sercom1, PIN_SERIAL3_RX, PIN_SERIAL3_TX, PAD_SERIAL3_RX, PAD_SERIAL3_TX);
@@ -46,22 +51,24 @@ char TERMINATOR = '\n';
 char responseBuffer[512];  // should be 20 panels * however big messages are
 char panel_colors[(NUMBER_OF_PANELS * SIZE_OF_COLOR)];
 
-Sensor sensors[NUMBER_OF_PANELS];
+Sensor sensors[NUMBER_OF_SENSORS];
 
 Config config = Config();
 
-GradientValueMap maxAnimationGradient = GradientValueMap();
+GradientValueMap rainbow_gradient = GradientValueMap();
 GradientValueMap initial_gradient = GradientValueMap();
+GradientValueMap trans_gradient = GradientValueMap();
 GradientValueMap blue_gradient = GradientValueMap();
 GradientValueMap green_gradient = GradientValueMap();
 GradientValueMap purple_red_gradient = GradientValueMap();
 GradientValueMap green_blue_gradient = GradientValueMap();
 
-GradientValueMap gradients[5] = {
+GradientValueMap gradients[6] = {
   initial_gradient,
+  trans_gradient,
   blue_gradient,
-  purple_red_gradient,
   green_blue_gradient,
+  purple_red_gradient,
   green_gradient
 };
 
@@ -81,7 +88,9 @@ int send_command(char cmd_byte, char params[]) {
   Serial2.print(TERMINATOR);
   Serial2.flush();
 
-  return Serial2.readBytesUntil(TERMINATOR, responseBuffer, sizeof(responseBuffer));
+  int bytesRead = Serial2.readBytesUntil(TERMINATOR, responseBuffer, sizeof(responseBuffer));
+  responseBuffer[bytesRead] = '\0';  // Null-terminate the string
+  return bytesRead;
 }
 
 bool send_enumerate() {
@@ -90,12 +99,12 @@ bool send_enumerate() {
   if (bytesRead > 0) {
     // two bytes per panel
     int activePanels = bytesRead / 2;
-    // Serial.print("Initialized ");
-    // Serial.print(activePanels);
-    // Serial.print(" panels from ");
-    // Serial.print(bytesRead);
-    // Serial.print(" bytes: ");
-    // Serial.println(responseBuffer);
+    Serial.print("Initialized ");
+    Serial.print(activePanels);
+    Serial.print(" panels from ");
+    Serial.print(bytesRead);
+    Serial.print(" bytes: ");
+    Serial.println(responseBuffer);
     for (int i = 0; i < bytesRead; i += 2) {
       if (responseBuffer[i] != 'V') {
         return false;
@@ -112,12 +121,11 @@ bool failed_mapping_flag = false;
 
 bool map_panels() {
   int bytesRead = send_command(MAP_PANELS, panel_ids);
-  if (bytesRead > 0) {
-    int success = strcmp(responseBuffer, "OK");
-    if (success < 0) {
-      failed_mapping_flag = true;
+  if (bytesRead > 1) {
+    Serial.println(responseBuffer);
+    if (responseBuffer[0] == 'O' && responseBuffer[1] == 'K') {
+      return true;
     }
-    return true;
   }
   return false;
 }
@@ -125,23 +133,54 @@ bool map_panels() {
 void initializePanels() {
   digitalWrite(LED_BUILTIN, HIGH);
   while (!map_panels()) {
+    delay(250);
     digitalWrite(LED_BUILTIN, LOW);
-    delay(500);
+    delay(250);
     digitalWrite(LED_BUILTIN, HIGH);
   }
   digitalWrite(LED_BUILTIN, LOW);
 }
+
+int iterationCount = 0;
+int mockInteractionPeriod = 200;
 
 bool send_colors(char value[]) {
   int bytesRead = send_command(SET_LIGHTS, value);
   if (bytesRead > 0) {
     // Serial.println(responseBuffer);
     // 3 - skip "OK " and get to the PIRs
-    for (int i = 3; i < bytesRead; i++) {
-      bool active = responseBuffer[i] == '1' || responseBuffer[i] == '2' || responseBuffer[i] == '3';
+    // Note: this `min(23, )` business is because I was getting a `bytesRead` value of `35`
+    // even though Serial.println(responseBuffer) returned the normal 23 length string,
+    // and that then writes beyond the sensor array lengths
+    // if (iterationCount % mockInteractionPeriod == 0) {
+    //   std::cout << "WTF " << iterationCount << ": ";
+    // }
+    for (int i = 3; i < min(23, bytesRead); i++) {
       int panel_index = i - 3;
-      sensors[panel_index].update(active);
+      int sensor_index = panel_index * 2;
+
+      if (MOCK_INTERACTIONS) {
+        if (iterationCount % mockInteractionPeriod == 0) {
+          bool mock_interactivity = random(0, 11) > 5;
+          // std::cout << sensor_index << ": " << (mock_interactivity ? "1" : "0") << ", ";
+          sensors[sensor_index].update(mock_interactivity);
+          sensors[sensor_index + 1].update(false);
+        } else {
+          // If we don't ping them with the previous value, they never reach the
+          // debounce threshold. The debounce has to be called multiple times.
+          sensors[sensor_index].update(sensors[sensor_index].last_reading);
+          sensors[sensor_index + 1].update(sensors[sensor_index + 1].last_reading);
+        }
+      } else {
+        bool front_sensor_active = responseBuffer[i] == '1' || responseBuffer[i] == '3';
+        bool back_sensor_active = responseBuffer[i] == '2' || responseBuffer[i] == '3';
+        sensors[sensor_index].update(front_sensor_active);
+        sensors[sensor_index + 1].update(back_sensor_active);
+      }
     }
+    // if (iterationCount % mockInteractionPeriod == 0) {
+    //   std::cout << std::endl;
+    // }
     return true;
   } else {
     return false;
@@ -149,7 +188,7 @@ bool send_colors(char value[]) {
 }
 
 void setup(void) {
-//   Serial.begin(9600);
+  Serial.begin(9600);
   Serial2.setTimeout(1000);
   Serial2.begin(230400);
 
@@ -158,69 +197,80 @@ void setup(void) {
   pinPeripheral(PIN_SERIAL3_RX, PIO_SERCOM);
   pinPeripheral(PIN_SERIAL3_TX, PIO_SERCOM);
 
-  maxAnimationGradient.add_rgb_point(0.00, 255, 0, 0);
-  maxAnimationGradient.add_rgb_point(0.02, 255, 127, 0);
-  maxAnimationGradient.add_rgb_point(0.20, 255, 255, 0);
-  maxAnimationGradient.add_rgb_point(0.29, 200, 255, 0);
-  maxAnimationGradient.add_rgb_point(0.30, 0, 255, 0);
-  maxAnimationGradient.add_rgb_point(0.37, 0, 255, 127);
-  maxAnimationGradient.add_rgb_point(0.40, 0, 255, 200);
-  maxAnimationGradient.add_rgb_point(0.45, 0, 255, 255);
-  maxAnimationGradient.add_rgb_point(0.52, 0, 120, 255);
-  maxAnimationGradient.add_rgb_point(0.60, 0, 0, 255);
-  maxAnimationGradient.add_rgb_point(0.65, 160, 0, 255);
-  maxAnimationGradient.add_rgb_point(0.70, 255, 0, 255);
-  maxAnimationGradient.add_rgb_point(0.80, 255, 0, 255);
-  maxAnimationGradient.add_rgb_point(0.89, 255, 0, 200);
-  maxAnimationGradient.add_rgb_point(1.00, 255, 0, 0);
+  rainbow_gradient.add_rgb_point(0.00, 255, 0, 0);
+  rainbow_gradient.add_rgb_point(0.14, 255, 255, 0);
+  rainbow_gradient.add_rgb_point(0.25, 0, 255, 0);
+  rainbow_gradient.add_rgb_point(0.35, 0, 255, 255);
+  rainbow_gradient.add_rgb_point(0.50, 0, 0, 255);
+  rainbow_gradient.add_rgb_point(0.80, 255, 0, 255);
+  rainbow_gradient.add_rgb_point(1.00, 255, 0, 0);
 
   initial_gradient.add_rgb_point(0.0, 10, 0, 0);
   initial_gradient.add_rgb_point(.4, 255, 0, 0);
-  initial_gradient.add_rgb_point(1.0, 255, 255, 0);
-  initial_gradient.add_rgb_point(1.6, 0, 255, 255);
-  initial_gradient.add_rgb_point(3, 0, 255, 255);
+  initial_gradient.add_rgb_point(1.8, 255, 255, 0);
+  initial_gradient.add_rgb_point(2.2, 0, 255, 255);
+  initial_gradient.add_rgb_point(3, 0, 100, 255);
 
   blue_gradient.add_rgb_point(0.0, 0, 0, 10);
-  blue_gradient.add_rgb_point(.4, 0, 0, 255);
-  blue_gradient.add_rgb_point(.8, 255, 0, 255);
-  blue_gradient.add_rgb_point(2, 255, 255, 0);
+  blue_gradient.add_rgb_point(.5, 0, 0, 255);
+  blue_gradient.add_rgb_point(1.2, 255, 0, 255);
+  blue_gradient.add_rgb_point(2.5, 255, 255, 0);
   blue_gradient.add_rgb_point(3, 255, 255, 0);
 
   green_gradient.add_rgb_point(0.0, 0, 10, 0);
-  green_gradient.add_rgb_point(.4, 0, 255, 0);
-  green_gradient.add_rgb_point(.8, 255, 255, 0);
-  green_gradient.add_rgb_point(1.5, 255, 0, 255);
+  green_gradient.add_rgb_point(.5, 0, 255, 0);
+  green_gradient.add_rgb_point(1.2, 255, 255, 0);
+  green_gradient.add_rgb_point(2.5, 255, 0, 255);
   green_gradient.add_rgb_point(3, 255, 0, 255);
 
   purple_red_gradient.add_rgb_point(0, 5, 0, 5);
-  purple_red_gradient.add_rgb_point(.4, 255, 0, 255);
-  purple_red_gradient.add_rgb_point(.85, 255, 0, 0);
-  purple_red_gradient.add_rgb_point(1.2, 255, 255, 0);
+  purple_red_gradient.add_rgb_point(.6, 255, 0, 255);
+  purple_red_gradient.add_rgb_point(1.2, 255, 0, 0);
+  purple_red_gradient.add_rgb_point(2.5, 255, 255, 0);
   purple_red_gradient.add_rgb_point(3, 0, 255, 0);
 
   green_blue_gradient.add_rgb_point(0, 0, 10, 0);
-  green_blue_gradient.add_rgb_point(.3, 0, 255, 0);
-  green_blue_gradient.add_rgb_point(1, 0, 255, 255);
+  green_blue_gradient.add_rgb_point(.5, 0, 255, 0);
+  green_blue_gradient.add_rgb_point(1.2, 0, 255, 255);
   green_blue_gradient.add_rgb_point(2, 0, 0, 255);
   green_blue_gradient.add_rgb_point(3, 255, 0, 255);
 
+  trans_gradient.add_rgb_point(0, 3, 0, 1);
+  trans_gradient.add_rgb_point(.7, 255, 0, 105);
+  trans_gradient.add_rgb_point(2, 0, 155, 255);
+
   config.number_of_panels = NUMBER_OF_PANELS;
-  config.reverberation_distance_range = new Range(2, 5);
-  // how long to wait to trigger a neighbor Panel to reverberate
-  config.reverberation_panel_delay_ticks = 20;
-  config.trigger_panel_animation_loop_duration_ticks_range = new Range(220, 300);
-  config.max_interaction_threshold_percent = .7;
-  config.intermediate_interaction_threshold_percent = .35;
-  config.min_max_interaction_gradient_transition_duration = 3000;
-  config.odds_for_max_interaction_gradient_transition = 90;
+
+  config.reverberation_distance_range = new Range(3, 5);
+  // the duration for pulses in a reverberation. This has to be longer than
+  // the reverberation_panel_delay_ticks or it won't trigger before the
+  // source panel is finished animating. 10x seems to be an organic
+  // flow - duration taking 20-30 ticks and the delay being 2.
+  config.single_panel_pulse_duration = new Range(20, 30);
+  // how long to wait to trigger a neighbor Panel to reverberate. If this is longer
+  // than the single panel pulse, they won't fire because neighbors are one-shots
+  // triggered by the start of the source panel.
+  config.reverberation_panel_delay_ticks = 2;
+  // TODO make longer (several minutes?) but smooth out interactivity requirements
+  config.default_gradient_delay_duration_range = new Range(500, 800);
+  config.high_interaction_threshold_percent = .3;
+  config.intermediate_interaction_threshold_percent = .2;
+
+  // how long to wait for a gradient transition while in the
+  // medium interactivity state. Longer means people have to
+  // move their butts for longer to get it to switch color.
+  config.delay_for_gradient_transition_duration = 500;
+
+  // smoothing amount for panel values. In the web mockup, 10 is a
+  // little jumpy, 30 is smooth, 100 blurs so that it never goes
+  // back to 0 even when the Reverberation is active (which I like)
+  config.smoothing_fn_window_size = 10;
+  // How long it takes to transition from one gradient to another
+  config.gradient_transition_animation_duration = 40;
 
   config.init();
 
-  aunisoma = new Aunisoma(&config, &maxAnimationGradient, gradients, 5, sensors);
-
-  for (int i = 0; i < NUMBER_OF_PANELS; i++) {
-    sensors[i].panelIndex = i;
-  }
+  aunisoma = new Aunisoma(&config, gradients, 6, &rainbow_gradient, sensors);
 
   initializePanels();
 }
@@ -228,45 +278,35 @@ void setup(void) {
 // + 1 for \0 terminated, which snprintf wants
 char current_panel_color[(SIZE_OF_COLOR + 1)];
 
-int iterationCount = 0;
-
 void loop(void) {
-  if (failed_mapping_flag) {
-    if (iterationCount % 500 < 400) {
-      send_colors(FAILED_MAPPING_COLORS);
-    } else {
-      send_colors(ZERO_COLORS);
-    }
-    if (iterationCount > 5000) {
-      // clear it, let it run with whatever panels did respond.
-      failed_mapping_flag = false;
-    }
-  } else {
-    aunisoma->event_loop();
+  long start = micros();
+  aunisoma->update();
 
-    //panel_colors[0] = '\0';
-    for (int i = 0; i < NUMBER_OF_PANELS; i++) {
-      Panel* panel = aunisoma->get_panel_at(i);
-      Color color = panel->color;
-      snprintf(current_panel_color,
-               SIZE_OF_COLOR + 1,
-              "%02x%02x%02x",
-              color.red,
-              color.green,
-              color.blue);
-      for (int j = 0; j < 7; j++) {
-        panel_colors[(i * SIZE_OF_COLOR) + j] = current_panel_color[j];
-      }
-      // strcat(panel_colors, current_panel_color);
+  //panel_colors[0] = '\0';
+  for (int i = 0; i < NUMBER_OF_PANELS; i++) {
+    Panel* panel = aunisoma->get_panel_at(i);
+    Color color = panel->color;
+    snprintf(current_panel_color,
+             SIZE_OF_COLOR + 1,
+             "%02x%02x%02x",
+             gamma_lut[color.red],
+             gamma_lut[color.green],
+             gamma_lut[color.blue]);
+    for (int j = 0; j < 7; j++) {
+      panel_colors[(i * SIZE_OF_COLOR) + j] = current_panel_color[j];
     }
-
-    send_colors(panel_colors);
+    // strcat(panel_colors, current_panel_color);
   }
+
+  send_colors(panel_colors);
 
   iterationCount++;
 
-  if (iterationCount == 60000) {
-    //initializePanels();
+  if (iterationCount == 500) {
+    map_panels();
     iterationCount = 0;
   }
+
+  // Serial.print((micros() - start));
+  // Serial.println("ns");
 }

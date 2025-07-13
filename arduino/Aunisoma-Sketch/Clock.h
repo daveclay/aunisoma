@@ -12,10 +12,13 @@ public:
     int ticks;
 
     Clock();
-    void stop();
     void start();
+    void pause();
+    void stop();
     void restart();
-    void next();
+    void update();
+    bool isPaused();
+    bool isStopped();
 };
 
 

@@ -8,39 +8,34 @@
 
 #include "Clock.h"
 
-enum CycleDirection {
-    CYCLE_DIRECTION_UP,
-    CYCLE_DIRECTION_DOWN
-};
-
 enum CycleType {
-    CYCLE_TYPE_UP,
-    CYCLE_TYPE_UP_AND_DOWN
-};
-
-class CycleHandler {
-public:
-    virtual void value(float value, CycleDirection direction) = 0;
+    UP_ONLY_CYCLE,
+    UP_DOWN_CYCLE
 };
 
 class Cycle {
 public:
     int duration_ticks;
-    bool oneShot;
-    CycleType cycleType;
-    CycleHandler* cycleHandler;
+    bool one_shot;
+    CycleType cycle_type;
+    bool release_phase;
     Clock* clock;
+    float current_value;
     int iterations;
 
-    Cycle(int duration_ticks, bool oneShot, CycleType cycleType, CycleHandler* cycleHandler);
-    void next();
+    Cycle(int duration_ticks, bool one_shot, CycleType cycle_type);
     void start();
     void stop();
-    void jumpToDownCycle();
+    void reset();
+    void release();
+    void update();
+    bool isRising();
     void restart();
     void restart(int new_duration_ticks);
     bool isAtZeroPoint();
     bool isDone();
+    bool isStopped();
+    bool isRunning();
 };
 
 

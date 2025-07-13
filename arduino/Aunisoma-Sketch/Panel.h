@@ -10,15 +10,10 @@
 
 class Panel {
 public:
-
     int index;
-    Color idleColor;
     Color color;
-    float currentValue;
-    bool active;
 
-    Panel(int index, Color idleColor);
-    void reset();
+    Panel(int index);
 };
 
 

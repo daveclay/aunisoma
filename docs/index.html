@@ -594,7 +594,7 @@ document.addEventListener("DOMContentLoaded", () => {
     update() {
       this.cycle.next();
       if (this.isSourceInteraction && this.panel.active && this.isAnimationLoopDone()) {
-        let newDurationTicks = this.config.getTriggerPanelAnimationLoopDurationTicks();
+        let newDurationTicks = this.config.getSinglePanelPulseDuration();
         this.cycle.restart(newDurationTicks);
       }
     }
@@ -726,9 +726,9 @@ document.addEventListener("DOMContentLoaded", () => {
       // This is looping through _eligible_ panels, not _all_ panels.
       for (let i = 0; i < this.numberOfEligiblePanelReverberations; i++) {
         let panelReverberation = this.eligible_panel_reverberations[i];
-        if (!panelReverberation.isDone()) {
+        if (!panelReverberation.is_done()) {
           this._start_panel_reverberation(panelReverberation);
-          if (panelReverberation.isDone()) {
+          if (panelReverberation.is_done()) {
             // maybe it's down now that it's been updated? TODO: is this necessary or will the next update() catch it?
             panelReverberation.stop();
           } else {
@@ -749,7 +749,7 @@ document.addEventListener("DOMContentLoaded", () => {
       let reverberation_panel_delay_ticks = this.config.reverberation_panel_delay_ticks;
       let delay_for_panel_to_start_ticks = panel_reverberation.distanceFromTrigger * reverberation_panel_delay_ticks;
       if (this.clock.ticks >= delay_for_panel_to_start_ticks) {
-        if (!panel_reverberation.cycle.clock.running) {
+        if (!panel_reverberation.timer.clock.running) {
           // TODO: sometimes the PanelReverberation has not had start() called
           panel_reverberation.start();
         }
@@ -1109,9 +1109,33 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  DEBOUNCE_PIR_DELAY = 20; // ms debounce
   class Sensor {
+
     constructor() {
+      this.active;
+      this.lastDebounceTime;
+      this.lastReading;
+
       this.active = false;
+      this.lastDebounceTime = -1;
+      this.lastReading = false;
+    }
+
+    update(reading) {
+      let currentMillis = millis();
+      if (this.lastReading != reading) {
+        this.lastDebounceTime = currentMillis;
+      }
+      if ((currentMillis - this.lastDebounceTime) > DEBOUNCE_PIR_DELAY) {
+        // whatever the reading is at, it's been there for longer than the debounce
+        // delay, so take it as the actual current state:
+        if (this.active != reading) {
+          this.active = reading;
+        }
+      }
+
+      this.lastReading = reading;
     }
   }
 

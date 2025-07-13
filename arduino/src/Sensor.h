@@ -4,16 +4,19 @@
 
 #ifndef C_AUNISOMA_SENSOR_H
 #define C_AUNISOMA_SENSOR_H
+#include "Debounce.h"
+#include "ValueSmoothingFn.h"
 
 
 class Sensor {
 public:
-    Sensor();
-    int panelIndex;
     bool active;
+    bool last_reading;
+    Sensor();
     void update(bool reading);
-    unsigned long lastDebounceTime;
-    bool lastReading;
+private:
+    ValueSmoothingFn* smoothing_fn;
+    Debounce* debounce;
 };
 
 

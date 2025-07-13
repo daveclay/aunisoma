@@ -3,24 +3,18 @@
 //
 
 #include "Sensor.h"
-#define DEBOUNCE_PIR_DELAY 200 // ms debounce
-#include "Arduino.h"
+#include "ValueSmoothingFn.h"
+#define DEBOUNCE_PIR_DELAY 20 // ms debounce
 
 Sensor::Sensor() {
+    this->smoothing_fn = new ValueSmoothingFn(20);
+    this->debounce = new Debounce(DEBOUNCE_PIR_DELAY);
+    this->active = false;
+    this->last_reading = false;
 }
 
 void Sensor::update(bool reading) {
-    long currentMillis = millis();
-    if (this->lastReading != reading) {
-        this->lastDebounceTime = currentMillis;
-    }
-    if ((currentMillis - lastDebounceTime) > DEBOUNCE_PIR_DELAY) {
-        // whatever the reading is at, it's been there for longer than the debounce
-        // delay, so take it as the actual current state:
-        if (this->active != reading) {
-            this->active = reading;
-        }
-    }
-
-    this->lastReading = reading;
+    float ave = this->smoothing_fn->get_smoothed_value(reading ? 1 : 0);
+    this->active = ave > .75;// this->debounce->update(reading);
+    this->last_reading = reading;
 }

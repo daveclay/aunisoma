@@ -3,6 +3,7 @@
 //
 #include "algorithm"
 #include "stdlib.h"
+#include <chrono>
 #include "Arduino.h"
 #include <iostream>
 
@@ -16,10 +17,6 @@ char lights[21] = "00000000000000000000";
 
 int iteration = 0;
 
-int abs(int value) {
-    return std::abs(value);
-}
-
 int min(int a, int b) {
     return std::min(a, b);
 }
@@ -29,7 +26,9 @@ int max(int a, int b) {
 }
 
 int random(int min, int max) {
-    return min + (std::rand() % (max - min));
+    int rand = std::rand();
+    int res = min + (rand % (max - min + 1));
+    return res;
 }
 
 int random(int max) {
@@ -41,6 +40,14 @@ void delay(int) {
 
 long millis() {
     return iteration;
+}
+
+long micros() {
+    uint64_t us = std::chrono::duration_cast<std::chrono::microseconds>(
+        std::chrono::high_resolution_clock::now().time_since_epoch())
+        .count();
+
+    return iteration * 1000;
 }
 
 void pinMode(int pin, int mode) {
@@ -103,33 +110,31 @@ void Uart::print(const char c) const {
     } else if (c == '\n') {
         if (currentCommand == 'L') {
             writeScriptLine(out, in);
-            int mod = iteration % 20;
-            if (mod == 0) {
-                int numPanels = 1 + (std::rand() % 10); // 0 to 6
-                for (int j = 0; j < numPanels; j++) {
-                    int panel = std::rand() % 20; // 0 through 19
-                    char active = ((std::rand() % 10) > 3) ? '1' : '0';
-                    lights[panel] = active;
-                }
-            }
-            strcpy(in, lights);
-            //
-            // if (iteration >= 3600) {
-            //     strcpy(in, "10000000000110101101");
-            // } else if (iteration >= 2600) {
-            //     strcpy(in, "11011011110000001111");
-            // } else if (iteration >= 800) {
-            //     strcpy(in, "00000000000001100010");
-            // } else if (iteration > 2 && iteration < 1000) {
-            //     strcpy(in, "11011010000110101110");
-            // } else {
-            //     strcpy(in, "00000000001000010000");
+            // int mod = iteration % 20;
+            // if (mod == 0) {
+            //     int numPanels = 1 + (std::rand() % 10); // 0 to 6
+            //     for (int j = 0; j < numPanels; j++) {
+            //         int panel = std::rand() % 20; // 0 through 19
+            //         char active = ((std::rand() % 10) > 3) ? '1' : '0';
+            //         lights[panel] = active;
+            //     }
             // }
+            // strcpy(in, lights);
+            //
+            if (iteration >= 1390) {
+                strcpy(in, "OK 00000000000000000000");
+            } else if (iteration >= 590) {
+                strcpy(in, "OK 22332223333323233322");
+            } else if (iteration > 2 && iteration < 590) {
+                strcpy(in, "OK 11011011110110101110");
+            } else {
+                strcpy(in, "OK 22332223323333231222");
+            }
             iteration++;
         } else if (currentCommand == 'M') {
             // 1F22201213191E111A1D21152425171B18281614
             // strcmp(in, "FAILED 1D2416");
-            strcpy(in, "OK 00000000000000000000");
+            strcpy(in, "OK 22332223323333231222");
         }
     } else {
         out[outIndex] = c;
@@ -153,7 +158,7 @@ int Uart::readBytesUntil(char stop, char buffer[], int length) const {
         return 40;
     } else if (currentCommand == 'L') {
         strcpy(buffer, in);
-        return 20;
+        return 35;
     } else {
         return 0;
     }

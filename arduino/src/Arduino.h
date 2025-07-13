@@ -5,8 +5,12 @@
 #ifndef C_AUNISOMA_ARDUINO_H
 #define C_AUNISOMA_ARDUINO_H
 #include <cmath>
+#include <string.h>
 
-const int ITERATIONS = 10000;
+// Note: this avoids having to #include Aunisoma-Sketch.h which defines it globally
+#define NUMBER_OF_PANELS 20
+
+const int ITERATIONS = 30000;
 
 const int PIN_SERIAL3_RX = 1;
 const int PIN_SERIAL3_TX = 2;
@@ -18,7 +22,6 @@ const int sercom1 = 0;
 const int LED_BUILTIN = 0;
 const int OUTPUT = 0;
 
-int abs(int a);
 int min(int a, int b);
 int max(int a, int b);
 int random(int min, int max);
@@ -50,6 +53,7 @@ int digitalRead(int pin);
 void setPIRPinSensor(int panelIndex, int pinValue);
 const int DOTSTAR_BGR = 1;
 void delay(int);
+long micros();
 
 const Uart Serial = Uart();
 

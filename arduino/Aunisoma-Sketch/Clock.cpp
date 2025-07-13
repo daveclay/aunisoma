@@ -9,13 +9,17 @@ Clock::Clock() {
     this->ticks = -1;
 }
 
+void Clock::start() {
+    this->running = true;
+}
+
+void Clock::pause() {
+    this->running = false;
+}
+
 void Clock::stop() {
     this->running = false;
     this->ticks = -1;
-}
-
-void Clock::start() {
-    this->running = true;
 }
 
 void Clock::restart() {
@@ -23,7 +27,7 @@ void Clock::restart() {
     this->ticks = -1;
 }
 
-void Clock::next() {
+void Clock::update() {
     if (!this->running) {
         return;
     }
@@ -34,3 +38,12 @@ void Clock::next() {
         this->ticks += 1;
     }
 }
+
+bool Clock::isPaused() {
+    return !this->running && this->ticks > -1;
+}
+
+bool Clock::isStopped() {
+    return !this->running && this->ticks < 0;
+}
+
