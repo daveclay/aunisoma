@@ -16,7 +16,7 @@
 
 #define MOCK_INTERACTIONS false
 
-char panel_ids[] = "22181F20121113191E1A211D152417251B281614";
+char panel_ids[] = "20131B1A2215191F17182512141D1E3528112116";
 // char panel_ids[] = "0E";
 
 char ZERO_COLORS[] = "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
@@ -131,14 +131,7 @@ bool map_panels() {
 }
 
 void initializePanels() {
-  digitalWrite(LED_BUILTIN, HIGH);
-  while (!map_panels()) {
-    delay(250);
-    digitalWrite(LED_BUILTIN, LOW);
-    delay(250);
-    digitalWrite(LED_BUILTIN, HIGH);
-  }
-  digitalWrite(LED_BUILTIN, LOW);
+  map_panels();
 }
 
 int iterationCount = 0;
@@ -302,7 +295,7 @@ void loop(void) {
 
   iterationCount++;
 
-  if (iterationCount == 600000) {
+  if (iterationCount == 500) {
     map_panels();
     iterationCount = 0;
   }
