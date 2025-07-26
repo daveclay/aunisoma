@@ -26,10 +26,11 @@
     .panelInfo {
         display: block;
         width: 50px; /* 24" */
-        height: 50px;
+        height: 70px;
         overflow-x: clip;
         text-align: center;
         padding-left: 6px; /* align it center, for some reason */
+        font-size: 10px;
     }
     .panelReverberationInfo {
         display: inline-block;
@@ -214,14 +215,10 @@ document.addEventListener("DOMContentLoaded",
       215, 218, 220, 223, 225, 228, 231, 233, 236, 239, 241, 244, 247, 249, 252, 255];
 
     class Color {
-      constructor(red, green, blue, hue, saturation, lightness) {
+      constructor(red, green, blue) {
         this.red = constrain(0, 255, round(red));
         this.green = constrain(0, 255, round(green));
         this.blue = constrain(0, 255, round(blue));
-
-        this.hue = hue;
-        this.saturation = saturation;
-        this.lightness = lightness;
       }
 
       interpolate(color, amount) {
@@ -229,11 +226,7 @@ document.addEventListener("DOMContentLoaded",
         let green = interpolateValue(this.green, color.green, amount);
         let blue = interpolateValue(this.blue, color.blue, amount);
 
-        let hue = (this.hue + color.hue) / 2;
-        let saturation = (this.saturation + color.saturation) / 2;
-        let lightness = (this.lightness + color.lightness) / 2;
-
-        return new Color(red, green, blue, hue, saturation, lightness);
+        return new Color(red, green, blue);
       }
     }
 
@@ -1972,12 +1965,11 @@ document.addEventListener("DOMContentLoaded",
       }
 
       setColor(red, green, blue) {
-        // red = gamma8[red];
-        // green = gamma8[green];
-        // blue = gamma8[blue];
-        this.panelUIElement.style.backgroundColor = toHexString(red, green, blue);
+        const hexColor = toHexString(red, green, blue);
+        this.panelUIElement.style.backgroundColor = hexColor;
         addPowerDrawAmps(getPowerDrawAmps(red, green, blue));
-        this.panelInfoElement.innerHTML = (this.active ? "active" : "") + `<br/>${this.value.toPrecision(2)}<br/>${this.maxValue.toPrecision(2)}`;
+        this.panelInfoElement.innerHTML = (this.active ? "active" : "") +
+          `<br/>${this.value.toPrecision(2)}<br/>${this.maxValue.toPrecision(2)}<br/>${hexColor}`;
         if (this.value > this.maxValue) {
           this.maxValue = this.value;
         }
