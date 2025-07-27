@@ -1329,7 +1329,7 @@ document.addEventListener("DOMContentLoaded",
           const pulse = this.pulses[i];
           // calculate the delay for this Pulse
           const pulseDelay = this.delay * i;
-          // check to see if the delay has comleted or the delay
+          // check to see if the delay has completed or the delay
           // clock has passed that number of ticks
           const waited_long_enough = this.delay_complete || this.delay_clock.ticks >= pulseDelay;
 
@@ -1377,8 +1377,9 @@ document.addEventListener("DOMContentLoaded",
 
       get_panel_value_for_panel_index(panel_index) {
         // Returns a value for the given panel index, based on
-        // this Reverberation's Pulse values for their corresponding
-        // Cycles.
+        // this Reverberation's current Pulse value for the given
+        // Panel at that Pulse's corresponding Cycle value. Each
+        // Pulse keeps a Cycle that tracks the LFO value.
         if (panel_index < this.first_panel_index || panel_index > this.last_panel_index) {
           return 0;
         }
