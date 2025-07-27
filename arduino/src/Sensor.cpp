@@ -8,7 +8,7 @@
 
 Sensor::Sensor() {
     this->smoothing_fn = new ValueSmoothingFn(20);
-    this->debounce = new Debounce(DEBOUNCE_PIR_DELAY);
+    this->debounce = new Debounce(DEBOUNCE_PIR_DELAY, false);
     this->active = false;
     this->last_reading = false;
 }

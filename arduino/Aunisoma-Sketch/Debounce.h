@@ -8,7 +8,7 @@
 class Debounce {
 public:
     bool reading;
-    Debounce(int debounce_ms);
+    Debounce(int debounce_ms, bool initial_value);
     bool update(bool new_reading);
 private:
     long last_debounce_time;

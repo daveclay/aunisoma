@@ -17,9 +17,9 @@ ColorManager::ColorManager(GradientValueMap* gradients, int number_of_gradients,
   // few cycles. Note the values are in ms, not ticks.
   // TODO: move debounce time to config
   // going low should take longer
-  this->low_interaction_debounce = new Debounce(10000);
-  this->med_interaction_debounce = new Debounce(200);
-  this->high_interaction_debounce = new Debounce(200);
+  this->low_interaction_debounce = new Debounce(10000, true);
+  this->med_interaction_debounce = new Debounce(200, false);
+  this->high_interaction_debounce = new Debounce(200, false);
   // clocks (need to be updated in update())
   this->default_gradient_delay_timer = new Timer(
     this->config->default_gradient_delay_duration_range->random_int_between()

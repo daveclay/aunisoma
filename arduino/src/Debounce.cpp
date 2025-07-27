@@ -6,8 +6,11 @@
 
 #include "Arduino.h"
 
-Debounce::Debounce(int debounce_ms) {
+Debounce::Debounce(int debounce_ms, bool initial_value) {
     this->debounce_ms = debounce_ms;
+    this->reading = initial_value;
+    this->previous_reading = initial_value;
+    this->last_debounce_time = millis();
 }
 
 bool Debounce::update(bool new_reading) {

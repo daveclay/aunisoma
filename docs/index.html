@@ -552,11 +552,11 @@ document.addEventListener("DOMContentLoaded",
         // few cycles. Note the values are in ms, not ticks.
         // TODO: move debounce time to config
         // going low should take longer
-        this.low_interaction_debounce = new Debounce(10000);
-        this.med_interaction_debounce = new Debounce(200);
+        this.low_interaction_debounce = new Debounce(10000, true);
+        this.med_interaction_debounce = new Debounce(200, false);
         // TODO: it was kinda hard to keep it in the high state, maybe it should be
         // biased to stay high longer?
-        this.high_interaction_debounce = new Debounce(200);
+        this.high_interaction_debounce = new Debounce(200, false);
         // clocks (need to be updated in update())
         this.default_gradient_delay_timer = new Timer(
           this.config.default_gradient_delay_duration_range.random_int_between()
@@ -1530,15 +1530,15 @@ document.addEventListener("DOMContentLoaded",
      * Utility to debounce boolean value
      *****************************************************************/
     class Debounce {
-      constructor(debounce_ms) {
+      constructor(debounce_ms, initial_value) {
         this.reading;
         this.last_debounce_time;
         this.previous_reading;
         this.debounce_ms;
 
-        this.reading = false;
+        this.reading = initial_value;
         this.last_debounce_time = -1;
-        this.previous_reading = false;
+        this.previous_reading = initial_value;
         this.debounce_ms = debounce_ms;
       }
 
@@ -1578,7 +1578,7 @@ document.addEventListener("DOMContentLoaded",
         this.debounce;
         this.active;
 
-        this.debounce = new Debounce(DEBOUNCE_PIR_DELAY);
+        this.debounce = new Debounce(DEBOUNCE_PIR_DELAY, false);
         this.active = false;
       }
 
