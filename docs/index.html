@@ -47,6 +47,9 @@
         vertical-align: top;
         padding: 5px;
     }
+    .gradient-container {
+        position: relative;
+    }
     .gradient-values {
         position: relative;
         font-size: 9px;
@@ -59,6 +62,14 @@
     }
     .gradient-colors {
         display: inline-block;
+        width: 1px;
+        height: 100px;
+    }
+    .gradient-value-indicator {
+        display: block;
+        z-index: 10000;
+        position: absolute;
+        background-color: rgba(200, 200, 200, 0.8);
         width: 1px;
         height: 100px;
     }
@@ -124,6 +135,7 @@ panels 8 at step 200 for 2000 steps
     </tr>
     <tr>
         <td colspan="4" id="gradientContainer">
+            <div id="gradientValueIndicator" class="gradient-value-indicator"></div>
         </td>
     </tr>
 </table>
@@ -1764,6 +1776,7 @@ document.addEventListener("DOMContentLoaded",
     const PANEL_TEMPLATE_ELEMENT = document.getElementById("panelTemplate");
     const STAGE = document.getElementById("stage");
 
+    const GRADIENT_VALUE_INDICATOR_ELEMENT = document.getElementById("gradientValueIndicator");
     const GRADIENT_CONTAINER_ELEMENT = document.getElementById("gradientContainer");
     const GRADIENT_TEMPLATE_ELEMENT = document.getElementById("gradientTemplate");
     const RUN_BUTTON = document.getElementById("runButton");
@@ -1921,20 +1934,22 @@ document.addEventListener("DOMContentLoaded",
       }
     }
 
+    const MAX_PANEL_VALUE = 5;
+    const RENDER_GRADIENT_STEPS = 1000;
+    const gradientColorElements = [];
+
     function renderLinearGradient(name, gradient, valueRange) {
       let gradientColorsElement = clone(GRADIENT_TEMPLATE_ELEMENT);
 
-      const MAX_PANEL_VALUE = 5;
-      const steps = 1000;
-      for (let i = 0; i < steps; i++) {
+      for (let i = 0; i < RENDER_GRADIENT_STEPS; i++) {
         let color;
         if (valueRange) {
-          color = gradient.getColorForValue(i / steps);
+          color = gradient.getColorForValue(i / RENDER_GRADIENT_STEPS);
         } else {
           // the max value for a panel in single-sided mode is about 2.8 or so,
           // and 5.5 in both-sided mode. This renders the gradient range
           // from 0 interaction to 4.
-          color = gradient.getColorForValue(i / (steps / MAX_PANEL_VALUE));
+          color = gradient.getColorForValue(i / (RENDER_GRADIENT_STEPS / MAX_PANEL_VALUE));
         }
 
         let rgbSpan = document.createElement("span");
@@ -1950,7 +1965,7 @@ document.addEventListener("DOMContentLoaded",
       let gradientValuesElement = document.createElement("div");
       gradientValuesElement.setAttribute("class", "gradient-values");
       const splits = 10;
-      const stepsPerSplit = steps / splits;
+      const stepsPerSplit = RENDER_GRADIENT_STEPS / splits;
       for (let i = 0; i < splits; i++) {
         const valueElement = document.createElement("span");
         const stepLeftPosition = (stepsPerSplit * i).toFixed(0)
@@ -1959,8 +1974,16 @@ document.addEventListener("DOMContentLoaded",
         gradientValuesElement.appendChild(valueElement);
       }
       GRADIENT_CONTAINER_ELEMENT.appendChild(gradientValuesElement);
-
       GRADIENT_CONTAINER_ELEMENT.appendChild(gradientColorsElement);
+      gradientColorElements.push(gradientColorsElement);
+    }
+
+    let INDICATOR_LEFT_ORIGIN;
+
+    function renderPanelValueMarker(currentPanelIndexToIntrospect) {
+      const panel = aunisoma.panels[currentPanelIndexToIntrospect];
+      const currentValue = panel.value;
+      GRADIENT_VALUE_INDICATOR_ELEMENT.style.left = INDICATOR_LEFT_ORIGIN + (currentValue / MAX_PANEL_VALUE * RENDER_GRADIENT_STEPS);
     }
 
     function toHexString(red, green, blue) {
@@ -2044,10 +2067,22 @@ document.addEventListener("DOMContentLoaded",
         if (clickedBack) {
           panelUI.backActive = !panelUI.backActive;
         }
-      })
+      });
+
+      panelElement.addEventListener("mouseover", (e) => {
+        currentPanelIndexToIntrospect = panelUI.index;
+      });
+
+      panelElement.addEventListener("mouseout", (e) => {
+        if (currentPanelIndexToIntrospect === panelUI.index) {
+          currentPanelIndexToIntrospect = undefined;
+        }
+      });
 
       PANEL_UI_OBJECTS[i] = panelUI;
     }
+
+    let currentPanelIndexToIntrospect;
 
     let currentAmps = 0;
     let maxAmps = 0;
@@ -2064,6 +2099,8 @@ document.addEventListener("DOMContentLoaded",
     renderLinearGradient("purple_red_gradient", purple_red_gradient);
     renderLinearGradient("green_blue_gradient", green_blue_gradient);
     renderLinearGradient("trans_gradient", trans_gradient);
+
+    INDICATOR_LEFT_ORIGIN = gradientColorElements[0].getBoundingClientRect().x;
 
     let MAIN_RUN_LOOP_INTERVAL = null;
 
@@ -2110,6 +2147,10 @@ document.addEventListener("DOMContentLoaded",
 
       loop();
       iterations++;
+
+      if (currentPanelIndexToIntrospect !== undefined) {
+        renderPanelValueMarker(currentPanelIndexToIntrospect);
+      }
     }
 
     function runMainLoop() {
