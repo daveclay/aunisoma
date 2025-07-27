@@ -7,6 +7,9 @@
         color: gray;
     }
     #stage {
+        position: fixed;
+        z-index: 100;
+        background-color: black;
     }
     .panelContainer {
         display: inline-block;
@@ -42,6 +45,10 @@
     #panelTemplate {
         display: none;
     }
+    .controlTable {
+        position: absolute;
+        top: 240px;
+    }
     .controlTable tr td {
         border: 1px solid #333333;
         vertical-align: top;
@@ -66,9 +73,7 @@
         height: 100px;
     }
     .gradient-value-indicator {
-        display: block;
-        z-index: 10000;
-        position: absolute;
+        position: fixed;
         background-color: rgba(200, 200, 200, 0.8);
         width: 1px;
         height: 100px;
@@ -80,8 +85,12 @@
     <div class="panel"></div>
     <div class="panelInfo">&nbsp;</div>
 </div>
-Click on a panel to simulate a person interacting with a panel. Click on the panel again to simulate a person walking away from the panel.
 <table class="controlTable">
+    <tr>
+        <td colspan="4">
+            Click on a panel to simulate a person interacting with a panel. Click on the panel again to simulate a person walking away from the panel.
+        </td>
+    </tr>
     <tr>
         <td colspan="4">
             <div id="step" style="margin-bottom: 10px">-</div>
@@ -1978,12 +1987,21 @@ document.addEventListener("DOMContentLoaded",
       gradientColorElements.push(gradientColorsElement);
     }
 
-    let INDICATOR_LEFT_ORIGIN;
-
     function renderPanelValueMarker(currentPanelIndexToIntrospect) {
+      const currentGradientIndex = aunisoma.color_manager.current_gradient_index;
+      // Note: + 1 because the max animation rainbow gradient is index 0 of the ones we render but
+      // not included in the ColorManager's set of intermediate interactivity gradients.
+      const currentGradientColorElement = gradientColorElements[currentGradientIndex + 1];
       const panel = aunisoma.panels[currentPanelIndexToIntrospect];
       const currentValue = panel.value;
-      GRADIENT_VALUE_INDICATOR_ELEMENT.style.left = INDICATOR_LEFT_ORIGIN + (currentValue / MAX_PANEL_VALUE * RENDER_GRADIENT_STEPS);
+
+      const currentValueStep = (currentValue / MAX_PANEL_VALUE * RENDER_GRADIENT_STEPS).toFixed(0);
+      const stepElement = currentGradientColorElement.children[currentValueStep];
+      const pos = stepElement.getBoundingClientRect();
+      const top = pos.y;
+      const left = pos.x;
+      GRADIENT_VALUE_INDICATOR_ELEMENT.style.top = top + "px";
+      GRADIENT_VALUE_INDICATOR_ELEMENT.style.left = left + "px";
     }
 
     function toHexString(red, green, blue) {
