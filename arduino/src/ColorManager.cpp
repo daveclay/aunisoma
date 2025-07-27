@@ -235,7 +235,7 @@ void ColorManager::_set_state(ColorManagerState state) {
 void ColorManager::_start_gradient_swap_transition() {
   this->transition_interpolation->start();
   do {
-    this->next_gradient_index = random(1, this->number_of_gradients);
+    this->next_gradient_index = random(1, this->number_of_gradients - 1);
   } while (this->next_gradient_index == this->current_gradient_index);
 }
 

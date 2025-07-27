@@ -83,6 +83,8 @@ void writeScriptLine(char *colors, char *interactions) {
 
     if (iteration < ITERATIONS - 1) {
         std::cout << ",";
+    } else {
+        int  i= 0;
     }
 
     std::cout << "\n";
@@ -107,6 +109,8 @@ void Uart::print(const char c) const {
         currentCommand = c;
     } else if (c == 'L') {
         currentCommand = c;
+    } else if (c == 'M') {
+        currentCommand = 'M';
     } else if (c == '\n') {
         if (currentCommand == 'L') {
             writeScriptLine(out, in);

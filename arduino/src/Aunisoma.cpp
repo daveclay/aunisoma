@@ -28,8 +28,9 @@ void Aunisoma::_create_panels() {
 
 void Aunisoma::_create_reverberations() {
     for (int i = 0; i < NUMBER_OF_PANELS; i++) {
-      // Note/TODO: is i * 2 due to reading the front vs back sensors, and how the project is set up in my back yard?
-      this->reverberations[i] = new Reverberation(&sensors[i * 2], config, i);
+      int sensor_index = i * 2;
+      this->reverberations[sensor_index] = new Reverberation(&sensors[sensor_index], config, i);
+      this->reverberations[sensor_index + 1] = new Reverberation(&sensors[sensor_index + 1], config, i);
     }
 }
 
@@ -48,7 +49,7 @@ void Aunisoma::update() {
     this->_calculate_interaction_percent();
     this->color_manager->update(this->current_interaction_percent);
 
-    for (int reverberation_index = 0; reverberation_index < NUMBER_OF_PANELS; reverberation_index++) {
+    for (int reverberation_index = 0; reverberation_index < NUMBER_OF_SENSORS; reverberation_index++) {
         Reverberation* reverberation = this->reverberations[reverberation_index];
         reverberation->update();
     }
@@ -57,7 +58,7 @@ void Aunisoma::update() {
         float panel_value = 0;
         ValueSmoothingFn* panel_smoothing_fn = this->panel_smoothing_functions[panel_index];
 
-        for (int reverberation_index = 0; reverberation_index < NUMBER_OF_PANELS; reverberation_index++) {
+        for (int reverberation_index = 0; reverberation_index < NUMBER_OF_SENSORS; reverberation_index++) {
             Reverberation* reverberation = this->reverberations[reverberation_index];
             panel_value += reverberation->get_panel_value_for_panel_index(panel_index);
         }

@@ -16,7 +16,7 @@
         display: block;
         width: 50px; /* 24" */
         height: 100px; /* 48" */
-        background-color: rgb(60, 0, 0);
+        background-color: rgb(30, 30, 30);
         border: 1px solid #222222;
         margin: 5px;
     }
@@ -1465,9 +1465,10 @@ document.addEventListener("DOMContentLoaded",
       }
 
       _create_reverberations() {
-        // TODO: for now we're only reading one of the two sensors. Eventually handle a Reverberation per sensor.
         for (let i = 0; i < NUMBER_OF_PANELS; i++) {
-          this.reverberations[i] = new Reverberation(sensors[i], config, i);
+          let sensor_index = i * 2;
+          this.reverberations[sensor_index] = new Reverberation(sensors[sensor_index], config, i);
+          this.reverberations[sensor_index + 1] = new Reverberation(sensors[sensor_index + 1], config, i);
         }
       }
 
@@ -1486,7 +1487,7 @@ document.addEventListener("DOMContentLoaded",
         this._calculate_interaction_percent();
         this.color_manager.update(this.current_interaction_percent);
 
-        for (let reverberation_index = 0; reverberation_index < this.reverberations.length; reverberation_index++) {
+        for (let reverberation_index = 0; reverberation_index < NUMBER_OF_PANELS * 2; reverberation_index++) {
           const reverberation = this.reverberations[reverberation_index];
           reverberation.update();
         }
@@ -1495,7 +1496,7 @@ document.addEventListener("DOMContentLoaded",
           let panel_value = 0;
           const panel_smoothing_fn = this.panel_smoothing_functions[panel_index];
 
-          for (let reverberation_index = 0; reverberation_index < this.reverberations.length; reverberation_index++) {
+          for (let reverberation_index = 0; reverberation_index < NUMBER_OF_PANELS * 2; reverberation_index++) {
             const reverberation = this.reverberations[reverberation_index];
             panel_value += reverberation.get_panel_value_for_panel_index(panel_index);
           }
@@ -1836,13 +1837,15 @@ document.addEventListener("DOMContentLoaded",
 
       Object.keys(indexesToTrigger).forEach(s => {
         let i = parseInt(s);
-        PANEL_UI_OBJECTS[i].active = true;
+        PANEL_UI_OBJECTS[i].frontActive = true;
+        PANEL_UI_OBJECTS[i].backActive = true;
       });
     }
 
     CLEAR_INTERACTIONS_BUTTON.addEventListener("click", () => {
         for (let i = 0; i < PANEL_UI_OBJECTS.length; i++) {
-          PANEL_UI_OBJECTS[i].active = false;
+          PANEL_UI_OBJECTS[i].frontActive = false;
+          PANEL_UI_OBJECTS[i].backActive = false;
         }
       });
 
@@ -1879,10 +1882,13 @@ document.addEventListener("DOMContentLoaded",
 
     function updateSensors() {
       for (let i = 0; i < NUMBER_OF_PANELS; i++) {
-        const active = PANEL_UI_OBJECTS[i].active;
+        const frontActive = PANEL_UI_OBJECTS[i].frontActive;
+        const backActive = PANEL_UI_OBJECTS[i].backActive;
 
         const mock_interactivity = random(0, 10) > 2;
-        sensors[i].update(active);
+        const sensor_index = i * 2;
+        sensors[sensor_index].update(frontActive);
+        sensors[sensor_index + 1].update(backActive);
       }
     }
 
@@ -1951,7 +1957,8 @@ document.addEventListener("DOMContentLoaded",
       constructor(index, panelElement) {
         this.index = index;
         this.value = 0;
-        this.active = false;
+        this.frontActive = false;
+        this.backActive = false;
         this.maxValue = 0;
         this.panelUIElement = panelElement.querySelector("div[class='panel']");
         this.panelIndexElement = panelElement.querySelector("div[class='panelIndex']");
@@ -1964,10 +1971,24 @@ document.addEventListener("DOMContentLoaded",
         const hexColor = toHexString(red, green, blue);
         this.panelUIElement.style.backgroundColor = hexColor;
         addPowerDrawAmps(getPowerDrawAmps(red, green, blue));
-        this.panelInfoElement.innerHTML = (this.active ? "active" : "") +
+        this.panelInfoElement.innerHTML = (this.getActiveText()) +
           `<br/>${this.value.toPrecision(2)}<br/>${this.maxValue.toPrecision(2)}<br/>${hexColor}`;
         if (this.value > this.maxValue) {
           this.maxValue = this.value;
+        }
+      }
+
+      getActiveText() {
+        if (this.frontActive) {
+          if (this.backActive) {
+            return "3"; // both
+          } else {
+            return "1"; // only front
+          }
+        } else if (this.backActive) {
+          return "2"; // only back
+        } else {
+          return "0"; // none
         }
       }
     }
@@ -1980,8 +2001,16 @@ document.addEventListener("DOMContentLoaded",
       STAGE.appendChild(panelElement);
 
       let panelUI = new PanelUI(i, panelElement);
-      panelElement.addEventListener("click", () => {
-        panelUI.active = !panelUI.active;
+      panelElement.addEventListener("click", (e) => {
+        const panelY = e.offsetY;
+        const clickedFront = panelY / 100 > .5;
+        const clickedBack = panelY / 100 < .5;
+        if (clickedFront) {
+          panelUI.frontActive = !panelUI.frontActive;
+        }
+        if (clickedBack) {
+          panelUI.backActive = !panelUI.backActive;
+        }
       })
 
       PANEL_UI_OBJECTS[i] = panelUI;
