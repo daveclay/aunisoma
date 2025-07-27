@@ -31,7 +31,7 @@ private:
     Sensor* sensors;
     float current_interaction_percent;
     Panel* panels[NUMBER_OF_PANELS];
-    Reverberation* reverberations[NUMBER_OF_PANELS];
+    Reverberation* reverberations[NUMBER_OF_SENSORS];
     ValueSmoothingFn* panel_smoothing_functions[NUMBER_OF_PANELS];
     ColorManager* color_manager;
 
