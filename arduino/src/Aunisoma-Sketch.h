@@ -16,7 +16,7 @@
 
 #define MOCK_INTERACTIONS false
 
-char panel_ids[] = "20131B1A2215191F17182512141D1E3528112116";
+char panel_ids[] = "20131B1A2215191F17182512141D1E2328112116";
 // char panel_ids[] = "0E";
 
 char ZERO_COLORS[] = "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
@@ -117,8 +117,6 @@ bool send_enumerate() {
   }
 }
 
-bool failed_mapping_flag = false;
-
 bool map_panels() {
   int bytesRead = send_command(MAP_PANELS, panel_ids);
   if (bytesRead > 1) {
@@ -130,8 +128,15 @@ bool map_panels() {
   return false;
 }
 
+
 void initializePanels() {
-  map_panels();
+  for (int i = 0; i < 100; i++) {
+    if (map_panels()) {
+      return;
+    } else {
+      delay(100);
+    }
+  }
 }
 
 int iterationCount = 0;
