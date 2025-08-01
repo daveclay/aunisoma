@@ -20,7 +20,7 @@ ColorManager::ColorManager(GradientValueMap* gradients, int number_of_gradients,
   this->low_interaction_debounce = new Debounce(10000, true);
   this->med_interaction_debounce = new Debounce(200, false);
   this->high_interaction_debounce = new Debounce(200, false);
-  // clocks (need to be updated in update())
+  // delay for how long to wait before switching back to the default no-interactivity gradient
   this->default_gradient_delay_timer = new Timer(
     this->config->default_gradient_delay_duration_range->random_int_between()
   );
@@ -71,8 +71,8 @@ Color ColorManager::get_color(int panel_index, float panel_value) const {
     case START_DEFAULT_GRADIENT_DELAY_STATE:
       // simply stays on the current gradient while the delay timer runs
     case TRANSITIONING_FROM_MID_TO_LOW_STATE:
-      // Note this isn't really a transition, it's just leaving the current gradient as is,
-      // clearing the transition interpolation
+      // Note this isn't a color transition, it's a state transition using
+      // the current gradient.
     case GRADIENT_SWAP_DELAY_STATE:
       // This state just sits on the current_gradient until we swap to the next
       // or transition away
