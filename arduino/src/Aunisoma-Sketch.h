@@ -14,7 +14,7 @@
 #include "Interpolation.h"
 #include "Aunisoma.h"
 
-#define MOCK_INTERACTIONS true
+#define MOCK_INTERACTIONS false
 
 char panel_ids[] = "20131B1A2215191F17182512141D1E2328112116";
 // char panel_ids[] = "0E";
@@ -203,68 +203,69 @@ void setup(void) {
   rainbow_gradient.add_rgb_point(0.80, 255, 0, 255);
   rainbow_gradient.add_rgb_point(1.00, 255, 0, 0);
 
-  initial_gradient.add_rgb_point(0.0, 10, 0, 0);
-  initial_gradient.add_rgb_point(.4, 255, 0, 0);
-  initial_gradient.add_rgb_point(1.8, 255, 255, 0);
-  initial_gradient.add_rgb_point(2.2, 0, 255, 255);
-  initial_gradient.add_rgb_point(3, 0, 100, 255);
+  initial_gradient.add_rgb_point(0.0, 3, 0, 0);
+  initial_gradient.add_rgb_point(.7, 255, 0, 0);
+  initial_gradient.add_rgb_point(2, 255, 255, 0);
+  initial_gradient.add_rgb_point(3, 0, 255, 255);
+  initial_gradient.add_rgb_point(4, 0, 100, 255);
 
   blue_gradient.add_rgb_point(0.0, 0, 0, 10);
-  blue_gradient.add_rgb_point(.5, 0, 0, 255);
-  blue_gradient.add_rgb_point(1.2, 255, 0, 255);
-  blue_gradient.add_rgb_point(2.5, 255, 255, 0);
+  blue_gradient.add_rgb_point(.6, 0, 0, 255);
+  blue_gradient.add_rgb_point(1.5, 255, 0, 255);
   blue_gradient.add_rgb_point(3, 255, 255, 0);
+  blue_gradient.add_rgb_point(4, 255, 255, 0);
 
   green_gradient.add_rgb_point(0.0, 0, 10, 0);
-  green_gradient.add_rgb_point(.5, 0, 255, 0);
+  green_gradient.add_rgb_point(.6, 0, 255, 0);
   green_gradient.add_rgb_point(1.2, 255, 255, 0);
-  green_gradient.add_rgb_point(2.5, 255, 0, 255);
-  green_gradient.add_rgb_point(3, 255, 0, 255);
+  green_gradient.add_rgb_point(3.2, 255, 0, 255);
+  green_gradient.add_rgb_point(4, 255, 0, 255);
 
-  purple_red_gradient.add_rgb_point(0, 5, 0, 5);
-  purple_red_gradient.add_rgb_point(.6, 255, 0, 255);
-  purple_red_gradient.add_rgb_point(1.2, 255, 0, 0);
-  purple_red_gradient.add_rgb_point(2.5, 255, 255, 0);
-  purple_red_gradient.add_rgb_point(3, 0, 255, 0);
+  purple_red_gradient.add_rgb_point(0, 1, 0, 1);
+  purple_red_gradient.add_rgb_point(.7, 255, 0, 255);
+  purple_red_gradient.add_rgb_point(1.3, 255, 0, 0);
+  purple_red_gradient.add_rgb_point(3.3, 255, 255, 0);
+  purple_red_gradient.add_rgb_point(4.2, 0, 255, 0);
 
-  green_blue_gradient.add_rgb_point(0, 0, 10, 0);
-  green_blue_gradient.add_rgb_point(.5, 0, 255, 0);
+  green_blue_gradient.add_rgb_point(0, 0, 3, 0);
+  green_blue_gradient.add_rgb_point(.7, 0, 255, 0);
   green_blue_gradient.add_rgb_point(1.2, 0, 255, 255);
-  green_blue_gradient.add_rgb_point(2, 0, 0, 255);
-  green_blue_gradient.add_rgb_point(3, 255, 0, 255);
+  green_blue_gradient.add_rgb_point(2.8, 0, 0, 255);
+  green_blue_gradient.add_rgb_point(4, 255, 0, 255);
 
   trans_gradient.add_rgb_point(0, 3, 0, 1);
-  trans_gradient.add_rgb_point(.7, 255, 0, 105);
-  trans_gradient.add_rgb_point(2, 0, 155, 255);
+  trans_gradient.add_rgb_point(.8, 255, 0, 105);
+  trans_gradient.add_rgb_point(2.5, 0, 145, 255);
+  trans_gradient.add_rgb_point(4, 200, 255, 0);
 
   config.number_of_panels = NUMBER_OF_PANELS;
 
-  config.reverberation_distance_range = new Range(3, 5);
+  config.reverberation_distance_range = new Range(1, 4);
   // the duration for pulses in a reverberation. This has to be longer than
   // the reverberation_panel_delay_ticks or it won't trigger before the
   // source panel is finished animating. 10x seems to be an organic
   // flow - duration taking 20-30 ticks and the delay being 2.
-  config.single_panel_pulse_duration = new Range(20, 30);
+  config.single_panel_pulse_duration = new Range(20, 40);
   // how long to wait to trigger a neighbor Panel to reverberate. If this is longer
   // than the single panel pulse, they won't fire because neighbors are one-shots
   // triggered by the start of the source panel.
-  config.reverberation_panel_delay_ticks = 2;
+  config.reverberation_panel_delay_ticks = 3;
   // TODO make longer (several minutes?) but smooth out interactivity requirements
-  config.default_gradient_delay_duration_range = new Range(500, 800);
-  config.high_interaction_threshold_percent = .3;
-  config.intermediate_interaction_threshold_percent = .2;
+  config.default_gradient_delay_duration_range = new Range(1500, 2000);
+  config.high_interaction_threshold_percent = .6;
+  config.intermediate_interaction_threshold_percent = .25;
 
   // how long to wait for a gradient transition while in the
   // medium interactivity state. Longer means people have to
   // move their butts for longer to get it to switch color.
-  config.delay_for_gradient_transition_duration = 500;
+  config.delay_for_gradient_transition_duration = 1000;
 
   // smoothing amount for panel values. In the web mockup, 10 is a
   // little jumpy, 30 is smooth, 100 blurs so that it never goes
   // back to 0 even when the Reverberation is active (which I like)
   config.smoothing_fn_window_size = 10;
   // How long it takes to transition from one gradient to another
-  config.gradient_transition_animation_duration = 40;
+  config.gradient_transition_animation_duration = 80;
 
   config.init();
 
