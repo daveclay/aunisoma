@@ -11,8 +11,9 @@
 #include "Interpolation.h"
 
 enum ColorManagerState {
+    NO_INTERACTION_STATE,
     LOW_INTERACTION_STATE,
-    START_DEFAULT_GRADIENT_DELAY_STATE,
+    DEFAULT_GRADIENT_DELAY_STATE,
     TRANSITIONING_TO_DEFAULT_GRADIENT_STATE,
     TRANSITIONING_GRADIENT_STATE,
     TRANSITIONING_FROM_MID_TO_LOW_STATE,
@@ -35,6 +36,7 @@ public:
 
 private:
     Config* config;
+    Debounce* no_interaction_debounce;
     Debounce* low_interaction_debounce;
     Debounce* med_interaction_debounce;
     Debounce* high_interaction_debounce;
@@ -64,6 +66,7 @@ private:
     void _start_transition_from_high_to_mid_interactivity() const;
     bool _is_gradient_swap_delay_done() const;
     bool _is_transition_done() const;
+    bool _is_no_interaction() const;
     bool _is_low_interaction() const;
     bool _is_med_interaction() const;
     bool _is_high_interaction() const;

@@ -719,9 +719,10 @@ document.addEventListener("DOMContentLoaded",
             break;
           case DEFAULT_GRADIENT_DELAY_STATE:
             if (!this._is_no_interaction()) {
-              // stop the default_gradient_delay_timer, since we're cancelling the wait
-              this.default_gradient_delay_timer.stop();
               // for now, just jump to low, which will handle other interactivity states
+              // Since this comes from a no interactivity state, if a big group rolls up,
+              // this will cycle them through a bit before hitting pride mode, which I
+              // this is a better aesthetic.
               this._set_state(LOW_INTERACTION_STATE);
             } else if (this.default_gradient_delay_timer.is_done()) {
               this._set_state(TRANSITIONING_TO_DEFAULT_GRADIENT_STATE);
@@ -732,12 +733,8 @@ document.addEventListener("DOMContentLoaded",
               this._switch_to_new_current_gradient();
               if (this._is_no_interaction()) {
                 this._set_state(NO_INTERACTION_STATE);
-              } else if (this._is_low_interaction()) {
-                this._set_state(LOW_INTERACTION_STATE);
-              } else if (this._is_med_interaction()) {
-                this._set_state(TRANSITIONING_GRADIENT_STATE);
               } else {
-                this._set_state(TRANSITIONING_FROM_MID_TO_HIGH_STATE);
+                this._set_state(LOW_INTERACTION_STATE);
               }
             }
             break;
@@ -1695,9 +1692,9 @@ document.addEventListener("DOMContentLoaded",
 
       initial_gradient.add_rgb_point(0.0, 20, 0, 0);
       initial_gradient.add_rgb_point(.7, 255, 0, 0);
-      initial_gradient.add_rgb_point(2, 255, 255, 0);
+      initial_gradient.add_rgb_point(2.3, 255, 255, 0);
       initial_gradient.add_rgb_point(3, 0, 255, 255);
-      initial_gradient.add_rgb_point(4, 0, 0, 255);
+      initial_gradient.add_rgb_point(5, 0, 0, 255);
 
       blue_gradient.add_rgb_point(0.0, 0, 0, 10);
       blue_gradient.add_rgb_point(.6, 0, 0, 255);
@@ -1747,7 +1744,7 @@ document.addEventListener("DOMContentLoaded",
       config.reverberation_panel_delay_ticks = 4;
       // This is how long to wait at no interaction before reverting back to the default
       // gradient color.
-      config.default_gradient_delay_duration_range = new Range(500, 1000);
+      config.default_gradient_delay_duration_range = new Range(1500, 2000);
       config.high_interaction_threshold_percent = .6;
       config.intermediate_interaction_threshold_percent = .25;
 

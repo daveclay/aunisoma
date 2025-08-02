@@ -17,8 +17,11 @@ ColorManager::ColorManager(GradientValueMap* gradients, int number_of_gradients,
   // few cycles. Note the values are in ms, not ticks.
   // TODO: move debounce time to config
   // going low should take longer
-  this->low_interaction_debounce = new Debounce(10000, true);
+  this->no_interaction_debounce = new Debounce(1000, true);
+  this->low_interaction_debounce = new Debounce(100, false);
   this->med_interaction_debounce = new Debounce(200, false);
+  // TODO: it was kinda hard to keep it in the high state, maybe it should be
+  // biased to stay high longer?
   this->high_interaction_debounce = new Debounce(200, false);
   // delay for how long to wait before switching back to the default no-interactivity gradient
   this->default_gradient_delay_timer = new Timer(
@@ -33,7 +36,7 @@ ColorManager::ColorManager(GradientValueMap* gradients, int number_of_gradients,
   this->current_gradient_index = 0;
   this->next_gradient_index = 0;
   this->current_gradient = &this->gradients[this->current_gradient_index];
-  this->state = LOW_INTERACTION_STATE;
+  this->state = NO_INTERACTION_STATE;
 }
 
 /**
@@ -49,13 +52,14 @@ void ColorManager::update(float current_interaction_percent) {
 }
 
 void ColorManager::_update_interaction_reading(float current_interaction_percent) const {
-  bool currently_low = current_interaction_percent < this->config->intermediate_interaction_threshold_percent;
-  this->low_interaction_debounce->update(currently_low);
-
-  bool currently_mid = current_interaction_percent > this->config->intermediate_interaction_threshold_percent;
-  this->med_interaction_debounce->update(currently_mid);
-
+  bool currently_zero = current_interaction_percent < .01;
+  bool currently_low = !currently_zero && current_interaction_percent < this->config->intermediate_interaction_threshold_percent;
   bool currently_high = current_interaction_percent > this->config->high_interaction_threshold_percent;
+  bool currently_mid = !currently_high && current_interaction_percent > this->config->intermediate_interaction_threshold_percent;
+
+  this->no_interaction_debounce->update(currently_zero);
+  this->low_interaction_debounce->update(currently_low);
+  this->med_interaction_debounce->update(currently_mid);
   this->high_interaction_debounce->update(currently_high);
 }
 
@@ -68,7 +72,8 @@ Color ColorManager::get_color(int panel_index, float panel_value) const {
   Color from_color;
   Color to_color;
   switch (this->state) {
-    case START_DEFAULT_GRADIENT_DELAY_STATE:
+    case NO_INTERACTION_STATE:
+    case DEFAULT_GRADIENT_DELAY_STATE:
       // simply stays on the current gradient while the delay timer runs
     case TRANSITIONING_FROM_MID_TO_LOW_STATE:
       // Note this isn't a color transition, it's a state transition using
@@ -128,20 +133,29 @@ void ColorManager::_update_clocks() const {
 
 void ColorManager::_update_state() {
   switch (this->state) {
+    case NO_INTERACTION_STATE:
+      if (!this->_is_no_interaction()) {
+        this->_set_state(LOW_INTERACTION_STATE);
+      } else if (this->current_gradient_index != 0) {
+        this->_set_state(DEFAULT_GRADIENT_DELAY_STATE);
+      }
+      break;
     case LOW_INTERACTION_STATE:
       if (this->current_gradient_index != 0) {
-        this->_set_state(START_DEFAULT_GRADIENT_DELAY_STATE);
+        this->_set_state(DEFAULT_GRADIENT_DELAY_STATE);
       } else if (this->_is_med_interaction()) {
         this->_set_state(TRANSITIONING_GRADIENT_STATE);
       } else if (this->_is_high_interaction()) {
         this->_set_state(TRANSITIONING_FROM_MID_TO_HIGH_STATE);
       }
       break;
-    case START_DEFAULT_GRADIENT_DELAY_STATE:
-      if (this->_is_med_interaction()) {
-        this->_set_state(TRANSITIONING_GRADIENT_STATE);
-      } else if (this->_is_high_interaction()) {
-        this->_set_state(TRANSITIONING_FROM_MID_TO_HIGH_STATE);
+    case DEFAULT_GRADIENT_DELAY_STATE:
+      if (!this->_is_no_interaction()) {
+        // for now, just jump to low, which will handle other interactivity states
+        // Since this comes from a no interactivity state, if a big group rolls up,
+        // this will cycle them through a bit before hitting pride mode, which I
+        // this is a better aesthetic.
+        this->_set_state(LOW_INTERACTION_STATE);
       } else if (this->default_gradient_delay_timer->is_done()) {
         this->_set_state(TRANSITIONING_TO_DEFAULT_GRADIENT_STATE);
       }
@@ -149,7 +163,11 @@ void ColorManager::_update_state() {
     case TRANSITIONING_TO_DEFAULT_GRADIENT_STATE:
       if (this->_is_transition_done()) {
         this->_switch_to_new_current_gradient();
-        this->_set_state(LOW_INTERACTION_STATE);
+        if (this->_is_no_interaction()) {
+          this->_set_state(NO_INTERACTION_STATE);
+        } else {
+          this->_set_state(LOW_INTERACTION_STATE);
+        }
       }
       break;
     case TRANSITIONING_GRADIENT_STATE:
@@ -165,8 +183,12 @@ void ColorManager::_update_state() {
       }
       break;
     case GRADIENT_SWAP_DELAY_STATE:
-      if (this->_is_low_interaction()) {
+      if (this->_is_no_interaction()) {
         this->_set_state(TRANSITIONING_FROM_MID_TO_LOW_STATE);
+      } else if (this->_is_low_interaction()) {
+        this->_set_state(TRANSITIONING_FROM_MID_TO_LOW_STATE);
+      } else if (this->_is_high_interaction()) {
+        this->_set_state(TRANSITIONING_FROM_MID_TO_HIGH_STATE);
       } else if (this->_is_gradient_swap_delay_done()) {
         this->_set_state(TRANSITIONING_GRADIENT_STATE);
       }
@@ -202,7 +224,7 @@ void ColorManager::_update_state() {
 void ColorManager::_set_state(ColorManagerState state) {
   this->state = state;
   switch(this->state) {
-    case START_DEFAULT_GRADIENT_DELAY_STATE:
+    case DEFAULT_GRADIENT_DELAY_STATE:
       this->default_gradient_delay_timer->restart(this->config->default_gradient_delay_duration_range->random_int_between());
       break;
     case TRANSITIONING_TO_DEFAULT_GRADIENT_STATE:
@@ -265,8 +287,12 @@ bool ColorManager::_is_transition_done() const {
   return this->transition_interpolation->is_done();
 }
 
+bool ColorManager::_is_no_interaction() const {
+  return this->no_interaction_debounce->reading;
+}
+
 bool ColorManager::_is_low_interaction() const {
-return this->low_interaction_debounce->reading;
+  return this->low_interaction_debounce->reading;
 }
 
 bool ColorManager::_is_med_interaction() const {

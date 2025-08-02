@@ -205,9 +205,9 @@ void setup(void) {
 
   initial_gradient.add_rgb_point(0.0, 3, 0, 0);
   initial_gradient.add_rgb_point(.7, 255, 0, 0);
-  initial_gradient.add_rgb_point(2, 255, 255, 0);
+  initial_gradient.add_rgb_point(2.3, 255, 255, 0);
   initial_gradient.add_rgb_point(3, 0, 255, 255);
-  initial_gradient.add_rgb_point(4, 0, 100, 255);
+  initial_gradient.add_rgb_point(5, 0, 100, 255);
 
   blue_gradient.add_rgb_point(0.0, 0, 0, 10);
   blue_gradient.add_rgb_point(.6, 0, 0, 255);
@@ -250,7 +250,8 @@ void setup(void) {
   // than the single panel pulse, they won't fire because neighbors are one-shots
   // triggered by the start of the source panel.
   config.reverberation_panel_delay_ticks = 3;
-  // TODO make longer (several minutes?) but smooth out interactivity requirements
+  // This is how long to wait at no interaction before reverting back to the default
+  // gradient color.
   config.default_gradient_delay_duration_range = new Range(1500, 2000);
   config.high_interaction_threshold_percent = .6;
   config.intermediate_interaction_threshold_percent = .25;
