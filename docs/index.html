@@ -552,7 +552,7 @@ document.addEventListener("DOMContentLoaded",
     // enum ColorManagerState = {
     const NO_INTERACTION_STATE = 10;
     const LOW_INTERACTION_STATE = 1;
-    const START_DEFAULT_GRADIENT_DELAY_STATE = 2;
+    const DEFAULT_GRADIENT_DELAY_STATE = 2;
     const TRANSITIONING_TO_DEFAULT_GRADIENT_STATE = 3;
     const TRANSITIONING_GRADIENT_STATE = 4;
     const TRANSITIONING_FROM_MID_TO_LOW_STATE = 5;
@@ -642,7 +642,7 @@ document.addEventListener("DOMContentLoaded",
         let to_color;
         switch (this.state) {
           case NO_INTERACTION_STATE:
-          case START_DEFAULT_GRADIENT_DELAY_STATE:
+          case DEFAULT_GRADIENT_DELAY_STATE:
             // simply stays on the current gradient while the delay timer runs
           case TRANSITIONING_FROM_MID_TO_LOW_STATE:
             // Note this isn't a color transition, it's a state transition using
@@ -707,7 +707,7 @@ document.addEventListener("DOMContentLoaded",
             if (!this._is_no_interaction()) {
               this._set_state(LOW_INTERACTION_STATE);
             } else if (this.current_gradient_index != 0) {
-              this._set_state(START_DEFAULT_GRADIENT_DELAY_STATE);
+              this._set_state(DEFAULT_GRADIENT_DELAY_STATE);
             }
             break;
           case LOW_INTERACTION_STATE:
@@ -717,9 +717,13 @@ document.addEventListener("DOMContentLoaded",
               this._set_state(TRANSITIONING_GRADIENT_STATE);
             }
             break;
-          case START_DEFAULT_GRADIENT_DELAY_STATE:
-            // TODO: don't hang out here if there's interactions to be done!
-            if (this.default_gradient_delay_timer.is_done()) {
+          case DEFAULT_GRADIENT_DELAY_STATE:
+            if (!this._is_no_interaction()) {
+              // stop the default_gradient_delay_timer, since we're cancelling the wait
+              this.default_gradient_delay_timer.stop();
+              // for now, just jump to low, which will handle other interactivity states
+              this._set_state(LOW_INTERACTION_STATE);
+            } else if (this.default_gradient_delay_timer.is_done()) {
               this._set_state(TRANSITIONING_TO_DEFAULT_GRADIENT_STATE);
             }
             break;
@@ -789,7 +793,7 @@ document.addEventListener("DOMContentLoaded",
       _set_state(state) {
         this.state = state;
         switch(this.state) {
-          case START_DEFAULT_GRADIENT_DELAY_STATE:
+          case DEFAULT_GRADIENT_DELAY_STATE:
             this.default_gradient_delay_timer.restart(this.config.default_gradient_delay_duration_range.random_int_between());
             break;
           case TRANSITIONING_TO_DEFAULT_GRADIENT_STATE:
@@ -1741,8 +1745,9 @@ document.addEventListener("DOMContentLoaded",
       // than the single panel pulse, they won't fire because neighbors are one-shots
       // triggered by the start of the source panel.
       config.reverberation_panel_delay_ticks = 4;
-      // TODO make longer (several minutes?) but smooth out interactivity requirements
-      config.default_gradient_delay_duration_range = new Range(30, 50);
+      // This is how long to wait at no interaction before reverting back to the default
+      // gradient color.
+      config.default_gradient_delay_duration_range = new Range(500, 1000);
       config.high_interaction_threshold_percent = .6;
       config.intermediate_interaction_threshold_percent = .25;
 
@@ -2173,7 +2178,7 @@ document.addEventListener("DOMContentLoaded",
           return "TRANSITIONING_FROM_HIGH_TO_MID_STATE";
         case TRANSITIONING_TO_DEFAULT_GRADIENT_STATE:
           return "TRANSITIONING_TO_DEFAULT_GRADIENT_STATE";
-        case START_DEFAULT_GRADIENT_DELAY_STATE:
+        case DEFAULT_GRADIENT_DELAY_STATE:
           return "START_DEFAULT_GRADIENT_DELAY_STATE";
         default:
           return "unknown";
