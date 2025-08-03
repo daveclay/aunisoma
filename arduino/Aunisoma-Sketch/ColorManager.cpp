@@ -7,8 +7,9 @@
 #include "Arduino.h"
 #include "Config.h"
 #include "Gradient.h"
+#include "KnightRiderAnimation.h"
 
-ColorManager::ColorManager(GradientValueMap* gradients, int number_of_gradients, GradientValueMap* rainbow_gradient, Config* config) {
+ColorManager::ColorManager(GradientValueMap* gradients, int number_of_gradients, GradientValueMap* rainbow_gradient, GradientValueMap* knight_rider_gradient, Config* config) {
   this->config = config;
   this->gradients = gradients;
   this->number_of_gradients = number_of_gradients;
@@ -17,6 +18,7 @@ ColorManager::ColorManager(GradientValueMap* gradients, int number_of_gradients,
   // few cycles. Note the values are in ms, not ticks.
   // TODO: move debounce time to config
   // going low should take longer
+  this->knight_rider_interaction_debounce = new Debounce(300, false);
   this->no_interaction_debounce = new Debounce(1000, true);
   this->low_interaction_debounce = new Debounce(100, false);
   this->med_interaction_debounce = new Debounce(200, false);
@@ -31,7 +33,8 @@ ColorManager::ColorManager(GradientValueMap* gradients, int number_of_gradients,
     this->config->delay_for_gradient_transition_duration
   );
   this->transition_interpolation = new Interpolation(config->gradient_transition_animation_duration);
-  this->distributed_panel_animation = new DistributedPanelAnimation(config);
+  this->rainbow_panel_animation = new DistributedPanelAnimation(config);
+  this->knight_rider_animation = new KnightRiderAnimation(knight_rider_gradient);
   // gradients
   this->current_gradient_index = 0;
   this->next_gradient_index = 0;
@@ -45,13 +48,15 @@ ColorManager::ColorManager(GradientValueMap* gradients, int number_of_gradients,
  * state fluctuates from tick to tick, the ColorManager interpolates colors
  * for longer-running interactivity states.
  */
-void ColorManager::update(float current_interaction_percent) {
-  this->_update_interaction_reading(current_interaction_percent);
+void ColorManager::update(float current_interaction_percent, bool is_pong_interactivity) {
+  this->_update_interaction_reading(current_interaction_percent, is_pong_interactivity);
   this->_update_clocks();
   this->_update_state();
 }
 
-void ColorManager::_update_interaction_reading(float current_interaction_percent) const {
+void ColorManager::_update_interaction_reading(float current_interaction_percent, bool is_pong_interactivity) const {
+  this->knight_rider_interaction_debounce->update(is_pong_interactivity);
+
   bool currently_zero = current_interaction_percent < .01;
   bool currently_low = !currently_zero && current_interaction_percent < this->config->intermediate_interaction_threshold_percent;
   bool currently_high = current_interaction_percent > this->config->high_interaction_threshold_percent;
@@ -101,6 +106,8 @@ Color ColorManager::get_color(int panel_index, float panel_value) const {
       from_color = this->current_gradient->getColorForValue(panel_value);
       to_color = this->gradients[0].getColorForValue(panel_value);
       return this->_get_transition_color(from_color, to_color);
+    case KNIGHT_RIDER_INTERACTION_STATE:
+      return this->_get_knight_rider_color_for_panel_index(panel_index);
     default:
       return Color(1, 1, 1);
   }
@@ -112,8 +119,12 @@ Color ColorManager::_get_transition_color(Color from_color, Color to_color) cons
 }
 
 Color ColorManager::_get_rainbow_color_for_panel_index(int panel_index) const {
-  float rainbow_value = this->distributed_panel_animation->get_value_for_panel(panel_index);
+  float rainbow_value = this->rainbow_panel_animation->get_value_for_panel(panel_index);
   return this->rainbow_gradient->getColorForValue(rainbow_value);
+}
+
+Color ColorManager::_get_knight_rider_color_for_panel_index(int panel_index) const {
+  return this->knight_rider_animation->get_color_for_panel(panel_index);
 }
 
 void ColorManager::_update_clocks() const {
@@ -126,8 +137,11 @@ void ColorManager::_update_clocks() const {
   if (this->transition_delay_timer->is_running()) {
     this->transition_delay_timer->update();
   }
-  if (this->distributed_panel_animation->active) {
-    this->distributed_panel_animation->update();
+  if (this->rainbow_panel_animation->active) {
+    this->rainbow_panel_animation->update();
+  }
+  if (this->knight_rider_animation->is_running()) {
+    this->knight_rider_animation->update();
   }
 }
 
@@ -141,12 +155,12 @@ void ColorManager::_update_state() {
       }
       break;
     case LOW_INTERACTION_STATE:
-      if (this->current_gradient_index != 0) {
-        this->_set_state(DEFAULT_GRADIENT_DELAY_STATE);
-      } else if (this->_is_med_interaction()) {
+      if (this->_is_pong_interaction()) {
+        this->_set_state(KNIGHT_RIDER_INTERACTION_STATE);
+      } else if (this->_is_no_interaction()) {
+        this->_set_state(NO_INTERACTION_STATE);
+      } else if (!this->_is_low_interaction()) {
         this->_set_state(TRANSITIONING_GRADIENT_STATE);
-      } else if (this->_is_high_interaction()) {
-        this->_set_state(TRANSITIONING_FROM_MID_TO_HIGH_STATE);
       }
       break;
     case DEFAULT_GRADIENT_DELAY_STATE:
@@ -218,6 +232,11 @@ void ColorManager::_update_state() {
         }
       }
       break;
+    case KNIGHT_RIDER_INTERACTION_STATE:
+      if (!this->_is_pong_interaction()) {
+        this->_set_state(LOW_INTERACTION_STATE);
+      }
+      break;
   }
 }
 
@@ -245,6 +264,10 @@ void ColorManager::_set_state(ColorManagerState state) {
     case TRANSITIONING_FROM_HIGH_TO_MID_STATE:
       this->_start_transition_from_high_to_mid_interactivity();
       break;
+    case KNIGHT_RIDER_INTERACTION_STATE:
+      this->_start_knight_rider_state();
+      break;
+    case NO_INTERACTION_STATE:
     case LOW_INTERACTION_STATE:
     case HIGH_INTERACTION_STATE:
       break;
@@ -272,7 +295,11 @@ void ColorManager::_start_transition_to_low_interactivity() const {
 
 void ColorManager::_start_transition_to_high_interactivity() const {
   this->transition_interpolation->start();
-  this->distributed_panel_animation->start();
+  this->rainbow_panel_animation->start();
+}
+
+void ColorManager::_start_knight_rider_state() const {
+  this->knight_rider_animation->start();
 }
 
 void ColorManager::_start_transition_from_high_to_mid_interactivity() const {
@@ -285,6 +312,10 @@ bool ColorManager::_is_gradient_swap_delay_done() const {
 
 bool ColorManager::_is_transition_done() const {
   return this->transition_interpolation->is_done();
+}
+
+bool ColorManager::_is_pong_interaction() const {
+  return this->knight_rider_interaction_debounce->reading;
 }
 
 bool ColorManager::_is_no_interaction() const {

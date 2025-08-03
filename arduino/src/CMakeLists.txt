@@ -16,4 +16,6 @@ add_executable(c_aunisoma main.cpp Panel.cpp Panel.h Color.cpp Color.h Maths.h G
         Timer.cpp
         DistributedPanelAnimation.h
         DistributedPanelAnimation.cpp
+        KnightRiderAnimation.cpp
+        KnightRiderAnimation.h
 )

@@ -56,6 +56,7 @@ Sensor sensors[NUMBER_OF_SENSORS];
 Config config = Config();
 
 GradientValueMap rainbow_gradient = GradientValueMap();
+GradientValueMap knight_rider_gradient = GradientValueMap();
 GradientValueMap initial_gradient = GradientValueMap();
 GradientValueMap trans_gradient = GradientValueMap();
 GradientValueMap blue_gradient = GradientValueMap();
@@ -203,6 +204,10 @@ void setup(void) {
   rainbow_gradient.add_rgb_point(0.80, 255, 0, 255);
   rainbow_gradient.add_rgb_point(1.00, 255, 0, 0);
 
+  knight_rider_gradient.add_rgb_point(0, 255, 105, 0);
+  knight_rider_gradient.add_rgb_point(.2, 255, 0, 0);
+  knight_rider_gradient.add_rgb_point(1, 3, 0, 0);
+
   initial_gradient.add_rgb_point(0.0, 3, 0, 0);
   initial_gradient.add_rgb_point(.7, 255, 0, 0);
   initial_gradient.add_rgb_point(2.3, 255, 255, 0);
@@ -270,7 +275,7 @@ void setup(void) {
 
   config.init();
 
-  aunisoma = new Aunisoma(&config, gradients, 6, &rainbow_gradient, sensors);
+  aunisoma = new Aunisoma(&config, gradients, 6, &rainbow_gradient, &knight_rider_gradient, sensors);
 
   initializePanels();
 }

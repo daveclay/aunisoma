@@ -554,7 +554,7 @@ document.addEventListener("DOMContentLoaded",
      *****************************************************************/
     class KnightRider {
       constructor(knight_rider_gradient) {
-        this.knight_rider_cycle = new Cycle(38, false, UP_DOWN_CYCLE);
+        this.knight_rider_cycle = new Cycle(41, false, UP_DOWN_CYCLE);
         this.knight_rider_gradient = knight_rider_gradient;
         this.leading_panel_index = -1;
       }
@@ -582,7 +582,7 @@ document.addEventListener("DOMContentLoaded",
         const distance_from_leading_panel = abs(panel_index - this.leading_panel_index);
 
         const max = 20;
-        if (panel_index === this.leading_panel_index) {
+        if (panel_index == this.leading_panel_index) {
           console.log("leading panel", this.leading_panel_index);
           return this.knight_rider_gradient.getColorForValue(0);
         } else {
@@ -649,7 +649,7 @@ document.addEventListener("DOMContentLoaded",
     const GRADIENT_SWAP_DELAY_STATE = 7;
     const HIGH_INTERACTION_STATE = 8;
     const TRANSITIONING_FROM_HIGH_TO_MID_STATE = 9;
-    const PONG_INTERACTION_STATE = 11;
+    const KNIGHT_RIDER_INTERACTION_STATE = 11;
 
     class ColorManager {
       constructor(gradients, number_of_gradients, rainbow_gradient, knight_rider_gradient, config) {
@@ -676,7 +676,7 @@ document.addEventListener("DOMContentLoaded",
         // few cycles. Note the values are in ms, not ticks.
         // TODO: move debounce time to config
         // going low should take longer
-        this.pong_interaction_debounce = new Debounce(300, false);
+        this.knightrider_interaction_debounce = new Debounce(300, false);
         this.no_interaction_debounce = new Debounce(1000, true);
         this.low_interaction_debounce = new Debounce(100, false);
         this.med_interaction_debounce = new Debounce(200, false);
@@ -713,7 +713,7 @@ document.addEventListener("DOMContentLoaded",
       }
 
       _update_interaction_reading(current_interaction_percent, is_pong_interactivity) {
-        this.pong_interaction_debounce.update(is_pong_interactivity);
+        this.knightrider_interaction_debounce.update(is_pong_interactivity);
 
         const currently_zero = current_interaction_percent < .01;
         const currently_low = !currently_zero && current_interaction_percent < this.config.intermediate_interaction_threshold_percent;
@@ -764,7 +764,7 @@ document.addEventListener("DOMContentLoaded",
             from_color = this.current_gradient.getColorForValue(panel_value);
             to_color = this.gradients[0].getColorForValue(panel_value);
             return this._get_transition_color(from_color, to_color);
-          case PONG_INTERACTION_STATE:
+          case KNIGHT_RIDER_INTERACTION_STATE:
             return this._get_knight_rider_color_for_panel_index(panel_index, panel_value);
           default:
             console.log(`unknown state: ${this.state}`);
@@ -815,7 +815,7 @@ document.addEventListener("DOMContentLoaded",
             break;
           case LOW_INTERACTION_STATE:
             if (this._is_pong_interaction()) {
-              this._set_state(PONG_INTERACTION_STATE);
+              this._set_state(KNIGHT_RIDER_INTERACTION_STATE);
             } else if (this._is_no_interaction()) {
               this._set_state(NO_INTERACTION_STATE);
             } else if (!this._is_low_interaction()) {
@@ -889,6 +889,11 @@ document.addEventListener("DOMContentLoaded",
               }
             }
             break;
+          case KNIGHT_RIDER_INTERACTION_STATE:
+            if (!this._is_pong_interaction()) {
+                this._set_state(LOW_INTERACTION_STATE);
+            }
+            break;
         }
       }
 
@@ -916,8 +921,12 @@ document.addEventListener("DOMContentLoaded",
           case TRANSITIONING_FROM_HIGH_TO_MID_STATE:
             this._start_transition_from_high_to_mid_interactivity();
             break;
-          case PONG_INTERACTION_STATE:
+          case KNIGHT_RIDER_INTERACTION_STATE:
             this._start_knight_rider_state();
+            break;
+          case NO_INTERACTION_STATE:
+          case LOW_INTERACTION_STATE:
+          case HIGH_INTERACTION_STATE:
             break;
         }
       }
@@ -965,7 +974,7 @@ document.addEventListener("DOMContentLoaded",
       }
 
       _is_pong_interaction() {
-        return this.pong_interaction_debounce.reading;
+        return this.knightrider_interaction_debounce.reading;
       }
 
       _is_no_interaction() {
@@ -1829,7 +1838,6 @@ document.addEventListener("DOMContentLoaded",
       rainbow_gradient.add_rgb_point(0.80, 255, 0, 255);
       rainbow_gradient.add_rgb_point(1.00, 255, 0, 0);
 
-      // XXX
       knight_rider_gradient.add_rgb_point(0, 255, 105, 0);
       knight_rider_gradient.add_rgb_point(.2, 255, 0, 0);
       knight_rider_gradient.add_rgb_point(1, 3, 0, 0);
@@ -1899,7 +1907,7 @@ document.addEventListener("DOMContentLoaded",
       // smoothing amount for panel values. In the web mockup, 10 is a
       // little jumpy, 30 is smooth, 100 blurs so that it never goes
       // back to 0 even when the Reverberation is active (which I like)
-      config.smoothing_fn_window_size = 3;
+      config.smoothing_fn_window_size = 10;
       // How long it takes to transition from one gradient to another
       config.gradient_transition_animation_duration = 80;
 

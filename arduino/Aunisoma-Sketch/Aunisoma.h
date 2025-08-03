@@ -23,6 +23,7 @@ public:
              GradientValueMap* gradients,
              int number_of_gradients,
              GradientValueMap* rainbow_gradient,
+             GradientValueMap* knight_rider_gradient,
              Sensor* sensors);
     Panel* get_panel_at(int);
     void update();
@@ -38,6 +39,7 @@ private:
     void _create_panels();
     void _create_reverberations();
     void _create_panel_smoothing_functions();
+    bool _is_pong_interactivity();
     Color _calculate_color_for_value(int panel_index, float value) const;
     void _calculate_interaction_percent();
 };

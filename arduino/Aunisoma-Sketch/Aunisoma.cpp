@@ -8,11 +8,12 @@ Aunisoma::Aunisoma(Config* config,
                    GradientValueMap* gradients,
                    int number_of_gradients,
                    GradientValueMap* rainbow_gradient,
+                   GradientValueMap* knight_rider_gradient,
                    Sensor* sensors) {
     this->config = config;
     this->sensors = sensors;
     this->current_interaction_percent = 0;
-    this->color_manager = new ColorManager(gradients, number_of_gradients, rainbow_gradient, config);
+    this->color_manager = new ColorManager(gradients, number_of_gradients, rainbow_gradient, knight_rider_gradient, config);
 
     this->_create_panels();
     this->_create_reverberations();
@@ -47,7 +48,9 @@ Panel* Aunisoma::get_panel_at(int index) {
 
 void Aunisoma::update() {
     this->_calculate_interaction_percent();
-    this->color_manager->update(this->current_interaction_percent);
+    bool is_pong_interactivity = this->_is_pong_interactivity();
+
+    this->color_manager->update(this->current_interaction_percent, is_pong_interactivity);
 
     for (int reverberation_index = 0; reverberation_index < NUMBER_OF_SENSORS; reverberation_index++) {
         Reverberation* reverberation = this->reverberations[reverberation_index];
@@ -67,6 +70,25 @@ void Aunisoma::update() {
         Color color = this->_calculate_color_for_value(panel_index, value);
         this->panels[panel_index]->color = color;
     }
+}
+
+bool Aunisoma::_is_pong_interactivity() {
+    // see if all panels between the first and last are _inactive_.
+    for (int i = 2; i < NUMBER_OF_PANELS - 2; i++) {
+        if (this->sensors[i].active) {
+            return false;
+        }
+    }
+
+    Sensor firstFrontSensor = this->sensors[0];
+    Sensor firstBackSensor = this->sensors[1];
+    Sensor lastFrontSensor = this->sensors[NUMBER_OF_SENSORS - 2];
+    Sensor lastBackSensor = this->sensors[NUMBER_OF_SENSORS - 1];
+
+    bool firstPanelActive = firstFrontSensor.active || firstBackSensor.active;
+    bool lastPanelActive = lastFrontSensor.active || lastBackSensor.active;
+
+    return firstPanelActive && lastPanelActive;
 }
 
 Color Aunisoma::_calculate_color_for_value(int panel_index, float value) const {
