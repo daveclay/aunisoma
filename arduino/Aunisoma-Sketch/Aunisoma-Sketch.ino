@@ -63,14 +63,16 @@ GradientValueMap blue_gradient = GradientValueMap();
 GradientValueMap green_gradient = GradientValueMap();
 GradientValueMap purple_red_gradient = GradientValueMap();
 GradientValueMap green_blue_gradient = GradientValueMap();
+GradientValueMap yellow_gradient = GradientValueMap();
 
-GradientValueMap gradients[6] = {
+GradientValueMap gradients[7] = {
   initial_gradient,
   trans_gradient,
   blue_gradient,
   green_blue_gradient,
   purple_red_gradient,
-  green_gradient
+  green_gradient,
+  yellow_gradient
 };
 
 Aunisoma* aunisoma;
@@ -243,6 +245,11 @@ void setup(void) {
   trans_gradient.add_rgb_point(2.5, 0, 145, 255);
   trans_gradient.add_rgb_point(4, 200, 255, 0);
 
+  yellow_gradient.add_rgb_point(0, 3, 0, 1);
+  yellow_gradient.add_rgb_point(.7, 255, 255, 0);
+  yellow_gradient.add_rgb_point(2.2, 255, 0, 0);
+  yellow_gradient.add_rgb_point(4, 0, 0, 255);
+
   config.number_of_panels = NUMBER_OF_PANELS;
 
   config.reverberation_distance_range = new Range(1, 4);
@@ -275,7 +282,7 @@ void setup(void) {
 
   config.init();
 
-  aunisoma = new Aunisoma(&config, gradients, 6, &rainbow_gradient, &knight_rider_gradient, sensors);
+  aunisoma = new Aunisoma(&config, gradients, 7, &rainbow_gradient, &knight_rider_gradient, sensors);
 
   initializePanels();
 }

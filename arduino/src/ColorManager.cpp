@@ -19,7 +19,7 @@ ColorManager::ColorManager(GradientValueMap* gradients, int number_of_gradients,
   // TODO: move debounce time to config
   // going low should take longer
   this->knight_rider_interaction_debounce = new Debounce(300, false);
-  this->no_interaction_debounce = new Debounce(1000, true);
+  this->no_interaction_debounce = new Debounce(300, true);
   this->low_interaction_debounce = new Debounce(100, false);
   this->med_interaction_debounce = new Debounce(200, false);
   // TODO: it was kinda hard to keep it in the high state, maybe it should be
@@ -159,7 +159,7 @@ void ColorManager::_update_state() {
         this->_set_state(KNIGHT_RIDER_INTERACTION_STATE);
       } else if (this->_is_no_interaction()) {
         this->_set_state(NO_INTERACTION_STATE);
-      } else if (!this->_is_low_interaction()) {
+      } else if (this->_is_med_interaction() || this->_is_high_interaction()) {
         this->_set_state(TRANSITIONING_GRADIENT_STATE);
       }
       break;
