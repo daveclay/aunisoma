@@ -241,7 +241,7 @@ void setup(void) {
   green_blue_gradient.add_rgb_point(4, 255, 0, 255);
 
   trans_gradient.add_rgb_point(0, 3, 0, 1);
-  trans_gradient.add_rgb_point(.8, 255, 0, 105);
+  trans_gradient.add_rgb_point(.6, 255, 0, 105);
   trans_gradient.add_rgb_point(2.5, 0, 145, 255);
   trans_gradient.add_rgb_point(4, 200, 255, 0);
 
