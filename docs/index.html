@@ -262,6 +262,10 @@ document.addEventListener("DOMContentLoaded",
 
         return new Color(red, green, blue);
       }
+
+      sum(color) {
+        return new Color(this.red + color.red, this.green + color.green, this.blue + color.blue);
+      }
     }
 
     /******************************************************************
@@ -468,6 +472,20 @@ document.addEventListener("DOMContentLoaded",
         this.active = true;
       }
 
+      /**
+       * Re-start the interpolation clock at the duration where the current timer is at.
+       * Effectively "reverses" the interpolation.
+       */
+      restart_at_tick() {
+        this.timer.clock.ticks = this.timer.duration_ticks - this.timer.clock.ticks;
+        // Update the timer now - in the loop, update() was called before changing
+        // state and calling restart_at_tick(). The next call to get_color won't
+        // reflect the reversed state of the timer. This updates the timer so
+        // get_value() returns the "reversed" interpolation value based on the
+        // timer state.
+        this.timer.update();
+      }
+
       update() {
         if (!this.active) {
           return;
@@ -638,6 +656,7 @@ document.addEventListener("DOMContentLoaded",
     // enum ColorManagerState = {
     const NO_INTERACTION_STATE = 10;
     const NO_INTERACTION_KNIGHT_RIDER_STATE = 12;
+    const TRANSITION_FROM_NO_INTERACTION_KNIGHT_RIDER_STATE = 13;
     const LOW_INTERACTION_STATE = 1;
     const DEFAULT_GRADIENT_DELAY_STATE = 2;
     const TRANSITIONING_TO_DEFAULT_GRADIENT_STATE = 3;
@@ -689,9 +708,12 @@ document.addEventListener("DOMContentLoaded",
           this.config.delay_for_gradient_transition_duration,
         );
         // How long to sit idle before triggering knight rider animation
-        this.no_interaction_knight_rider_delay_timer = new Timer(300);
+        this.no_interaction_knight_rider_delay_timer = new Timer(
+          this.config.no_interaction_knight_rider_delay_range.random_int_between()
+        );
         // How long to run the idle knight rider animation before going back to idle
-        this.no_interaction_knight_rider_animation_timer = new Timer(200)
+        // Also used to transition out of knight rider back to idle/low interaction state
+        this.knight_rider_animation_duration_timer = new Timer(200)
         this.transition_interpolation = new Interpolation(config.gradient_transition_animation_duration);
         this.rainbow_distributed_panel_animation = new DistributedPanelAnimation(config);
         this.knight_rider_animation = new KnightRider(knight_rider_gradient);
@@ -770,6 +792,8 @@ document.addEventListener("DOMContentLoaded",
             return this._get_knight_rider_color_for_panel_index(panel_index, panel_value);
           case NO_INTERACTION_KNIGHT_RIDER_STATE:
             return this._get_knight_rider_color_for_panel_index(panel_index, panel_value);
+          case TRANSITION_FROM_NO_INTERACTION_KNIGHT_RIDER_STATE:
+            return this._get_transition_out_of_knight_rider_color_for_panel_index(panel_index, panel_value);
           default:
             console.log(`unknown state: ${this.state}`);
             new Color(1, 1, 1);
@@ -796,6 +820,17 @@ document.addEventListener("DOMContentLoaded",
         }
       }
 
+      _get_transition_out_of_knight_rider_color_for_panel_index(panel_index, panel_value) {
+        const to_color = this.current_gradient.getColorForValue(panel_value);
+        if (this._is_transition_done()) {
+          return to_color;
+        } else {
+          const from_color = this.knight_rider_animation.get_color_for_panel(panel_index);
+          // amount _from_ the color.... so we wnt it to be almost _done_ not restarted TODO
+          return this._get_transition_color(from_color, to_color);
+        }
+      }
+
       _update_clocks() {
         if (this.default_gradient_delay_timer.is_running()) {
           this.default_gradient_delay_timer.update();
@@ -815,8 +850,8 @@ document.addEventListener("DOMContentLoaded",
         if (this.no_interaction_knight_rider_delay_timer.is_running()) {
           this.no_interaction_knight_rider_delay_timer.update();
         }
-        if (this.no_interaction_knight_rider_animation_timer.is_running()) {
-          this.no_interaction_knight_rider_animation_timer.update();
+        if (this.knight_rider_animation_duration_timer.is_running()) {
+          this.knight_rider_animation_duration_timer.update();
         }
       }
 
@@ -833,8 +868,13 @@ document.addEventListener("DOMContentLoaded",
             break;
           case NO_INTERACTION_KNIGHT_RIDER_STATE:
             if (!this._is_no_interaction()) {
-              this._set_state(LOW_INTERACTION_STATE);
-            } else if (this.no_interaction_knight_rider_animation_timer.is_done()) {
+              this._set_state(TRANSITION_FROM_NO_INTERACTION_KNIGHT_RIDER_STATE);
+            } else if (this.knight_rider_animation_duration_timer.is_done()) {
+              this._set_state(TRANSITION_FROM_NO_INTERACTION_KNIGHT_RIDER_STATE);
+            }
+            break;
+          case TRANSITION_FROM_NO_INTERACTION_KNIGHT_RIDER_STATE:
+            if (this.knight_rider_animation_duration_timer.is_done()) {
               this._set_state(NO_INTERACTION_STATE);
             }
             break;
@@ -955,6 +995,9 @@ document.addEventListener("DOMContentLoaded",
           case NO_INTERACTION_KNIGHT_RIDER_STATE:
             this._start_no_interaction_knight_rider_animation();
             break;
+          case TRANSITION_FROM_NO_INTERACTION_KNIGHT_RIDER_STATE:
+            this._start_transition_from_no_interaction_knight_rider_animation();
+            break;
           case LOW_INTERACTION_STATE:
           case HIGH_INTERACTION_STATE:
             break;
@@ -993,7 +1036,9 @@ document.addEventListener("DOMContentLoaded",
       }
 
       _start_no_interaction_knight_rider_delay_timer() {
-        this.no_interaction_knight_rider_delay_timer.restart();
+        this.no_interaction_knight_rider_delay_timer.restart(
+          this.config.no_interaction_knight_rider_delay_range.random_int_between()
+        );
       }
 
       _start_transition_from_high_to_mid_interactivity() {
@@ -1003,8 +1048,17 @@ document.addEventListener("DOMContentLoaded",
       _start_no_interaction_knight_rider_animation() {
         this.transition_interpolation.start();
         this.no_interaction_knight_rider_delay_timer.stop();
-        this.no_interaction_knight_rider_animation_timer.restart();
+        this.knight_rider_animation_duration_timer.restart();
         this._start_knight_rider_animation();
+      }
+
+      _start_transition_from_no_interaction_knight_rider_animation() {
+        if (this.transition_interpolation.is_running()) {
+          this.transition_interpolation.restart_at_tick();
+        } else {
+          this.transition_interpolation.start();
+          this.knight_rider_animation_duration_timer.restart();
+        }
       }
 
       _is_gradient_swap_delay_done() {
@@ -1944,6 +1998,8 @@ document.addEventListener("DOMContentLoaded",
       // This is how long to wait at no interaction before reverting back to the default
       // gradient color.
       config.default_gradient_delay_duration_range = new Range(1500, 2000);
+      // TODO: this should really be a good long number and highly variable - power consumption should be prioritized
+      config.no_interaction_knight_rider_delay_range = new Range(300, 400);
       config.high_interaction_threshold_percent = .6;
       config.intermediate_interaction_threshold_percent = .25;
 
@@ -2360,6 +2416,8 @@ document.addEventListener("DOMContentLoaded",
           return "KNIGHT_RIDER_INTERACTION_STATE";
         case NO_INTERACTION_KNIGHT_RIDER_STATE:
           return "NO_INTERACTION_KNIGHT_RIDER_STATE";
+        case TRANSITION_FROM_NO_INTERACTION_KNIGHT_RIDER_STATE:
+          return "TRANSITION_FROM_NO_INTERACTION_KNIGHT_RIDER_STATE";
         case NO_INTERACTION_STATE:
           return "NO_INTERACTION_STATE";
         case LOW_INTERACTION_STATE:
