@@ -206,7 +206,7 @@ void setup(void) {
   rainbow_gradient.add_rgb_point(0.80, 255, 0, 255);
   rainbow_gradient.add_rgb_point(1.00, 255, 0, 0);
 
-  knight_rider_gradient.add_rgb_point(0, 255, 105, 0);
+  knight_rider_gradient.add_rgb_point(0, 255, 30, 0);
   knight_rider_gradient.add_rgb_point(.2, 255, 0, 0);
   knight_rider_gradient.add_rgb_point(1, 3, 0, 0);
 
@@ -272,14 +272,14 @@ void setup(void) {
   // how long to wait for a gradient transition while in the
   // medium interactivity state. Longer means people have to
   // move their butts for longer to get it to switch color.
-  config.delay_for_gradient_transition_duration = 1000;
+  config.delay_for_gradient_transition_duration = 4000;
 
   // smoothing amount for panel values. In the web mockup, 10 is a
   // little jumpy, 30 is smooth, 100 blurs so that it never goes
   // back to 0 even when the Reverberation is active (which I like)
   config.smoothing_fn_window_size = 10;
   // How long it takes to transition from one gradient to another
-  config.gradient_transition_animation_duration = 80;
+  config.gradient_transition_animation_duration = 100;
 
   config.init();
 

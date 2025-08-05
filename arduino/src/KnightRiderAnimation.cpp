@@ -7,7 +7,7 @@
 #include "Gradient.h"
 #include "Maths.h"
 
-// ColorManager::ColorManager(GradientValueMap* gradients, int number_of_gradients, GradientValueMap* rainbow_gradient, Config* config) {
+#define NUMBER_OF_PANELS 20
 
 KnightRiderAnimation::KnightRiderAnimation(GradientValueMap* knight_rider_gradient) {
   this->knight_rider_cycle = new Cycle(41, false, UP_DOWN_CYCLE);
