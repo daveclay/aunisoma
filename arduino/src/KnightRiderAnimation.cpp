@@ -50,7 +50,7 @@ Color KnightRiderAnimation::get_color_for_panel(int panel_index) {
       if (panel_index < this->leading_panel_index) {
         // when rising, the panels _behind_ the leading panel have a basic distance
         // from the leading panel formula->
-        float value = (distance_from_leading_panel) / max;
+        float value = ((float) distance_from_leading_panel) / (float) max;
         return this->knight_rider_gradient->getColorForValue(value);
       } else {
         // when rising, the panels _ahead_ of the leading panel have values
@@ -60,7 +60,7 @@ Color KnightRiderAnimation::get_color_for_panel(int panel_index) {
 
         // the gradient is set up so that 0 is brightest, 1 is furthest, so it's
         // based on distance from leading panel->
-        float value = distance / max;
+        float value = (float) distance / (float) max;
         return this->knight_rider_gradient->getColorForValue(value);
       }
     } else {
@@ -70,7 +70,7 @@ Color KnightRiderAnimation::get_color_for_panel(int panel_index) {
       if (panel_index > this->leading_panel_index) {
         // when falling, the panels _ahead_ the leading panel have a basic distance
         // from the leading panel formula->
-        float value = (distance_from_leading_panel) / max;
+        float value = ((float) distance_from_leading_panel) / (float) max;
         return this->knight_rider_gradient->getColorForValue(value);
       } else {
         // when falling, the panels _behind_ the leading panel have values
@@ -79,7 +79,7 @@ Color KnightRiderAnimation::get_color_for_panel(int panel_index) {
         int distance = (NUMBER_OF_PANELS - (this->leading_panel_index + 1)) * 2 + (this->leading_panel_index - panel_index);
         // the gradient is set up so that 0 is brightest, 1 is furthest, so it's
         // based on distance from leading panel->
-        float value = distance / max;
+        float value = (float) distance / (float) max;
         return this->knight_rider_gradient->getColorForValue(value);
       }
     }

@@ -32,6 +32,10 @@ ColorManager::ColorManager(GradientValueMap* gradients, int number_of_gradients,
   this->transition_delay_timer = new Timer(
     this->config->delay_for_gradient_transition_duration
   );
+  // How long to sit idle before triggering knight rider animation
+  this->no_interaction_knight_rider_delay_timer = new Timer(300);
+  // How long to run the idle knight rider animation before going back to idle
+  this->no_interaction_knight_rider_animation_timer = new Timer(200);
   this->transition_interpolation = new Interpolation(config->gradient_transition_animation_duration);
   this->rainbow_panel_animation = new DistributedPanelAnimation(config);
   this->knight_rider_animation = new KnightRiderAnimation(knight_rider_gradient);
@@ -107,7 +111,9 @@ Color ColorManager::get_color(int panel_index, float panel_value) const {
       to_color = this->gradients[0].getColorForValue(panel_value);
       return this->_get_transition_color(from_color, to_color);
     case KNIGHT_RIDER_INTERACTION_STATE:
-      return this->_get_knight_rider_color_for_panel_index(panel_index);
+      return this->_get_knight_rider_color_for_panel_index(panel_index, panel_value);
+    case NO_INTERACTION_KNIGHT_RIDER_STATE:
+      return this->_get_knight_rider_color_for_panel_index(panel_index, panel_value);
     default:
       return Color(1, 1, 1);
   }
@@ -123,8 +129,14 @@ Color ColorManager::_get_rainbow_color_for_panel_index(int panel_index) const {
   return this->rainbow_gradient->getColorForValue(rainbow_value);
 }
 
-Color ColorManager::_get_knight_rider_color_for_panel_index(int panel_index) const {
-  return this->knight_rider_animation->get_color_for_panel(panel_index);
+Color ColorManager::_get_knight_rider_color_for_panel_index(int panel_index, float panel_value) const {
+  Color to_color = this->knight_rider_animation->get_color_for_panel(panel_index);
+  if (this->_is_transition_done()) {
+    return to_color;
+  } else {
+    Color from_color = this->current_gradient->getColorForValue(panel_value);
+    return this->_get_transition_color(from_color, to_color);
+  }
 }
 
 void ColorManager::_update_clocks() const {
@@ -143,6 +155,12 @@ void ColorManager::_update_clocks() const {
   if (this->knight_rider_animation->is_running()) {
     this->knight_rider_animation->update();
   }
+  if (this->no_interaction_knight_rider_delay_timer->is_running()) {
+    this->no_interaction_knight_rider_delay_timer->update();
+  }
+  if (this->no_interaction_knight_rider_animation_timer->is_running()) {
+    this->no_interaction_knight_rider_animation_timer->update();
+  }
 }
 
 void ColorManager::_update_state() {
@@ -152,6 +170,15 @@ void ColorManager::_update_state() {
         this->_set_state(LOW_INTERACTION_STATE);
       } else if (this->current_gradient_index != 0) {
         this->_set_state(DEFAULT_GRADIENT_DELAY_STATE);
+      } else if (this->_is_no_interaction_knight_rider_delay_done()) {
+        this->_set_state(NO_INTERACTION_KNIGHT_RIDER_STATE);
+      }
+      break;
+    case NO_INTERACTION_KNIGHT_RIDER_STATE:
+      if (!this->_is_no_interaction()) {
+        this->_set_state(LOW_INTERACTION_STATE);
+      } else if (this->no_interaction_knight_rider_animation_timer->is_done()) {
+        this->_set_state(NO_INTERACTION_STATE);
       }
       break;
     case LOW_INTERACTION_STATE:
@@ -265,9 +292,14 @@ void ColorManager::_set_state(ColorManagerState state) {
       this->_start_transition_from_high_to_mid_interactivity();
       break;
     case KNIGHT_RIDER_INTERACTION_STATE:
-      this->_start_knight_rider_state();
+      this->_start_knight_rider_animation();
       break;
     case NO_INTERACTION_STATE:
+      this->_start_no_interaction_knight_rider_delay_timer();
+      break;
+    case NO_INTERACTION_KNIGHT_RIDER_STATE:
+      this->_start_no_interaction_knight_rider_animation();
+      break;
     case LOW_INTERACTION_STATE:
     case HIGH_INTERACTION_STATE:
       break;
@@ -298,12 +330,24 @@ void ColorManager::_start_transition_to_high_interactivity() const {
   this->rainbow_panel_animation->start();
 }
 
-void ColorManager::_start_knight_rider_state() const {
+void ColorManager::_start_knight_rider_animation() const {
+  this->transition_interpolation->start();
   this->knight_rider_animation->start();
+}
+
+void ColorManager::_start_no_interaction_knight_rider_delay_timer() const {
+  this->no_interaction_knight_rider_delay_timer->restart();
 }
 
 void ColorManager::_start_transition_from_high_to_mid_interactivity() const {
   this->transition_interpolation->start();
+}
+
+void ColorManager::_start_no_interaction_knight_rider_animation() const {
+  this->transition_interpolation->start();
+  this->no_interaction_knight_rider_delay_timer->stop();
+  this->no_interaction_knight_rider_animation_timer->restart();
+  this->_start_knight_rider_animation();
 }
 
 bool ColorManager::_is_gradient_swap_delay_done() const {
@@ -312,6 +356,10 @@ bool ColorManager::_is_gradient_swap_delay_done() const {
 
 bool ColorManager::_is_transition_done() const {
   return this->transition_interpolation->is_done();
+}
+
+bool ColorManager::_is_no_interaction_knight_rider_delay_done() const {
+  return this->no_interaction_knight_rider_delay_timer->is_done();
 }
 
 bool ColorManager::_is_pong_interaction() const {

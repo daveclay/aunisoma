@@ -583,7 +583,6 @@ document.addEventListener("DOMContentLoaded",
 
         const max = 20;
         if (panel_index == this.leading_panel_index) {
-          console.log("leading panel", this.leading_panel_index);
           return this.knight_rider_gradient.getColorForValue(0);
         } else {
           if (this.knight_rider_cycle.isRising()) {
@@ -601,7 +600,6 @@ document.addEventListener("DOMContentLoaded",
               // L * 2 + (i - L)
               const distance = this.leading_panel_index * 2 + (panel_index - this.leading_panel_index);
 
-              console.log("rising", `leading_panel_index: ${this.leading_panel_index}`, `panel_index: ${panel_index}`, `distance: ${distance}`);
               // the gradient is set up so that 0 is brightest, 1 is furthest, so it's
               // based on distance from leading panel.
               const value = distance / max;
@@ -621,7 +619,6 @@ document.addEventListener("DOMContentLoaded",
               // that wrap around from the previous rising animation
               // (20 - (L + 1)) * 2 + (L - i)
               const distance = (NUMBER_OF_PANELS - (this.leading_panel_index + 1)) * 2 + (this.leading_panel_index - panel_index);
-              console.log("falling", `leading_panel_index: ${this.leading_panel_index}`, `panel_index: ${panel_index}`, `distance: ${distance}`);
               // the gradient is set up so that 0 is brightest, 1 is furthest, so it's
               // based on distance from leading panel.
               const value = distance / max;
@@ -640,6 +637,7 @@ document.addEventListener("DOMContentLoaded",
      *****************************************************************/
     // enum ColorManagerState = {
     const NO_INTERACTION_STATE = 10;
+    const NO_INTERACTION_KNIGHT_RIDER_STATE = 12;
     const LOW_INTERACTION_STATE = 1;
     const DEFAULT_GRADIENT_DELAY_STATE = 2;
     const TRANSITIONING_TO_DEFAULT_GRADIENT_STATE = 3;
@@ -690,6 +688,10 @@ document.addEventListener("DOMContentLoaded",
         this.transition_delay_timer = new Timer(
           this.config.delay_for_gradient_transition_duration,
         );
+        // How long to sit idle before triggering knight rider animation
+        this.no_interaction_knight_rider_delay_timer = new Timer(300);
+        // How long to run the idle knight rider animation before going back to idle
+        this.no_interaction_knight_rider_animation_timer = new Timer(200)
         this.transition_interpolation = new Interpolation(config.gradient_transition_animation_duration);
         this.rainbow_distributed_panel_animation = new DistributedPanelAnimation(config);
         this.knight_rider_animation = new KnightRider(knight_rider_gradient);
@@ -766,6 +768,8 @@ document.addEventListener("DOMContentLoaded",
             return this._get_transition_color(from_color, to_color);
           case KNIGHT_RIDER_INTERACTION_STATE:
             return this._get_knight_rider_color_for_panel_index(panel_index, panel_value);
+          case NO_INTERACTION_KNIGHT_RIDER_STATE:
+            return this._get_knight_rider_color_for_panel_index(panel_index, panel_value);
           default:
             console.log(`unknown state: ${this.state}`);
             new Color(1, 1, 1);
@@ -783,7 +787,13 @@ document.addEventListener("DOMContentLoaded",
       }
 
       _get_knight_rider_color_for_panel_index(panel_index, panel_value) {
-        return this.knight_rider_animation.get_color_for_panel(panel_index);
+        const to_color = this.knight_rider_animation.get_color_for_panel(panel_index);
+        if (this._is_transition_done()) {
+          return to_color;
+        } else {
+          const from_color = this.current_gradient.getColorForValue(panel_value);
+          return this._get_transition_color(from_color, to_color);
+        }
       }
 
       _update_clocks() {
@@ -802,6 +812,12 @@ document.addEventListener("DOMContentLoaded",
         if (this.knight_rider_animation.is_running()) {
           this.knight_rider_animation.update();
         }
+        if (this.no_interaction_knight_rider_delay_timer.is_running()) {
+          this.no_interaction_knight_rider_delay_timer.update();
+        }
+        if (this.no_interaction_knight_rider_animation_timer.is_running()) {
+          this.no_interaction_knight_rider_animation_timer.update();
+        }
       }
 
       _update_state() {
@@ -811,6 +827,15 @@ document.addEventListener("DOMContentLoaded",
               this._set_state(LOW_INTERACTION_STATE);
             } else if (this.current_gradient_index != 0) {
               this._set_state(DEFAULT_GRADIENT_DELAY_STATE);
+            } else if (this._is_no_interaction_knight_rider_delay_done()) {
+              this._set_state(NO_INTERACTION_KNIGHT_RIDER_STATE);
+            }
+            break;
+          case NO_INTERACTION_KNIGHT_RIDER_STATE:
+            if (!this._is_no_interaction()) {
+              this._set_state(LOW_INTERACTION_STATE);
+            } else if (this.no_interaction_knight_rider_animation_timer.is_done()) {
+              this._set_state(NO_INTERACTION_STATE);
             }
             break;
           case LOW_INTERACTION_STATE:
@@ -922,9 +947,14 @@ document.addEventListener("DOMContentLoaded",
             this._start_transition_from_high_to_mid_interactivity();
             break;
           case KNIGHT_RIDER_INTERACTION_STATE:
-            this._start_knight_rider_state();
+            this._start_knight_rider_animation();
             break;
           case NO_INTERACTION_STATE:
+            this._start_no_interaction_knight_rider_delay_timer();
+            break;
+          case NO_INTERACTION_KNIGHT_RIDER_STATE:
+            this._start_no_interaction_knight_rider_animation();
+            break;
           case LOW_INTERACTION_STATE:
           case HIGH_INTERACTION_STATE:
             break;
@@ -957,12 +987,24 @@ document.addEventListener("DOMContentLoaded",
         this.rainbow_distributed_panel_animation.start();
       }
 
-      _start_knight_rider_state() {
+      _start_knight_rider_animation() {
+        this.transition_interpolation.start();
         this.knight_rider_animation.start();
+      }
+
+      _start_no_interaction_knight_rider_delay_timer() {
+        this.no_interaction_knight_rider_delay_timer.restart();
       }
 
       _start_transition_from_high_to_mid_interactivity() {
         this.transition_interpolation.start();
+      }
+
+      _start_no_interaction_knight_rider_animation() {
+        this.transition_interpolation.start();
+        this.no_interaction_knight_rider_delay_timer.stop();
+        this.no_interaction_knight_rider_animation_timer.restart();
+        this._start_knight_rider_animation();
       }
 
       _is_gradient_swap_delay_done() {
@@ -971,6 +1013,10 @@ document.addEventListener("DOMContentLoaded",
 
       _is_transition_done() {
         return this.transition_interpolation.is_done();
+      }
+
+      _is_no_interaction_knight_rider_delay_done() {
+        return this.no_interaction_knight_rider_delay_timer.is_done();
       }
 
       _is_pong_interaction() {
@@ -2310,6 +2356,10 @@ document.addEventListener("DOMContentLoaded",
 
     function getColorManagerState(state) {
       switch (state) {
+        case KNIGHT_RIDER_INTERACTION_STATE:
+          return "KNIGHT_RIDER_INTERACTION_STATE";
+        case NO_INTERACTION_KNIGHT_RIDER_STATE:
+          return "NO_INTERACTION_KNIGHT_RIDER_STATE";
         case NO_INTERACTION_STATE:
           return "NO_INTERACTION_STATE";
         case LOW_INTERACTION_STATE:
