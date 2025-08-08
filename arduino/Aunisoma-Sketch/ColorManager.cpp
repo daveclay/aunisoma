@@ -46,6 +46,7 @@ ColorManager::ColorManager(GradientValueMap* gradients, int number_of_gradients,
   this->next_gradient_index = 0;
   this->current_gradient = &this->gradients[this->current_gradient_index];
   this->state = NO_INTERACTION_STATE;
+  this->current_state_duration = 0;
 }
 
 /**
@@ -143,7 +144,7 @@ Color ColorManager::_get_knight_rider_color_for_panel_index(int panel_index, flo
   }
 }
 
-void ColorManager::_update_clocks() const {
+void ColorManager::_update_clocks() {
   if (this->default_gradient_delay_timer->is_running()) {
     this->default_gradient_delay_timer->update();
   }
@@ -165,6 +166,8 @@ void ColorManager::_update_clocks() const {
   if (this->knight_rider_animation_duration_timer->is_running()) {
     this->knight_rider_animation_duration_timer->update();
   }
+
+   this->current_state_duration++;
 }
 
 Color ColorManager::_get_transition_out_of_knight_rider_color_for_panel_index(int panel_index, float panel_value) const {
@@ -175,6 +178,17 @@ Color ColorManager::_get_transition_out_of_knight_rider_color_for_panel_index(in
     Color from_color = this->knight_rider_animation->get_color_for_panel(panel_index);
     // amount _from_ the color->->->-> so we wnt it to be almost _done_ not restarted TODO
     return this->_get_transition_color(from_color, to_color);
+  }
+}
+
+void ColorManager::_update_state_watchdog() {
+  if (this->current_state_duration > this->config->watchdog_state_duration_limit_ticks) {
+    if (this->state == NO_INTERACTION_STATE) {
+      this->current_state_duration = 0;
+    } else {
+      // reset to a known state
+      this->_set_state(LOW_INTERACTION_STATE);
+    }
   }
 }
 

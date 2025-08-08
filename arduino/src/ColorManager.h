@@ -60,13 +60,15 @@ private:
     int next_gradient_index;
     GradientValueMap* current_gradient;
     ColorManagerState state;
+    int current_state_duration;
 
     void _update_interaction_reading(float current_interaction_percent, bool is_pong_interactivity) const;
     void _switch_to_new_current_gradient();
     Color _get_transition_color(Color from_color, Color to_color) const;
     Color _get_rainbow_color_for_panel_index(int panel_index) const;
     Color _get_knight_rider_color_for_panel_index(int panel_index, float panel_value) const;
-    void _update_clocks() const;
+    void _update_clocks();
+    void _update_state_watchdog();
     Color _get_transition_out_of_knight_rider_color_for_panel_index(int panel_index, float panel_value) const;
     void _update_state();
     void _set_state(ColorManagerState state);

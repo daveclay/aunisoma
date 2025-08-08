@@ -266,11 +266,10 @@ void setup(void) {
   // This is how long to wait at no interaction before reverting back to the default
   // gradient color.
   config.default_gradient_delay_duration_range = new Range(1500, 2000);
-  // measured time: 300 ticks in 1m 12s
-  // 240ms per tick
-  // 3000 = 12 minutes, 10000 = 40 minutes
-  // 3750 = 15 minutes
-  config.no_interaction_knight_rider_delay_range = new Range(2000, 4000);
+  // This should really be a good long number and highly variable - power consumption should be prioritized
+  // measured time: 300 ticks in 1m 12s while doing knight rider. 240ms per tick. Faster when idle, though?
+  // actually 2000, 4000 is running every 4-5 minutes.
+  config.no_interaction_knight_rider_delay_range = new Range(6000, 12000);
   // config.no_interaction_knight_rider_delay_range = new Range(300, 400);
   config.high_interaction_threshold_percent = .6;
   config.intermediate_interaction_threshold_percent = .25;
@@ -286,6 +285,8 @@ void setup(void) {
   config.smoothing_fn_window_size = 10;
   // How long it takes to transition from one gradient to another
   config.gradient_transition_animation_duration = 100;
+  // how long a single state is allowed before resetting to a known state.
+  config.watchdog_state_duration_limit_ticks = 5000;
 
   config.init();
 

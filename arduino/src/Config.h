@@ -23,6 +23,7 @@ public:
     int delay_for_gradient_transition_duration;
     int gradient_transition_animation_duration;
     int smoothing_fn_window_size;
+    int watchdog_state_duration_limit_ticks;
 
     // This is here to make it available to the C++ files, since importing Aunisoma-Sketch isn't good.
     int number_of_panels;
