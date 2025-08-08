@@ -10,7 +10,7 @@
 #define NUMBER_OF_PANELS 20
 
 KnightRiderAnimation::KnightRiderAnimation(GradientValueMap* knight_rider_gradient) {
-  this->knight_rider_cycle = new Cycle(41, false, UP_DOWN_CYCLE);
+  this->knight_rider_cycle = new Cycle(60, false, UP_DOWN_CYCLE);
   this->knight_rider_gradient = knight_rider_gradient;
   this->leading_panel_index = -1;
 }

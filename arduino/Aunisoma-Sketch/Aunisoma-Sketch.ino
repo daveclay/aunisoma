@@ -206,9 +206,9 @@ void setup(void) {
   rainbow_gradient.add_rgb_point(0.80, 255, 0, 255);
   rainbow_gradient.add_rgb_point(1.00, 255, 0, 0);
 
-  knight_rider_gradient.add_rgb_point(0, 255, 30, 0);
+  knight_rider_gradient.add_rgb_point(0, 255, 12, 0);
   knight_rider_gradient.add_rgb_point(.2, 255, 0, 0);
-  knight_rider_gradient.add_rgb_point(1, 3, 0, 0);
+  knight_rider_gradient.add_rgb_point(.9, 3, 0, 0);
 
   initial_gradient.add_rgb_point(0.0, 3, 0, 0);
   initial_gradient.add_rgb_point(.7, 255, 0, 0);
