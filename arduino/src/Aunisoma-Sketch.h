@@ -266,6 +266,7 @@ void setup(void) {
   // This is how long to wait at no interaction before reverting back to the default
   // gradient color.
   config.default_gradient_delay_duration_range = new Range(1500, 2000);
+  config.no_interaction_knight_rider_delay_range = new Range(3000, 10000);
   config.high_interaction_threshold_percent = .6;
   config.intermediate_interaction_threshold_percent = .25;
 

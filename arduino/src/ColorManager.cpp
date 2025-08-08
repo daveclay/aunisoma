@@ -33,7 +33,9 @@ ColorManager::ColorManager(GradientValueMap* gradients, int number_of_gradients,
     this->config->delay_for_gradient_transition_duration
   );
   // How long to sit idle before triggering knight rider animation
-  this->no_interaction_knight_rider_delay_timer = new Timer(1000);
+  this->no_interaction_knight_rider_delay_timer = new Timer(
+    this->config->no_interaction_knight_rider_delay_range->random_int_between()
+  );
   // How long to run the idle knight rider animation before going back to idle
   this->knight_rider_animation_duration_timer = new Timer(200);
   this->transition_interpolation = new Interpolation(config->gradient_transition_animation_duration);

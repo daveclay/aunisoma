@@ -18,6 +18,7 @@ public:
     float intermediate_interaction_threshold_percent;
     int min_max_interaction_gradient_transition_duration;
     Range* default_gradient_delay_duration_range;
+    Range* no_interaction_knight_rider_delay_range;
 
     int delay_for_gradient_transition_duration;
     int gradient_transition_animation_duration;
