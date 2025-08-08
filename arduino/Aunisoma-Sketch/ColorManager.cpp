@@ -18,7 +18,7 @@ ColorManager::ColorManager(GradientValueMap* gradients, int number_of_gradients,
   // few cycles. Note the values are in ms, not ticks.
   // TODO: move debounce time to config
   // going low should take longer
-  this->knight_rider_interaction_debounce = new Debounce(300, false);
+  this->knight_rider_interaction_debounce = new Debounce(1000, false);
   this->no_interaction_debounce = new Debounce(300, true);
   this->low_interaction_debounce = new Debounce(100, false);
   this->med_interaction_debounce = new Debounce(200, false);
@@ -35,7 +35,7 @@ ColorManager::ColorManager(GradientValueMap* gradients, int number_of_gradients,
   // How long to sit idle before triggering knight rider animation
   this->no_interaction_knight_rider_delay_timer = new Timer(1000);
   // How long to run the idle knight rider animation before going back to idle
-  this->no_interaction_knight_rider_animation_timer = new Timer(200);
+  this->knight_rider_animation_duration_timer = new Timer(200);
   this->transition_interpolation = new Interpolation(config->gradient_transition_animation_duration);
   this->rainbow_panel_animation = new DistributedPanelAnimation(config);
   this->knight_rider_animation = new KnightRiderAnimation(knight_rider_gradient);
@@ -114,6 +114,8 @@ Color ColorManager::get_color(int panel_index, float panel_value) const {
       return this->_get_knight_rider_color_for_panel_index(panel_index, panel_value);
     case NO_INTERACTION_KNIGHT_RIDER_STATE:
       return this->_get_knight_rider_color_for_panel_index(panel_index, panel_value);
+    case TRANSITION_FROM_NO_INTERACTION_KNIGHT_RIDER_STATE:
+      return this->_get_transition_out_of_knight_rider_color_for_panel_index(panel_index, panel_value);
     default:
       return Color(1, 1, 1);
   }
@@ -158,8 +160,19 @@ void ColorManager::_update_clocks() const {
   if (this->no_interaction_knight_rider_delay_timer->is_running()) {
     this->no_interaction_knight_rider_delay_timer->update();
   }
-  if (this->no_interaction_knight_rider_animation_timer->is_running()) {
-    this->no_interaction_knight_rider_animation_timer->update();
+  if (this->knight_rider_animation_duration_timer->is_running()) {
+    this->knight_rider_animation_duration_timer->update();
+  }
+}
+
+Color ColorManager::_get_transition_out_of_knight_rider_color_for_panel_index(int panel_index, float panel_value) const {
+  Color to_color = this->current_gradient->getColorForValue(panel_value);
+  if (this->_is_transition_done()) {
+    return to_color;
+  } else {
+    Color from_color = this->knight_rider_animation->get_color_for_panel(panel_index);
+    // amount _from_ the color->->->-> so we wnt it to be almost _done_ not restarted TODO
+    return this->_get_transition_color(from_color, to_color);
   }
 }
 
@@ -176,8 +189,13 @@ void ColorManager::_update_state() {
       break;
     case NO_INTERACTION_KNIGHT_RIDER_STATE:
       if (!this->_is_no_interaction()) {
-        this->_set_state(LOW_INTERACTION_STATE);
-      } else if (this->no_interaction_knight_rider_animation_timer->is_done()) {
+        this->_set_state(TRANSITION_FROM_NO_INTERACTION_KNIGHT_RIDER_STATE);
+      } else if (this->knight_rider_animation_duration_timer->is_done()) {
+        this->_set_state(TRANSITION_FROM_NO_INTERACTION_KNIGHT_RIDER_STATE);
+      }
+      break;
+    case TRANSITION_FROM_NO_INTERACTION_KNIGHT_RIDER_STATE:
+      if (this->knight_rider_animation_duration_timer->is_done()) {
         this->_set_state(NO_INTERACTION_STATE);
       }
       break;
@@ -300,6 +318,9 @@ void ColorManager::_set_state(ColorManagerState state) {
     case NO_INTERACTION_KNIGHT_RIDER_STATE:
       this->_start_no_interaction_knight_rider_animation();
       break;
+    case TRANSITION_FROM_NO_INTERACTION_KNIGHT_RIDER_STATE:
+      this->_start_transition_from_no_interaction_knight_rider_animation();
+      break;
     case LOW_INTERACTION_STATE:
     case HIGH_INTERACTION_STATE:
       break;
@@ -346,8 +367,17 @@ void ColorManager::_start_transition_from_high_to_mid_interactivity() const {
 void ColorManager::_start_no_interaction_knight_rider_animation() const {
   this->transition_interpolation->start();
   this->no_interaction_knight_rider_delay_timer->stop();
-  this->no_interaction_knight_rider_animation_timer->restart();
+  this->knight_rider_animation_duration_timer->restart();
   this->_start_knight_rider_animation();
+}
+
+void ColorManager::_start_transition_from_no_interaction_knight_rider_animation() const {
+  if (this->transition_interpolation->is_running()) {
+    this->transition_interpolation->restart_at_tick();
+  } else {
+    this->transition_interpolation->start();
+    this->knight_rider_animation_duration_timer->restart();
+  }
 }
 
 bool ColorManager::_is_gradient_swap_delay_done() const {

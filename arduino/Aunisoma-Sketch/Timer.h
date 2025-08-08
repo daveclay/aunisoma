@@ -18,10 +18,10 @@ public:
     bool is_running() const;
     bool is_done() const;
     void reset();
+    Clock* clock;
+    int duration_ticks;
 
 private:
-    int duration_ticks;
-    Clock* clock;
     bool completed;
 };
 

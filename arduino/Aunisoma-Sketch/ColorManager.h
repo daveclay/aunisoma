@@ -14,6 +14,7 @@
 enum ColorManagerState {
     NO_INTERACTION_STATE,
     NO_INTERACTION_KNIGHT_RIDER_STATE,
+    TRANSITION_FROM_NO_INTERACTION_KNIGHT_RIDER_STATE,
     LOW_INTERACTION_STATE,
     DEFAULT_GRADIENT_DELAY_STATE,
     TRANSITIONING_TO_DEFAULT_GRADIENT_STATE,
@@ -23,7 +24,7 @@ enum ColorManagerState {
     GRADIENT_SWAP_DELAY_STATE,
     HIGH_INTERACTION_STATE,
     TRANSITIONING_FROM_HIGH_TO_MID_STATE,
-    KNIGHT_RIDER_INTERACTION_STATE
+    KNIGHT_RIDER_INTERACTION_STATE,
 };
 
 /******************************************************************
@@ -47,7 +48,7 @@ private:
     Timer* default_gradient_delay_timer;
     Timer* transition_delay_timer;
     Timer* no_interaction_knight_rider_delay_timer;
-    Timer* no_interaction_knight_rider_animation_timer;
+    Timer* knight_rider_animation_duration_timer;
     Interpolation* transition_interpolation;
     DistributedPanelAnimation* rainbow_panel_animation;
     KnightRiderAnimation* knight_rider_animation;
@@ -65,6 +66,7 @@ private:
     Color _get_rainbow_color_for_panel_index(int panel_index) const;
     Color _get_knight_rider_color_for_panel_index(int panel_index, float panel_value) const;
     void _update_clocks() const;
+    Color _get_transition_out_of_knight_rider_color_for_panel_index(int panel_index, float panel_value) const;
     void _update_state();
     void _set_state(ColorManagerState state);
     void _start_gradient_swap_transition();
@@ -75,6 +77,7 @@ private:
     void _start_no_interaction_knight_rider_delay_timer() const;
     void _start_transition_from_high_to_mid_interactivity() const;
     void _start_no_interaction_knight_rider_animation() const;
+    void _start_transition_from_no_interaction_knight_rider_animation() const;
     bool _is_gradient_swap_delay_done() const;
     bool _is_transition_done() const;
     bool _is_no_interaction_knight_rider_delay_done() const;

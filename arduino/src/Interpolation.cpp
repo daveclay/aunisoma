@@ -17,6 +17,20 @@ void Interpolation::start() {
     this->active = true;
 }
 
+/**
+ * Re-start the interpolation clock at the duration where the current timer is at.
+ * Effectively "reverses" the interpolation.
+ */
+void Interpolation::restart_at_tick() {
+    this->timer->clock->ticks = this->timer->duration_ticks - this->timer->clock->ticks;
+    // Update the timer now - in the loop, update() was called before changing
+    // state and calling restart_at_tick()-> The next call to get_color won't
+    // reflect the reversed state of the timer-> This updates the timer so
+    // get_value() returns the "reversed" interpolation value based on the
+    // timer state->
+    this->timer->update();
+}
+
 void Interpolation::update() {
     if (!this->active) {
         return;

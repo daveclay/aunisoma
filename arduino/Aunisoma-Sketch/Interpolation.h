@@ -11,6 +11,7 @@ class Interpolation {
 public:
     Interpolation(int duration);
     void start();
+    void restart_at_tick();
     void update();
     float get_value();
     bool is_done();
