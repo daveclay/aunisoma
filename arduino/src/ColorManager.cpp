@@ -111,10 +111,10 @@ Color ColorManager::get_color(int panel_index, float panel_value) const {
       to_color = this->gradients[0].getColorForValue(panel_value);
       return this->_get_transition_color(from_color, to_color);
     case KNIGHT_RIDER_INTERACTION_STATE:
-      return this->_get_knight_rider_color_for_panel_index(panel_index, panel_value);
     case NO_INTERACTION_KNIGHT_RIDER_STATE:
       return this->_get_knight_rider_color_for_panel_index(panel_index, panel_value);
     case TRANSITION_FROM_NO_INTERACTION_KNIGHT_RIDER_STATE:
+    case TRANSITION_FROM_KNIGHT_RIDER_INTERACTION_STATE:
       return this->_get_transition_out_of_knight_rider_color_for_panel_index(panel_index, panel_value);
     default:
       return Color(1, 1, 1);
@@ -279,6 +279,11 @@ void ColorManager::_update_state() {
       break;
     case KNIGHT_RIDER_INTERACTION_STATE:
       if (!this->_is_pong_interaction()) {
+        this->_set_state(TRANSITION_FROM_KNIGHT_RIDER_INTERACTION_STATE);
+      }
+      break;
+    case TRANSITION_FROM_KNIGHT_RIDER_INTERACTION_STATE:
+      if (this->_is_transition_done()) {
         this->_set_state(LOW_INTERACTION_STATE);
       }
       break;
@@ -321,6 +326,9 @@ void ColorManager::_set_state(ColorManagerState state) {
     case TRANSITION_FROM_NO_INTERACTION_KNIGHT_RIDER_STATE:
       this->_start_transition_from_no_interaction_knight_rider_animation();
       break;
+    case TRANSITION_FROM_KNIGHT_RIDER_INTERACTION_STATE:
+      this->_start_transition_from_knight_rider_animation();
+      break;
     case LOW_INTERACTION_STATE:
     case HIGH_INTERACTION_STATE:
       break;
@@ -361,7 +369,11 @@ void ColorManager::_start_no_interaction_knight_rider_delay_timer() const {
 }
 
 void ColorManager::_start_transition_from_high_to_mid_interactivity() const {
-  this->transition_interpolation->start();
+  if (this->transition_interpolation->is_running()) {
+    this->transition_interpolation->restart_at_tick();
+  } else {
+    this->transition_interpolation->start();
+  }
 }
 
 void ColorManager::_start_no_interaction_knight_rider_animation() const {
@@ -377,6 +389,14 @@ void ColorManager::_start_transition_from_no_interaction_knight_rider_animation(
   } else {
     this->transition_interpolation->start();
     this->knight_rider_animation_duration_timer->restart();
+  }
+}
+
+void ColorManager::_start_transition_from_knight_rider_animation() const {
+  if (this->transition_interpolation->is_running()) {
+    this->transition_interpolation->restart_at_tick();
+  } else {
+    this->transition_interpolation->start();
   }
 }
 

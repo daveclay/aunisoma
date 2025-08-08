@@ -25,6 +25,7 @@ enum ColorManagerState {
     HIGH_INTERACTION_STATE,
     TRANSITIONING_FROM_HIGH_TO_MID_STATE,
     KNIGHT_RIDER_INTERACTION_STATE,
+    TRANSITION_FROM_KNIGHT_RIDER_INTERACTION_STATE
 };
 
 /******************************************************************
@@ -78,6 +79,7 @@ private:
     void _start_transition_from_high_to_mid_interactivity() const;
     void _start_no_interaction_knight_rider_animation() const;
     void _start_transition_from_no_interaction_knight_rider_animation() const;
+    void _start_transition_from_knight_rider_animation() const;
     bool _is_gradient_swap_delay_done() const;
     bool _is_transition_done() const;
     bool _is_no_interaction_knight_rider_delay_done() const;

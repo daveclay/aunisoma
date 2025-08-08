@@ -667,6 +667,7 @@ document.addEventListener("DOMContentLoaded",
     const HIGH_INTERACTION_STATE = 8;
     const TRANSITIONING_FROM_HIGH_TO_MID_STATE = 9;
     const KNIGHT_RIDER_INTERACTION_STATE = 11;
+    const TRANSITION_FROM_KNIGHT_RIDER_INTERACTION_STATE = 14;
 
     class ColorManager {
       constructor(gradients, number_of_gradients, rainbow_gradient, knight_rider_gradient, config) {
@@ -789,10 +790,10 @@ document.addEventListener("DOMContentLoaded",
             to_color = this.gradients[0].getColorForValue(panel_value);
             return this._get_transition_color(from_color, to_color);
           case KNIGHT_RIDER_INTERACTION_STATE:
-            return this._get_knight_rider_color_for_panel_index(panel_index, panel_value);
           case NO_INTERACTION_KNIGHT_RIDER_STATE:
             return this._get_knight_rider_color_for_panel_index(panel_index, panel_value);
           case TRANSITION_FROM_NO_INTERACTION_KNIGHT_RIDER_STATE:
+          case TRANSITION_FROM_KNIGHT_RIDER_INTERACTION_STATE:
             return this._get_transition_out_of_knight_rider_color_for_panel_index(panel_index, panel_value);
           default:
             console.log(`unknown state: ${this.state}`);
@@ -956,7 +957,12 @@ document.addEventListener("DOMContentLoaded",
             break;
           case KNIGHT_RIDER_INTERACTION_STATE:
             if (!this._is_pong_interaction()) {
-                this._set_state(LOW_INTERACTION_STATE);
+                this._set_state(TRANSITION_FROM_KNIGHT_RIDER_INTERACTION_STATE);
+            }
+            break;
+          case TRANSITION_FROM_KNIGHT_RIDER_INTERACTION_STATE:
+            if (this._is_transition_done()) {
+              this._set_state(LOW_INTERACTION_STATE);
             }
             break;
         }
@@ -997,6 +1003,9 @@ document.addEventListener("DOMContentLoaded",
             break;
           case TRANSITION_FROM_NO_INTERACTION_KNIGHT_RIDER_STATE:
             this._start_transition_from_no_interaction_knight_rider_animation();
+            break;
+          case TRANSITION_FROM_KNIGHT_RIDER_INTERACTION_STATE:
+            this._start_transition_from_knight_rider_animation();
             break;
           case LOW_INTERACTION_STATE:
           case HIGH_INTERACTION_STATE:
@@ -1042,7 +1051,11 @@ document.addEventListener("DOMContentLoaded",
       }
 
       _start_transition_from_high_to_mid_interactivity() {
-        this.transition_interpolation.start();
+        if (this.transition_interpolation.is_running()) {
+          this.transition_interpolation.restart_at_tick();
+        } else {
+          this.transition_interpolation.start();
+        }
       }
 
       _start_no_interaction_knight_rider_animation() {
@@ -1058,6 +1071,14 @@ document.addEventListener("DOMContentLoaded",
         } else {
           this.transition_interpolation.start();
           this.knight_rider_animation_duration_timer.restart();
+        }
+      }
+
+      _start_transition_from_knight_rider_animation() {
+        if (this.transition_interpolation.is_running()) {
+          this.transition_interpolation.restart_at_tick();
+        } else {
+          this.transition_interpolation.start();
         }
       }
 
@@ -2412,6 +2433,8 @@ document.addEventListener("DOMContentLoaded",
 
     function getColorManagerState(state) {
       switch (state) {
+        case TRANSITION_FROM_KNIGHT_RIDER_INTERACTION_STATE:
+          return "TRANSITION_FROM_KNIGHT_RIDER_INTERACTION_STATE";
         case KNIGHT_RIDER_INTERACTION_STATE:
           return "KNIGHT_RIDER_INTERACTION_STATE";
         case NO_INTERACTION_KNIGHT_RIDER_STATE:
