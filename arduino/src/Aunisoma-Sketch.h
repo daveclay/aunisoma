@@ -17,10 +17,8 @@
 #define MOCK_INTERACTIONS false
 
 char panel_ids[] = "20131B1A2215191F17182512141D1E2328112116";
-// char panel_ids[] = "0E";
 
 char ZERO_COLORS[] = "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
-char FAILED_MAPPING_COLORS[] = "C80000C80000C80000C80000C80000C80000C80000C80000C80000C80000C80000C80000C80000C80000C80000C80000C80000C80000C80000C80000";
 char RAINBOW_COLORS[] = "FF0000FF4D00FF9900FFE600CCFF0080FF0033FF0000FF1A00FF6600FFB300FFFF00B2FF0066FF0019FF3300FF8000FFCC00FFFF00E5FF0099FF004C";
 
 #define NUMBER_OF_PANELS 20
@@ -299,8 +297,23 @@ void setup(void) {
 // + 1 for \0 terminated, which snprintf wants
 char current_panel_color[(SIZE_OF_COLOR + 1)];
 
+// run for 11 hours, then zero out the panels and do nothing while
+// waiting for me to wake up and come out and turn the power off.
+// Note this isn't an accurate clock. It's just attempting to
+// limit the amount of power it draws from the batteries in the
+// morning, allowing the solar power to charge up the batteries
+// with as little competition from the thing actively running LEDs.
+int ACTIVE_RUNTIME_LIMIT_MS = 11 * 60 * 60 * 1000;
+int WAIT_FOR_DAVE_TO_COME_SHUT_ME_OFF_DELAY = 15 * 60 * 1000;
+
 void loop(void) {
   long start = micros();
+  if (start > ACTIVE_RUNTIME_LIMIT_MS) {
+    send_colors(ZERO_COLORS);
+    delay(WAIT_FOR_DAVE_TO_COME_SHUT_ME_OFF_DELAY);
+    return;
+  }
+
   aunisoma->update();
 
   //panel_colors[0] = '\0';
