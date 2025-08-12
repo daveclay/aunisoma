@@ -17,3 +17,11 @@ Color Color::interpolate(Color color, float amount) const {
     int blue = interpolateValue(this->blue, color.blue, amount);
     return Color(red, green, blue);
 }
+
+Color Color::limit() const {
+    if (this->red > 245 && this->green > 245 && this->blue > 245) {
+        return Color(245, 245, 220);
+    } else {
+        return *this;
+    }
+}

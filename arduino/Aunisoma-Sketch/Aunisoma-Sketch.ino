@@ -14,7 +14,7 @@
 #include "Interpolation.h"
 #include "Aunisoma.h"
 
-#define MOCK_INTERACTIONS false
+#define MOCK_INTERACTIONS true
 
 char panel_ids[] = "20131B1A2215191F17182512141D1E2328112116";
 
@@ -319,7 +319,8 @@ void loop(void) {
   //panel_colors[0] = '\0';
   for (int i = 0; i < NUMBER_OF_PANELS; i++) {
     Panel* panel = aunisoma->get_panel_at(i);
-    Color color = panel->color;
+    Color color = panel->color.limit();
+
     snprintf(current_panel_color,
              SIZE_OF_COLOR + 1,
              "%02x%02x%02x",

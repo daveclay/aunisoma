@@ -34,6 +34,7 @@ public:
 
     Color(int red = 0, int green = 0, int blue = 0);
     Color interpolate(Color color, float amount) const;
+    Color limit() const;
 };
 
 #endif //C_AUNISOMA_COLOR_H
