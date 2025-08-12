@@ -160,10 +160,11 @@ bool send_colors(char value[]) {
 
       if (MOCK_INTERACTIONS) {
         if (iterationCount % mockInteractionPeriod == 0) {
-          bool mock_interactivity = random(0, 11) > 5;
+          bool mock_front_interactivity = random(0, 11) > 5;
+          bool mock_back_interactivity = random(0, 11) > 5;
           // std::cout << sensor_index << ": " << (mock_interactivity ? "1" : "0") << ", ";
-          sensors[sensor_index].update(mock_interactivity);
-          sensors[sensor_index + 1].update(false);
+          sensors[sensor_index].update(mock_front_interactivity);
+          sensors[sensor_index + 1].update(mock_back_interactivity);
         } else {
           // If we don't ping them with the previous value, they never reach the
           // debounce threshold. The debounce has to be called multiple times.
