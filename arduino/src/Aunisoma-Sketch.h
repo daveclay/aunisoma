@@ -204,9 +204,9 @@ void setup(void) {
   rainbow_gradient.add_rgb_point(0.80, 255, 0, 255);
   rainbow_gradient.add_rgb_point(1.00, 255, 0, 0);
 
-  knight_rider_gradient.add_rgb_point(0, 255, 12, 0);
+  knight_rider_gradient.add_rgb_point(0, 255, 25, 0);
   knight_rider_gradient.add_rgb_point(.2, 255, 0, 0);
-  knight_rider_gradient.add_rgb_point(1, 3, 0, 0);
+  knight_rider_gradient.add_rgb_point(1.2, 3, 0, 0);
   knight_rider_gradient.add_rgb_point(2, 3, 0, 0);
 
   initial_gradient.add_rgb_point(0.0, 3, 0, 0);
@@ -307,7 +307,7 @@ int ACTIVE_RUNTIME_LIMIT_MS = 11 * 60 * 60 * 1000;
 int WAIT_FOR_DAVE_TO_COME_SHUT_ME_OFF_DELAY = 15 * 60 * 1000;
 
 void loop(void) {
-  long start = micros();
+  long start = millis();
   if (start > ACTIVE_RUNTIME_LIMIT_MS) {
     send_colors(ZERO_COLORS);
     delay(WAIT_FOR_DAVE_TO_COME_SHUT_ME_OFF_DELAY);
@@ -336,7 +336,7 @@ void loop(void) {
 
   iterationCount++;
 
-  if (iterationCount == 500) {
+  if (iterationCount == 4000) {
     map_panels();
     iterationCount = 0;
   }
