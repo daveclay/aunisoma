@@ -13,3 +13,13 @@
 * bring back `MaxAnimation` to limit power draw
 * Split thresholds into "low interactivity", "med interactivity" (color shifts), and "max interactivity" (`MaxAnimation`)
 * should color transition for fewer than max interactions?
+
+
+# Firmware
+
+https://github.com/wrs/aunisoma-rs
+
+```bash
+uv run python -m serial.tools.miniterm -e hwgrep://Aunisoma --eol LF
+uv run ./test.py
+```
