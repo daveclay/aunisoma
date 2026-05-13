@@ -1,7 +1,9 @@
 #include <iostream>
 #include <chrono>
-#include "Aunisoma-Sketch.h"
 #include "Arduino.h"
+
+void setup();
+void loop();
 
 int main() {
 

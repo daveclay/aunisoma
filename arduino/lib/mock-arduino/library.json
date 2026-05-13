@@ -1,0 +1,9 @@
+{
+  "name": "mock-arduino",
+  "version": "0.0.1",
+  "description": "Desktop-side mocks for Arduino.h, SPI.h, Adafruit_DotStar.h, and wiring_private.h. Built only for the native environment so the real Arduino framework headers are used on hardware.",
+  "platforms": "native",
+  "build": {
+    "flags": ["-I."]
+  }
+}

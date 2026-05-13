@@ -14,7 +14,9 @@
 #include "Interpolation.h"
 #include "Aunisoma.h"
 
-#define MOCK_INTERACTIONS true
+#ifndef MOCK_INTERACTIONS
+#define MOCK_INTERACTIONS 0
+#endif
 
 char panel_ids[] = "20131B1A2215191F17182512141D1E2328112116";
 
