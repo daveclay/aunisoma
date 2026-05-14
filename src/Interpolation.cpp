@@ -5,6 +5,7 @@
 #include "Interpolation.h"
 
 Interpolation::Interpolation(int duration) {
+    this->default_duration_ms = duration;
     this->timer = new Timer(duration);
     this->active = false;
 }
@@ -13,7 +14,14 @@ void Interpolation::start() {
     // TODO: if this was already started, this will jump...
     // Note: restart() will reset the `iterations` so we can
     // determine whether the animation has run once vs not run yet.
-    this->timer->restart();
+    // Always restart with the default duration in case a previous caller
+    // overrode it via start(int).
+    this->timer->restart(this->default_duration_ms);
+    this->active = true;
+}
+
+void Interpolation::start(int duration_ms) {
+    this->timer->restart(duration_ms);
     this->active = true;
 }
 

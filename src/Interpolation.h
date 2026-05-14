@@ -11,6 +11,7 @@ class Interpolation {
 public:
     Interpolation(int duration);
     void start();
+    void start(int duration_ms);
     void restart_at_tick();
     void update();
     float get_value() const;
@@ -20,6 +21,7 @@ public:
 
 private:
     bool active;
+    int default_duration_ms;
     Timer* timer;
 };
 

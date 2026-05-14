@@ -287,6 +287,10 @@ void setup(void) {
   // How long it takes to transition from one gradient to another.
   // Originally 100 ticks (~24s).
   config.gradient_transition_animation_duration = 24000;
+  // Reset to the default gradient is idle-to-idle (small raw color delta), so
+  // a shorter duration avoids the visible-step plateau effect — quick fade
+  // instead of long "stalled" plateaus.
+  config.transition_to_default_gradient_duration = 4000;
   // How long a single state is allowed before resetting to a known state.
   // Originally 5000 ticks (~20 min). Currently unused; see _update_state_watchdog.
   config.watchdog_state_duration_limit_ms = 1200000;

@@ -362,7 +362,7 @@ void ColorManager::_start_gradient_swap_transition() {
 }
 
 void ColorManager::_start_swap_to_default_gradient_transition() {
-  this->transition_interpolation->start();
+  this->transition_interpolation->start(this->config->transition_to_default_gradient_duration);
   this->next_gradient_index = 0;
 }
 

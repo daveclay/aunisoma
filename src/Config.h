@@ -23,6 +23,7 @@ public:
 
     int delay_for_gradient_transition_duration;  // ms
     int gradient_transition_animation_duration;  // ms
+    int transition_to_default_gradient_duration;  // ms
     int smoothing_fn_window_size;  // sample count, NOT a duration
     int watchdog_state_duration_limit_ms;
 

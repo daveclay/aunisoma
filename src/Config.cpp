@@ -14,6 +14,7 @@ Config::Config() : initial_trigger_panel_animation_loop_duration_ms(0), reverber
                    no_interaction_knight_rider_delay_range(nullptr),
                    delay_for_gradient_transition_duration(0),
                    gradient_transition_animation_duration(0),
+                   transition_to_default_gradient_duration(0),
                    smoothing_fn_window_size(0),
                    watchdog_state_duration_limit_ms(0),
                    knight_rider_interaction_debounce_ms(0),
