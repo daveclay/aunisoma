@@ -19,8 +19,6 @@ ColorManager::ColorManager(GradientValueMap* gradients, int number_of_gradients,
   this->no_interaction_debounce = new Debounce(this->config->no_interaction_debounce_ms, true);
   this->low_interaction_debounce = new Debounce(this->config->low_interaction_debounce_ms, false);
   this->med_interaction_debounce = new Debounce(this->config->med_interaction_debounce_ms, false);
-  // TODO: it was kinda hard to keep it in the high state, maybe it should be
-  // biased to stay high longer?
   this->high_interaction_debounce = new Debounce(this->config->high_interaction_debounce_ms, false);
   // delay for how long to wait before switching back to the default no-interactivity gradient
   this->default_gradient_delay_timer = new Timer(

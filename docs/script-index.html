@@ -100,8 +100,28 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
     // const DRAW_PER_COLOR_PER_PANEL_AMPS = 0.8046715655; // Amps 12v
     const DRAW_PER_COLOR_PER_PANEL_AMPS = 0.438911763; // Amps 24v
 
+    // Display gamma for the mock panels. The real LEDs are perceptually much
+    // brighter at low values than an sRGB monitor renders raw RGB, so we
+    // gamma-correct the displayed color (not the power-draw calc).
+    const DISPLAY_GAMMA = 2.2;
+    const GAMMA_LUT = (() => {
+      const lut = new Uint8Array(256);
+      for (let i = 0; i < 256; i++) {
+        lut[i] = Math.round(Math.pow(i / 255, 1 / DISPLAY_GAMMA) * 255);
+      }
+      return lut;
+    })();
+
     function calculatePowerDrawForColorAmps(color) {
       return (color / 255) * DRAW_PER_COLOR_PER_PANEL_AMPS;
+    }
+
+    function toByte(channel) {
+      return typeof channel === "string" ? parseInt(channel, 16) : channel;
+    }
+
+    function toHexByte(value) {
+      return value.toString(16).padStart(2, "0");
     }
 
     function clone(templateElement) {
@@ -118,16 +138,16 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
     }
 
     function getPowerDrawAmps(color) {
-      return calculatePowerDrawForColorAmps(color.red)
-        + calculatePowerDrawForColorAmps(color.green)
-        + calculatePowerDrawForColorAmps(color.blue);
+      return calculatePowerDrawForColorAmps(toByte(color.red))
+        + calculatePowerDrawForColorAmps(toByte(color.green))
+        + calculatePowerDrawForColorAmps(toByte(color.blue));
     }
 
     function colorToHexString(color) {
       return "#"
-        + color.red
-        + color.green
-        + color.blue;
+        + toHexByte(GAMMA_LUT[toByte(color.red)])
+        + toHexByte(GAMMA_LUT[toByte(color.green)])
+        + toHexByte(GAMMA_LUT[toByte(color.blue)]);
     }
 
     class ScriptRunner {
