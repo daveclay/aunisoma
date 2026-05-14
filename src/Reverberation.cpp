@@ -18,19 +18,14 @@ Reverberation::Reverberation(Sensor* sensor,
     this->max_distance = config->reverberation_distance_range->max;
     this->delay = config->reverberation_panel_delay_ticks;
     this->delay_clock = new Clock();
-    this->distance = 0;
-
-    for (auto & pulse : this->pulses) {
-        pulse = nullptr;
-    }
 
     this->_calculate_new_distance();
 
     // number _per side_.
     int durationTicks = config->get_single_panel_pulse_duration();
     for (int i = 0; i < this->max_distance; i++) {
-        float amplitude = (static_cast<float>(this->max_distance) - static_cast<float>(i)) / static_cast<float>(this->max_distance);
-        bool one_shot = i != 0; // one shot if this isn't index 0
+        const float amplitude = (static_cast<float>(this->max_distance) - static_cast<float>(i)) / static_cast<float>(this->max_distance);
+        const bool one_shot = i != 0; // one shot if this isn't index 0
         this->pulses[i] = new Pulse(amplitude, durationTicks, one_shot);
     }
 }
