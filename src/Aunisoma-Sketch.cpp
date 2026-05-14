@@ -273,8 +273,8 @@ void setup(void) {
   // actually 2000, 4000 is running every 4-5 minutes.
   config.no_interaction_knight_rider_delay_range = new Range(6000, 12000);
   // config.no_interaction_knight_rider_delay_range = new Range(300, 400);
-  config.high_interaction_threshold_percent = .6;
-  config.intermediate_interaction_threshold_percent = .25;
+  config.high_interaction_threshold_percent = .25;
+  config.intermediate_interaction_threshold_percent = .1;
 
   // how long to wait for a gradient transition while in the
   // medium interactivity state. Longer means people have to
@@ -289,6 +289,17 @@ void setup(void) {
   config.gradient_transition_animation_duration = 100;
   // how long a single state is allowed before resetting to a known state.
   config.watchdog_state_duration_limit_ticks = 5000;
+
+  // Debounce durations (ms) for interaction-level readings. Going low takes
+  // longer than going high for knight-rider; no-interaction is biased to stay
+  // true so we settle back to idle without flickering.
+  config.knight_rider_interaction_debounce_ms = 1000;
+  config.no_interaction_debounce_ms = 300;
+  config.low_interaction_debounce_ms = 100;
+  config.med_interaction_debounce_ms = 200;
+  // TODO: it was kinda hard to keep it in the high state, maybe it should be
+  // biased to stay high longer?
+  config.high_interaction_debounce_ms = 200;
 
   config.init();
 

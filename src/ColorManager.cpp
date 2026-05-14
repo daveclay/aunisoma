@@ -14,17 +14,14 @@ ColorManager::ColorManager(GradientValueMap* gradients, int number_of_gradients,
   this->gradients = gradients;
   this->number_of_gradients = number_of_gradients;
   this->rainbow_gradient = rainbow_gradient;
-  // Debounces - don't flicker number of interactions, they have to stay high for a
-  // few cycles. Note the values are in ms, not ticks.
-  // TODO: move debounce time to config
   // going low should take longer
-  this->knight_rider_interaction_debounce = new Debounce(1000, false);
-  this->no_interaction_debounce = new Debounce(300, true);
-  this->low_interaction_debounce = new Debounce(100, false);
-  this->med_interaction_debounce = new Debounce(200, false);
+  this->knight_rider_interaction_debounce = new Debounce(this->config->knight_rider_interaction_debounce_ms, false);
+  this->no_interaction_debounce = new Debounce(this->config->no_interaction_debounce_ms, true);
+  this->low_interaction_debounce = new Debounce(this->config->low_interaction_debounce_ms, false);
+  this->med_interaction_debounce = new Debounce(this->config->med_interaction_debounce_ms, false);
   // TODO: it was kinda hard to keep it in the high state, maybe it should be
   // biased to stay high longer?
-  this->high_interaction_debounce = new Debounce(200, false);
+  this->high_interaction_debounce = new Debounce(this->config->high_interaction_debounce_ms, false);
   // delay for how long to wait before switching back to the default no-interactivity gradient
   this->default_gradient_delay_timer = new Timer(
     this->config->default_gradient_delay_duration_range->random_int_between()

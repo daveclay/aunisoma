@@ -15,7 +15,13 @@ Config::Config() : initial_trigger_panel_animation_loop_duration_ticks(0), rever
                    delay_for_gradient_transition_duration(0),
                    gradient_transition_animation_duration(0),
                    smoothing_fn_window_size(0),
-                   watchdog_state_duration_limit_ticks(0), number_of_panels(0) {
+                   watchdog_state_duration_limit_ticks(0),
+                   knight_rider_interaction_debounce_ms(0),
+                   no_interaction_debounce_ms(0),
+                   low_interaction_debounce_ms(0),
+                   med_interaction_debounce_ms(0),
+                   high_interaction_debounce_ms(0),
+                   number_of_panels(0) {
 }
 
 int Config::get_single_panel_pulse_duration() const {

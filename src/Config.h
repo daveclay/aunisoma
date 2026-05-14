@@ -25,6 +25,16 @@ public:
     int smoothing_fn_window_size;
     int watchdog_state_duration_limit_ticks;
 
+    // Debounce durations (ms) for interaction-level readings. Don't flicker the
+    // number of interactions: a reading has to stay high (or low) for these
+    // many ms before it's accepted. Note these are in ms, not ticks.
+    int knight_rider_interaction_debounce_ms;
+    int no_interaction_debounce_ms;
+    int low_interaction_debounce_ms;
+    int med_interaction_debounce_ms;
+
+    int high_interaction_debounce_ms;
+
     // This is here to make it available to the C++ files, since importing Aunisoma-Sketch isn't good.
     int number_of_panels;
 
