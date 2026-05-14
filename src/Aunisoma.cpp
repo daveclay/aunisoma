@@ -103,5 +103,5 @@ void Aunisoma::_calculate_interaction_percent() {
             active_sensor_count++;
         }
     }
-    this->current_interaction_percent = (float) active_sensor_count / (float) NUMBER_OF_SENSORS;
+    this->current_interaction_percent = static_cast<float>(active_sensor_count) / static_cast<float>(NUMBER_OF_SENSORS);
 }

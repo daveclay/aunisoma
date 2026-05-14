@@ -55,7 +55,7 @@ void Timer::update() {
     }
 
     int looping_elapsed_duration = this->clock->ticks % this->duration_ticks;
-    this->current_value = (float) looping_elapsed_duration / (float) this->duration_ticks;
+    this->current_value = static_cast<float>(looping_elapsed_duration) / static_cast<float>(this->duration_ticks);
 }
 
 bool Timer::is_running() const {

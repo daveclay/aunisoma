@@ -39,11 +39,11 @@ void Clock::update() {
     }
 }
 
-bool Clock::isPaused() {
+bool Clock::isPaused() const {
     return !this->running && this->ticks > -1;
 }
 
-bool Clock::isStopped() {
+bool Clock::isStopped() const {
     return !this->running && this->ticks < 0;
 }
 

@@ -4,6 +4,7 @@
 
 #include "Cycle.h"
 #include "Arduino.h"
+#include <cmath>
 
 Cycle::Cycle(int duration_ticks, bool one_shot, CycleType cycle_type) {
     this->duration_ticks = duration_ticks;
@@ -84,18 +85,18 @@ void Cycle::update() {
 
     int looping_elapsed_duration = this->clock->ticks % this->duration_ticks;
     if (this->cycle_type == UP_ONLY_CYCLE) {
-        this->current_value = (float) looping_elapsed_duration / (float) this->duration_ticks;
+        this->current_value = static_cast<float>(looping_elapsed_duration) / static_cast<float>(this->duration_ticks);
     } else {
-        int half_animation_loop_duration_ticks = (int) round(this->duration_ticks / 2);
+        int half_animation_loop_duration_ticks = static_cast<int>(std::lround(this->duration_ticks / 2.0));
         if (looping_elapsed_duration <= half_animation_loop_duration_ticks) {
-            this->current_value = (float) looping_elapsed_duration / (float) half_animation_loop_duration_ticks;
+            this->current_value = static_cast<float>(looping_elapsed_duration) / static_cast<float>(half_animation_loop_duration_ticks);
         } else {
-            this->current_value = ((float) this->duration_ticks - 1 - (float) looping_elapsed_duration) / (float) half_animation_loop_duration_ticks;
+            this->current_value = (static_cast<float>(this->duration_ticks) - 1 - static_cast<float>(looping_elapsed_duration)) / static_cast<float>(half_animation_loop_duration_ticks);
         }
     }
 }
 
-bool Cycle::isRising() {
+bool Cycle::isRising() const {
     if (this->cycle_type == UP_ONLY_CYCLE) {
         return true;
     }
@@ -116,18 +117,18 @@ void Cycle::restart(int new_duration_ticks) {
     this->clock->restart();
 }
 
-bool Cycle::isAtZeroPoint() {
+bool Cycle::isAtZeroPoint() const {
     return this->clock->ticks % this->duration_ticks == 0;
 }
 
-bool Cycle::isDone() {
+bool Cycle::isDone() const {
     return this->one_shot && this->iterations > 0;
 }
 
-bool Cycle::isStopped() {
+bool Cycle::isStopped() const {
     return this->clock->isStopped();
 }
 
-bool Cycle::isRunning() {
+bool Cycle::isRunning() const {
     return this->clock->running;
 }

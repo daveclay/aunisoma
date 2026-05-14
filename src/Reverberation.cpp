@@ -18,13 +18,18 @@ Reverberation::Reverberation(Sensor* sensor,
     this->max_distance = config->reverberation_distance_range->max;
     this->delay = config->reverberation_panel_delay_ticks;
     this->delay_clock = new Clock();
+    this->distance = 0;
+
+    for (auto & pulse : this->pulses) {
+        pulse = nullptr;
+    }
 
     this->_calculate_new_distance();
 
     // number _per side_.
     int durationTicks = config->get_single_panel_pulse_duration();
     for (int i = 0; i < this->max_distance; i++) {
-        float amplitude = ((float)this->max_distance - (float)i) / (float)this->max_distance;
+        float amplitude = (static_cast<float>(this->max_distance) - static_cast<float>(i)) / static_cast<float>(this->max_distance);
         bool one_shot = i != 0; // one shot if this isn't index 0
         this->pulses[i] = new Pulse(amplitude, durationTicks, one_shot);
     }
@@ -114,11 +119,11 @@ void Reverberation::stop() {
     this->delay_complete = false;
 }
 
-float Reverberation::get_panel_value_for_panel_index(int panel_index) {
+float Reverberation::get_panel_value_for_panel_index(int target_panel_index) const {
     // Returns a value for the given panel index, based on
     // this Reverberation's Pulse values for their corresponding
     // Cycles.
-    if (panel_index < this->first_panel_index || panel_index > this->last_panel_index) {
+    if (target_panel_index < this->first_panel_index || target_panel_index > this->last_panel_index) {
         return 0;
     }
 
@@ -128,7 +133,7 @@ float Reverberation::get_panel_value_for_panel_index(int panel_index) {
     // 1 = 3 - 2
     // 0 = 3 - 3
     // 1 = 3 - 4
-    int pulse_index = abs(this->panel_index - panel_index);
+    int pulse_index = abs(this->panel_index - target_panel_index);
     return this->pulses[pulse_index]->current_value;
 }
 
@@ -139,7 +144,7 @@ void Reverberation::_restart_pulses() {
     this->delay_complete = false;
 }
 
-bool Reverberation::_is_delay_complete() {
+bool Reverberation::_is_delay_complete() const {
     return this->delay_clock->ticks > this->delay * this->distance;
 }
 

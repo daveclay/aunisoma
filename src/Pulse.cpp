@@ -34,10 +34,10 @@ void Pulse::stop() {
     this->cycle->release();
 }
 
-bool Pulse::isAtZeroPoint() {
+bool Pulse::isAtZeroPoint() const {
     return this->cycle->isAtZeroPoint();
 }
 
-bool Pulse::isStopped() {
+bool Pulse::isStopped() const {
     return this->cycle->isStopped();
 }

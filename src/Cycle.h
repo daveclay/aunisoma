@@ -29,13 +29,13 @@ public:
     void reset();
     void release();
     void update();
-    bool isRising();
+    bool isRising() const;
     void restart();
     void restart(int new_duration_ticks);
-    bool isAtZeroPoint();
-    bool isDone();
-    bool isStopped();
-    bool isRunning();
+    bool isAtZeroPoint() const;
+    bool isDone() const;
+    bool isStopped() const;
+    bool isRunning() const;
 };
 
 

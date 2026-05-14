@@ -13,9 +13,9 @@ public:
     void start();
     void restart_at_tick();
     void update();
-    float get_value();
-    bool is_done();
-    bool is_running();
+    float get_value() const;
+    bool is_done() const;
+    bool is_running() const;
     void reset();
 
 private:

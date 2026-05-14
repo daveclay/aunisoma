@@ -1,0 +1,13 @@
+# Mock PIR script for the desktop (native) build.
+#
+# Format:  <iteration> <20-char PIR string>
+# Each digit is one panel:  0 = none, 1 = front, 2 = back, 3 = both.
+# Values hold until the next entry. Iteration is millis() in the mock,
+# which advances by 1 per loop().
+#
+# Override the path with the AUNISOMA_MOCK_SCRIPT environment variable.
+
+0     22332223323333231222
+3     11011011110110101110
+590   22332223333323233322
+1390  00000000000000000000

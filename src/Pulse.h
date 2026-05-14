@@ -17,8 +17,8 @@ public:
     void update(bool active);
     void start();
     void stop();
-    bool isAtZeroPoint();
-    bool isStopped();
+    bool isAtZeroPoint() const;
+    bool isStopped() const;
 };
 
 #endif //PULSE_H

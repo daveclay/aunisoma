@@ -17,8 +17,8 @@ public:
     void stop();
     void restart();
     void update();
-    bool isPaused();
-    bool isStopped();
+    bool isPaused() const;
+    bool isStopped() const;
 };
 
 

@@ -48,5 +48,5 @@ float ValueSmoothingFn::get_smoothed_value(float new_value) {
         smoothed_value += this->values[i];
     }
 
-    return smoothed_value / (float) this->window_size;
+    return smoothed_value / static_cast<float>(this->window_size);
 }

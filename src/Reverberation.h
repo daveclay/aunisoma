@@ -30,11 +30,11 @@ public:
     void update();
     void start();
     void stop();
-    float get_panel_value_for_panel_index(int panel_index);
+    float get_panel_value_for_panel_index(int target_panel_index) const;
 
 private:
     void _restart_pulses();
-    bool _is_delay_complete();
+    bool _is_delay_complete() const;
     void _calculate_new_distance();
 };
 

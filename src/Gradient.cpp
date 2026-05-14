@@ -4,6 +4,7 @@
 
 #include "Gradient.h"
 #include "Arduino.h"
+#include <cmath>
 
 GradientValuePoint::GradientValuePoint(float value, int color_value) {
     this->value = value;
@@ -31,9 +32,9 @@ int SingleGradientValueMap::get_color_value_at_value(float value) {
     int max_color = points[1]->color_value;
 
     int color_range = max_color - min_color;
-    float ranged_color_value = (float)color_range * ratio;
+    float ranged_color_value = static_cast<float>(color_range) * ratio;
 
-    int color_value = min_color + (int)round(ranged_color_value);
+    int color_value = min_color + static_cast<int>(std::lround(ranged_color_value));
 
     return min(255, max(0, color_value));
 }

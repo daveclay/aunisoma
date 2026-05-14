@@ -45,16 +45,16 @@ void Interpolation::update() {
     }
 }
 
-float Interpolation::get_value() {
+float Interpolation::get_value() const {
     return this->timer->current_value;
 }
 
-bool Interpolation::is_done() {
+bool Interpolation::is_done() const {
     // how do I know if it's done? It has to have _run_ to be done.
     return this->timer->is_done();
 }
 
-bool Interpolation::is_running() {
+bool Interpolation::is_running() const {
     return this->timer->is_running();
 }
 
