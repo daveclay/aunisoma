@@ -2,13 +2,14 @@
 // Created by David Clay on 6/15/23.
 //
 
+#include <cmath>
 #include "Arduino.h"
 
 static int interpolateValue(int value_a, int value_b, float amount) {
     float value_a_amount = static_cast<float>(value_a) * (1.0f - amount);
     float value_b_amount = static_cast<float>(value_b) * amount;
 
-    return static_cast<int>(value_a_amount) + static_cast<int>(value_b_amount);
+    return static_cast<int>(std::lround(value_a_amount + value_b_amount));
 }
 
 static bool maybe(int percentage) {
