@@ -16,17 +16,17 @@ Reverberation::Reverberation(Sensor* sensor,
     this->active = false;
     this->delay_complete = false;
     this->max_distance = config->reverberation_distance_range->max;
-    this->delay = config->reverberation_panel_delay_ticks;
+    this->delay_ms = config->reverberation_panel_delay_ms;
     this->delay_clock = new Clock();
 
     this->_calculate_new_distance();
 
     // number _per side_.
-    int durationTicks = config->get_single_panel_pulse_duration();
+    int duration_ms = config->get_single_panel_pulse_duration();
     for (int i = 0; i < this->max_distance; i++) {
         const float amplitude = (static_cast<float>(this->max_distance) - static_cast<float>(i)) / static_cast<float>(this->max_distance);
         const bool one_shot = i != 0; // one shot if this isn't index 0
-        this->pulses[i] = new Pulse(amplitude, durationTicks, one_shot);
+        this->pulses[i] = new Pulse(amplitude, duration_ms, one_shot);
     }
 }
 
@@ -66,11 +66,11 @@ void Reverberation::update() {
     // update the Pulses->
     for (int i = 0; i < this->max_distance; i++) {
         Pulse* pulse = this->pulses[i];
-        // calculate the delay for this Pulse
-        int pulseDelay = this->delay * i;
-        // check to see if the delay has comleted or the delay
-        // clock has passed that number of ticks
-        bool waited_long_enough = this->delay_complete || this->delay_clock->ticks >= pulseDelay;
+        // calculate the delay for this Pulse in ms
+        unsigned long pulse_delay_ms = static_cast<unsigned long>(this->delay_ms) * static_cast<unsigned long>(i);
+        // check to see if the delay has completed or the delay
+        // clock has passed that number of ms
+        bool waited_long_enough = this->delay_complete || this->delay_clock->elapsed_ms >= pulse_delay_ms;
 
         // and calculate whether the Pulse should be "active" or not->
         // This allows the Pulse to determine what it's own "active" state
@@ -140,7 +140,7 @@ void Reverberation::_restart_pulses() {
 }
 
 bool Reverberation::_is_delay_complete() const {
-    return this->delay_clock->ticks > this->delay * this->distance;
+    return this->delay_clock->elapsed_ms > static_cast<unsigned long>(this->delay_ms) * static_cast<unsigned long>(this->distance);
 }
 
 void Reverberation::_calculate_new_distance() {

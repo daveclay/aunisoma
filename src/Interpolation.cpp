@@ -22,12 +22,12 @@ void Interpolation::start() {
  * Effectively "reverses" the interpolation.
  */
 void Interpolation::restart_at_tick() {
-    this->timer->clock->ticks = this->timer->duration_ticks - this->timer->clock->ticks;
+    this->timer->mirror_phase();
     // Update the timer now - in the loop, update() was called before changing
-    // state and calling restart_at_tick()-> The next call to get_color won't
-    // reflect the reversed state of the timer-> This updates the timer so
+    // state and calling restart_at_tick(). The next call to get_color won't
+    // reflect the reversed state of the timer. This updates the timer so
     // get_value() returns the "reversed" interpolation value based on the
-    // timer state->
+    // timer state.
     this->timer->update();
 }
 

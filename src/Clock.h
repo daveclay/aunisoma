@@ -9,16 +9,22 @@
 class Clock {
 public:
     bool running;
-    int ticks;
+    unsigned long elapsed_ms;
 
     Clock();
     void start();
-    void pause();
     void stop();
     void restart();
     void update();
-    bool isPaused() const;
     bool isStopped() const;
+
+    // Shift elapsed_ms to the given value while running. Used by Cycle and
+    // Interpolation to mirror the phase of a wave (rewind/fast-forward).
+    void shift_to(unsigned long new_elapsed_ms);
+
+private:
+    unsigned long start_ms;
+    bool started;
 };
 
 

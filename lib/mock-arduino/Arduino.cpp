@@ -109,12 +109,18 @@ int random(int max) {
 void delay(int) {
 }
 
+// Approximate wall-clock ms per loop() iteration on hardware. Used by the mock
+// to make millis()-driven durations behave the same on native as on the SAMD51.
+// The 240ms figure came from measuring ~300 ticks over 1m12s while running the
+// knight-rider animation.
+#define MOCK_MS_PER_LOOP 240
+
 long millis() {
-    return iteration;
+    return iteration * MOCK_MS_PER_LOOP;
 }
 
 long micros() {
-    return iteration * 1000;
+    return iteration * MOCK_MS_PER_LOOP * 1000;
 }
 
 void pinMode(int pin, int mode) {

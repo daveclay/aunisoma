@@ -31,8 +31,9 @@ ColorManager::ColorManager(GradientValueMap* gradients, int number_of_gradients,
   this->no_interaction_knight_rider_delay_timer = new Timer(
     this->config->no_interaction_knight_rider_delay_range->random_int_between()
   );
-  // How long to run the idle knight rider animation before going back to idle
-  this->knight_rider_animation_duration_timer = new Timer(200);
+  // How long to run the idle knight rider animation before going back to idle.
+  // Originally 200 ticks (~48s); rescaled by ~240.
+  this->knight_rider_animation_duration_timer = new Timer(48000);
   this->transition_interpolation = new Interpolation(config->gradient_transition_animation_duration);
   this->rainbow_panel_animation = new DistributedPanelAnimation(config);
   this->knight_rider_animation = new KnightRiderAnimation(knight_rider_gradient);
@@ -177,7 +178,11 @@ Color ColorManager::_get_transition_out_of_knight_rider_color_for_panel_index(in
 }
 
 void ColorManager::_update_state_watchdog() {
-  if (this->current_state_duration > this->config->watchdog_state_duration_limit_ticks) {
+  // NOTE: current_state_duration is incremented per loop() call (see _update_clocks),
+  // not in ms. This comparison is unit-mismatched. _update_state_watchdog is
+  // currently never called, so this is dormant. If you wire it up, switch
+  // current_state_duration to ms via millis().
+  if (this->current_state_duration > this->config->watchdog_state_duration_limit_ms) {
     if (this->state == NO_INTERACTION_STATE) {
       this->current_state_duration = 0;
     } else {

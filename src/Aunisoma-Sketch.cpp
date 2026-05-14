@@ -256,39 +256,40 @@ void setup(void) {
   config.number_of_panels = NUMBER_OF_PANELS;
 
   config.reverberation_distance_range = new Range(1, 4);
-  // the duration for pulses in a reverberation. This has to be longer than
-  // the reverberation_panel_delay_ticks or it won't trigger before the
-  // source panel is finished animating. 10x seems to be an organic
-  // flow - duration taking 20-30 ticks and the delay being 2.
-  config.single_panel_pulse_duration = new Range(20, 40);
-  // how long to wait to trigger a neighbor Panel to reverberate. If this is longer
+  // The duration for pulses in a reverberation. Must be longer than
+  // reverberation_panel_delay_ms or neighbors won't trigger before the
+  // source panel finishes animating. Originally 20-40 ticks; baseline
+  // loop period was ~240ms, so rescaled by ~240.
+  config.single_panel_pulse_duration = new Range(4800, 9600);
+  // How long to wait to trigger a neighbor Panel to reverberate. If this is longer
   // than the single panel pulse, they won't fire because neighbors are one-shots
-  // triggered by the start of the source panel.
-  config.reverberation_panel_delay_ticks = 3;
-  // This is how long to wait at no interaction before reverting back to the default
-  // gradient color.
-  config.default_gradient_delay_duration_range = new Range(1500, 2000);
-  // This should really be a good long number and highly variable - power consumption should be prioritized
-  // measured time: 300 ticks in 1m 12s while doing knight rider. 240ms per tick. Faster when idle, though?
-  // actually 2000, 4000 is running every 4-5 minutes.
-  config.no_interaction_knight_rider_delay_range = new Range(6000, 12000);
-  // config.no_interaction_knight_rider_delay_range = new Range(300, 400);
+  // triggered by the start of the source panel. Originally 3 ticks.
+  config.reverberation_panel_delay_ms = 720;
+  // How long to wait at no interaction before reverting back to the default
+  // gradient color. Originally 1500-2000 ticks (~6-8 min).
+  config.default_gradient_delay_duration_range = new Range(360000, 480000);
+  // Long, highly variable - power consumption should be prioritized.
+  // Originally 6000-12000 ticks (~24-48 min).
+  config.no_interaction_knight_rider_delay_range = new Range(1440000, 2880000);
   config.high_interaction_threshold_percent = .25;
   config.intermediate_interaction_threshold_percent = .1;
 
-  // how long to wait for a gradient transition while in the
-  // medium interactivity state. Longer means people have to
-  // move their butts for longer to get it to switch color.
-  config.delay_for_gradient_transition_duration = 4000;
+  // How long to wait for a gradient transition while in the medium
+  // interactivity state. Longer means people have to move for longer to get
+  // it to switch color. Originally 4000 ticks (~16 min).
+  config.delay_for_gradient_transition_duration = 960000;
 
   // smoothing amount for panel values. In the web mockup, 10 is a
   // little jumpy, 30 is smooth, 100 blurs so that it never goes
-  // back to 0 even when the Reverberation is active (which I like)
+  // back to 0 even when the Reverberation is active (which I like).
+  // NOTE: this is a sample count, NOT a duration.
   config.smoothing_fn_window_size = 10;
-  // How long it takes to transition from one gradient to another
-  config.gradient_transition_animation_duration = 100;
-  // how long a single state is allowed before resetting to a known state.
-  config.watchdog_state_duration_limit_ticks = 5000;
+  // How long it takes to transition from one gradient to another.
+  // Originally 100 ticks (~24s).
+  config.gradient_transition_animation_duration = 24000;
+  // How long a single state is allowed before resetting to a known state.
+  // Originally 5000 ticks (~20 min). Currently unused; see _update_state_watchdog.
+  config.watchdog_state_duration_limit_ms = 1200000;
 
   // Debounce durations (ms) for interaction-level readings. Going low takes
   // longer than going high for knight-rider; no-interaction is biased to stay

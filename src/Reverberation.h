@@ -21,7 +21,7 @@ public:
     int last_panel_index;
     bool active;
     int max_distance;
-    int delay;
+    int delay_ms;
     bool delay_complete;
     int distance;
     Clock* delay_clock;

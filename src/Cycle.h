@@ -15,7 +15,7 @@ enum CycleType {
 
 class Cycle {
 public:
-    int duration_ticks;
+    int duration_ms;
     bool one_shot;
     CycleType cycle_type;
     bool release_phase;
@@ -23,7 +23,7 @@ public:
     float current_value;
     int iterations;
 
-    Cycle(int duration_ticks, bool one_shot, CycleType cycle_type);
+    Cycle(int duration_ms, bool one_shot, CycleType cycle_type);
     void start();
     void stop();
     void reset();
@@ -31,11 +31,15 @@ public:
     void update();
     bool isRising() const;
     void restart();
-    void restart(int new_duration_ticks);
+    void restart(int new_duration_ms);
     bool isAtZeroPoint() const;
     bool isDone() const;
     bool isStopped() const;
     bool isRunning() const;
+
+private:
+    unsigned long last_iteration_seen;
+    bool at_zero_point;
 };
 
 

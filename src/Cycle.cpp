@@ -6,22 +6,27 @@
 #include "Arduino.h"
 #include <cmath>
 
-Cycle::Cycle(int duration_ticks, bool one_shot, CycleType cycle_type) {
-    this->duration_ticks = duration_ticks;
+Cycle::Cycle(int duration_ms, bool one_shot, CycleType cycle_type) {
+    this->duration_ms = duration_ms;
     this->one_shot = one_shot;
     this->cycle_type = cycle_type;
     this->clock = new Clock();
     this->iterations = 0;
     this->release_phase = false;
     this->current_value = 0;
+    this->last_iteration_seen = 0;
+    this->at_zero_point = false;
 }
 
 void Cycle::start() {
     this->release_phase = false;
-    // if the clock is on the falling side,
-    // set it to the equidistant rising side
+    // if the clock is on the falling side, set it to the equidistant rising side
     if (!this->isRising()) {
-        this->clock->ticks = max(0, this->clock->ticks = this->duration_ticks - this->clock->ticks % this->duration_ticks);
+        unsigned long phase = this->clock->elapsed_ms % this->duration_ms;
+        this->clock->shift_to(this->duration_ms - phase);
+        // shift_to jumps elapsed_ms backwards relative to absolute iteration
+        // count, so reset the crossing tracker to match the new phase.
+        this->last_iteration_seen = 0;
     }
     this->clock->start();
 }
@@ -30,6 +35,8 @@ void Cycle::stop() {
     this->clock->stop();
     this->current_value = 0;
     this->release_phase = false;
+    this->last_iteration_seen = 0;
+    this->at_zero_point = false;
 }
 
 void Cycle::reset() {
@@ -44,14 +51,15 @@ void Cycle::reset() {
 void Cycle::release() {
     this->release_phase = true;
     if (this->isRising() && this->cycle_type == UP_DOWN_CYCLE) {
-        // If we're on the rising side of the cycle, jump the clock ticks
-        // to the next down cycle at the same point: if we're at tick 23
-        // of a duration of 100, then we're jumping to clock tick 67
-        // (100 - 23) and continuing on to finish the remaining duration
-        // cycle of 100.
-        //
-        // If we're on the falling side of the cycle, just let it finish
-        this->clock->ticks = max(0, this->clock->ticks = this->duration_ticks - this->clock->ticks % this->duration_ticks);
+        // If we're on the rising side of the cycle, jump to the mirrored point
+        // on the falling side at the same wave height, and continue to finish
+        // the cycle. If we're on the falling side already, just let it finish.
+        unsigned long phase = this->clock->elapsed_ms % this->duration_ms;
+        this->clock->shift_to(this->duration_ms - phase);
+        // shift_to jumps elapsed_ms backwards relative to absolute iteration
+        // count, so reset the crossing tracker so the next boundary at
+        // duration_ms is detected as a crossing.
+        this->last_iteration_seen = 0;
     }
 }
 
@@ -61,37 +69,41 @@ void Cycle::release() {
  */
 void Cycle::update() {
     // always update the clock. If it's stopped, it's a no-op, otherwise ensures
-    // the click is up-to-date before doing any calculations.
+    // the clock is up-to-date before doing any calculations.
     this->clock->update();
+    this->at_zero_point = false;
 
     if (this->clock->isStopped()) {
-        // if this cycle has stopped - it's no longer actively cycling, nor is it in the release state,
-        // there's nothing to do.
         return;
     }
 
-    if (this->clock->ticks > 0 && this->clock->ticks % this->duration_ticks == 0) {
-        // we've hit run the entire duration length. Increment the number
-        // of iterations.
-        this->iterations += 1;
+    // Iteration-crossing check: elapsed_ms may jump over the exact boundary,
+    // so detect when (elapsed / duration) increments instead of (elapsed % duration == 0).
+    unsigned long current_iteration = this->clock->elapsed_ms / this->duration_ms;
+    if (current_iteration > this->last_iteration_seen) {
+        this->iterations += static_cast<int>(current_iteration - this->last_iteration_seen);
+        this->last_iteration_seen = current_iteration;
+        this->at_zero_point = true;
 
         if (this->one_shot || this->release_phase) {
-            // If this is a one-shot or the "release" is done, the Cycle is done.
-            // Stop the clock, and return.
             this->stop();
             return;
         }
+    } else if (this->clock->elapsed_ms == 0) {
+        // first update after restart: original tick-based behavior also reported
+        // ticks==0 as "at zero point" on the first update.
+        this->at_zero_point = true;
     }
 
-    int looping_elapsed_duration = this->clock->ticks % this->duration_ticks;
+    unsigned long looping_elapsed = this->clock->elapsed_ms % this->duration_ms;
     if (this->cycle_type == UP_ONLY_CYCLE) {
-        this->current_value = static_cast<float>(looping_elapsed_duration) / static_cast<float>(this->duration_ticks);
+        this->current_value = static_cast<float>(looping_elapsed) / static_cast<float>(this->duration_ms);
     } else {
-        int half_animation_loop_duration_ticks = static_cast<int>(std::lround(this->duration_ticks / 2.0));
-        if (looping_elapsed_duration <= half_animation_loop_duration_ticks) {
-            this->current_value = static_cast<float>(looping_elapsed_duration) / static_cast<float>(half_animation_loop_duration_ticks);
+        unsigned long half_duration = static_cast<unsigned long>(std::lround(this->duration_ms / 2.0));
+        if (looping_elapsed <= half_duration) {
+            this->current_value = static_cast<float>(looping_elapsed) / static_cast<float>(half_duration);
         } else {
-            this->current_value = (static_cast<float>(this->duration_ticks) - 1 - static_cast<float>(looping_elapsed_duration)) / static_cast<float>(half_animation_loop_duration_ticks);
+            this->current_value = (static_cast<float>(this->duration_ms) - 1 - static_cast<float>(looping_elapsed)) / static_cast<float>(half_duration);
         }
     }
 }
@@ -100,25 +112,27 @@ bool Cycle::isRising() const {
     if (this->cycle_type == UP_ONLY_CYCLE) {
         return true;
     }
-    int relative_ticks = this->clock->ticks % this->duration_ticks;
-    return relative_ticks < (this->duration_ticks / 2);
+    unsigned long relative = this->clock->elapsed_ms % this->duration_ms;
+    return relative < static_cast<unsigned long>(this->duration_ms / 2);
 }
 
 void Cycle::restart() {
     this->restart(-1);
 }
 
-void Cycle::restart(int new_duration_ticks) {
-    if (new_duration_ticks > -1) {
-        this->duration_ticks = new_duration_ticks;
+void Cycle::restart(int new_duration_ms) {
+    if (new_duration_ms > -1) {
+        this->duration_ms = new_duration_ms;
     }
     this->release_phase = false;
     this->iterations = 0;
+    this->last_iteration_seen = 0;
+    this->at_zero_point = false;
     this->clock->restart();
 }
 
 bool Cycle::isAtZeroPoint() const {
-    return this->clock->ticks % this->duration_ticks == 0;
+    return this->at_zero_point;
 }
 
 bool Cycle::isDone() const {
