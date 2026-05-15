@@ -263,19 +263,43 @@ Color WaveColorAlgorithm::_pick_shared_or_new_target(int activating_sensor_index
 }
 
 Color WaveColorAlgorithm::_pick_random_target(Color exclude_color) const {
-    int exclude_index = classify_primary_index(exclude_color);
-    int candidate_count = NUMBER_OF_PRIMARY_COLORS - (exclude_index >= 0 ? 1 : 0);
-    int pick = random(candidate_count);
-
-    int chosen_index = 0;
-    int seen = 0;
-    for (int primary_index = 0; primary_index < NUMBER_OF_PRIMARY_COLORS; primary_index++) {
-        if (primary_index == exclude_index) continue;
-        if (seen == pick) {
-            chosen_index = primary_index;
-            break;
-        }
-        seen++;
+    // Disallow primaries already in use by any other active wave so two
+    // unrelated interactions don't accidentally pick the same color. Also
+    // exclude the origin panel's currently displayed primary (typically
+    // idle red, but could be a wave color that's still fading out).
+    bool primary_in_use[NUMBER_OF_PRIMARY_COLORS] = {false, false, false, false, false, false};
+    for (int sensor_index = 0; sensor_index < this->number_of_sensors; sensor_index++) {
+        Wave* wave = this->waves[sensor_index];
+        if (!wave->is_active()) continue;
+        int wave_primary_index = classify_primary_index(wave->get_target_color());
+        if (wave_primary_index >= 0) primary_in_use[wave_primary_index] = true;
     }
-    return PRIMARY_COLORS[chosen_index];
+
+    int displayed_exclude_index = classify_primary_index(exclude_color);
+
+    int candidates[NUMBER_OF_PRIMARY_COLORS];
+    int candidate_count = 0;
+    for (int primary_index = 0; primary_index < NUMBER_OF_PRIMARY_COLORS; primary_index++) {
+        if (primary_index == displayed_exclude_index) continue;
+        if (primary_in_use[primary_index]) continue;
+        candidates[candidate_count++] = primary_index;
+    }
+
+    // If every primary is in use (rare on a 20-panel strip), drop the
+    // in-use exclusion and just avoid the displayed-color primary.
+    if (candidate_count == 0) {
+        for (int primary_index = 0; primary_index < NUMBER_OF_PRIMARY_COLORS; primary_index++) {
+            if (primary_index == displayed_exclude_index) continue;
+            candidates[candidate_count++] = primary_index;
+        }
+    }
+    // Pathological fallback: also drop the displayed-color exclusion.
+    if (candidate_count == 0) {
+        for (int primary_index = 0; primary_index < NUMBER_OF_PRIMARY_COLORS; primary_index++) {
+            candidates[candidate_count++] = primary_index;
+        }
+    }
+
+    int pick = random(candidate_count);
+    return PRIMARY_COLORS[candidates[pick]];
 }

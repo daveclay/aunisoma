@@ -106,6 +106,10 @@ int random(int max) {
     return std::rand() % max;
 }
 
+void randomSeed(unsigned long seed) {
+    std::srand(static_cast<unsigned int>(seed));
+}
+
 void delay(int) {
 }
 

@@ -16,7 +16,7 @@
         display: block;
         width: 50px; /* 24" */
         height: 100px; /* 48" */
-        background-color: rgb(60, 0, 0);
+        background-color: rgb(60, 60, 60);
         border: 1px solid #222222;
         margin: 5px;
     }
@@ -114,7 +114,7 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
     // Display gamma for the mock panels. The real LEDs are perceptually much
     // brighter at low values than an sRGB monitor renders raw RGB, so we
     // gamma-correct the displayed color (not the power-draw calc).
-    const DISPLAY_GAMMA = 2.2;
+    const DISPLAY_GAMMA = 1.7;
     const GAMMA_LUT = (() => {
       const lut = new Uint8Array(256);
       for (let i = 0; i < 256; i++) {

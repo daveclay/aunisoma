@@ -1,6 +1,9 @@
 #include "SPI.h"
 #include <string.h>
 #include <stdio.h>
+#ifndef ARDUINO
+#include <chrono>
+#endif
 #include "Arduino.h"         // required before wiring_private.h
 #include "wiring_private.h"  // pinPeripheral() function
 #include "Clock.h"
@@ -198,6 +201,20 @@ void setup(void) {
 
   pinPeripheral(PIN_SERIAL3_RX, PIO_SERCOM);
   pinPeripheral(PIN_SERIAL3_TX, PIO_SERCOM);
+
+  // Seed the RNG so the wave color picks vary between runs.
+#ifdef ARDUINO
+  // Combine a floating-pin analog read (electrical noise) with micros() so
+  // even a board with unusually quiet analog pins still varies a bit.
+  unsigned long random_seed_value = static_cast<unsigned long>(micros());
+  random_seed_value ^= static_cast<unsigned long>(analogRead(A0)) << 16;
+  random_seed_value ^= static_cast<unsigned long>(analogRead(A1));
+  randomSeed(random_seed_value);
+#else
+  // Native: nanosecond-resolution clock so back-to-back runs differ.
+  auto wall_clock_ns = std::chrono::high_resolution_clock::now().time_since_epoch().count();
+  randomSeed(static_cast<unsigned long>(wall_clock_ns));
+#endif
 
   rainbow_gradient.add_rgb_point(0.00, 255, 0, 0);
   rainbow_gradient.add_rgb_point(0.14, 255, 255, 0);

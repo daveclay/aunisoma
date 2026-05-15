@@ -26,6 +26,7 @@ int min(int a, int b);
 int max(int a, int b);
 int random(int min, int max);
 int random(int max);
+void randomSeed(unsigned long seed);
 void digitalWrite(int pin, int value);
 
 long millis();
