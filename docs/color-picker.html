@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Aunisoma color picker</title>
+<style>
+  body {
+    font-family: -apple-system, system-ui, sans-serif;
+    background: #1a1a1a;
+    color: #ddd;
+    margin: 0;
+    padding: 24px;
+  }
+  h1 {
+    font-size: 16px;
+    font-weight: 500;
+    margin: 0 0 12px 0;
+    color: #888;
+  }
+  #gradient {
+    display: block;
+    cursor: crosshair;
+    border: 1px solid #333;
+  }
+  #swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 20px;
+    min-height: 96px;
+  }
+  .swatch {
+    position: relative;
+    width: 140px;
+    height: 96px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    border: 1px solid #333;
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 11px;
+    color: #000;
+    text-shadow: 0 0 4px rgba(255,255,255,0.9);
+    padding-bottom: 6px;
+    box-sizing: border-box;
+  }
+  .swatch .remove {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 22px;
+    height: 22px;
+    border: none;
+    border-radius: 2px;
+    background: rgba(0,0,0,0.55);
+    color: #fff;
+    font-weight: bold;
+    font-size: 14px;
+    line-height: 20px;
+    cursor: pointer;
+    padding: 0;
+  }
+  .swatch .remove:hover {
+    background: rgba(0,0,0,0.85);
+  }
+  #empty-hint {
+    color: #555;
+    font-size: 12px;
+    align-self: center;
+  }
+</style>
+</head>
+<body>
+  <h1>Click the gradient to capture a target color. Click × to remove.</h1>
+  <canvas id="gradient" width="1200" height="400"></canvas>
+  <div id="swatches">
+    <span id="empty-hint">(no colors captured yet)</span>
+  </div>
+
+<script>
+  const canvas = document.getElementById('gradient');
+  const context = canvas.getContext('2d');
+  const swatchesContainer = document.getElementById('swatches');
+  const emptyHint = document.getElementById('empty-hint');
+
+  // Render an HSV picker: hue varies horizontally (0..1 across the canvas),
+  // saturation AND value both vary vertically (0 at the bottom, 1 at the top).
+  function hsvToRgb(hue, saturation, value) {
+    const chroma = value * saturation;
+    const huePrime = hue * 6;
+    const secondaryComponent = chroma * (1 - Math.abs((huePrime % 2) - 1));
+    const matchValue = value - chroma;
+    let redComponent, greenComponent, blueComponent;
+    if      (huePrime < 1) { redComponent = chroma;             greenComponent = secondaryComponent; blueComponent = 0; }
+    else if (huePrime < 2) { redComponent = secondaryComponent; greenComponent = chroma;             blueComponent = 0; }
+    else if (huePrime < 3) { redComponent = 0;                  greenComponent = chroma;             blueComponent = secondaryComponent; }
+    else if (huePrime < 4) { redComponent = 0;                  greenComponent = secondaryComponent; blueComponent = chroma; }
+    else if (huePrime < 5) { redComponent = secondaryComponent; greenComponent = 0;                  blueComponent = chroma; }
+    else                   { redComponent = chroma;             greenComponent = 0;                  blueComponent = secondaryComponent; }
+    return [
+      Math.round((redComponent   + matchValue) * 255),
+      Math.round((greenComponent + matchValue) * 255),
+      Math.round((blueComponent  + matchValue) * 255),
+    ];
+  }
+
+  const imageData = context.createImageData(canvas.width, canvas.height);
+  const pixels = imageData.data;
+  for (let pixelY = 0; pixelY < canvas.height; pixelY++) {
+    const verticalFraction = 1 - pixelY / (canvas.height - 1);
+    const saturation = verticalFraction;
+    const value = verticalFraction;
+    for (let pixelX = 0; pixelX < canvas.width; pixelX++) {
+      const hue = pixelX / canvas.width;
+      const [red, green, blue] = hsvToRgb(hue, saturation, value);
+      const offset = (pixelY * canvas.width + pixelX) * 4;
+      pixels[offset    ] = red;
+      pixels[offset + 1] = green;
+      pixels[offset + 2] = blue;
+      pixels[offset + 3] = 255;
+    }
+  }
+  context.putImageData(imageData, 0, 0);
+
+  function toHex(channel) {
+    return channel.toString(16).padStart(2, '0');
+  }
+
+  // Each entry: { canvasX, canvasY }. The gradient is redrawn from cached
+  // ImageData and indicators are drawn on top whenever this changes.
+  const selectedPositions = [];
+
+  function drawIndicators() {
+    context.putImageData(imageData, 0, 0);
+    for (const position of selectedPositions) {
+      context.beginPath();
+      context.arc(position.canvasX, position.canvasY, 9, 0, Math.PI * 2);
+      context.lineWidth = 4;
+      context.strokeStyle = '#000';
+      context.stroke();
+      context.beginPath();
+      context.arc(position.canvasX, position.canvasY, 9, 0, Math.PI * 2);
+      context.lineWidth = 2;
+      context.strokeStyle = '#fff';
+      context.stroke();
+    }
+  }
+
+  function addSwatch(red, green, blue, canvasX, canvasY) {
+    if (emptyHint.parentNode) emptyHint.remove();
+
+    const hex = '#' + toHex(red) + toHex(green) + toHex(blue);
+    const swatch = document.createElement('div');
+    swatch.className = 'swatch';
+    swatch.style.background = hex;
+    swatch.textContent = hex + ' (' + red + ',' + green + ',' + blue + ')';
+
+    const position = { canvasX, canvasY };
+    selectedPositions.push(position);
+
+    const removeButton = document.createElement('button');
+    removeButton.className = 'remove';
+    removeButton.textContent = '×';
+    removeButton.title = 'Remove';
+    removeButton.addEventListener('click', () => {
+      swatch.remove();
+      const positionIndex = selectedPositions.indexOf(position);
+      if (positionIndex !== -1) selectedPositions.splice(positionIndex, 1);
+      drawIndicators();
+      if (swatchesContainer.querySelectorAll('.swatch').length === 0) {
+        swatchesContainer.appendChild(emptyHint);
+      }
+    });
+    swatch.appendChild(removeButton);
+    swatchesContainer.appendChild(swatch);
+    drawIndicators();
+  }
+
+  canvas.addEventListener('click', (event) => {
+    const rect = canvas.getBoundingClientRect();
+    const horizontalScale = canvas.width / rect.width;
+    const verticalScale = canvas.height / rect.height;
+    const canvasX = Math.floor((event.clientX - rect.left) * horizontalScale);
+    const canvasY = Math.floor((event.clientY - rect.top) * verticalScale);
+    const pixel = context.getImageData(canvasX, canvasY, 1, 1).data;
+    addSwatch(pixel[0], pixel[1], pixel[2], canvasX, canvasY);
+  });
+</script>
+</body>
+</html>

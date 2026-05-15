@@ -1,133 +1,226 @@
-# Apparent "jump" from #010001 to #010000 at tick 3104 → 3105
+# Plan: new wave-based color interaction algorithm
 
-## Symptom (post-fix)
+## Goal
 
-After the `interpolateValue` fix, the cross-fade from `purple_red_gradient`
-back to `initial_gradient` looks like three discrete steps rather than a
-smooth fade. Panel 0 across the entire 100-tick transition:
+Add a new color algorithm. On sensor activation a panel picks a primary from
+{R, G, B, C, M, Y} (excluding its current shown color) and a wave propagates
+outward to the strip ends with distance-decaying intensity. Overlapping waves
+yield color-wheel-opposite complements. Sensor deactivation fades the
+wave's affected panels back to idle red (`#030000`) simultaneously.
 
-```
-3054–3104: #010001   (50 ticks)
-3105–3128: #010000   (24 ticks)
-3129–3154: #020000   (26 ticks)
-```
+The original `ColorManager` / `Reverberation` algorithm is preserved and
+selectable at runtime. New algorithm is the default for now.
 
-This is not a bug — the transition is mathematically continuous over all 100
-ticks, but integer + gamma quantization at these brightness levels hide most
-of the motion and concentrate all the visible change at three threshold
-crossings.
+## Approach
 
-## What's actually happening
-
-Transition is `(1, 0, 1) → (3, 0, 0)` over 100 ticks, so `a` advances by
-0.01 per tick from 3054. With the fixed `interpolateValue`:
-
-- raw red  = `lround(1·(1−a) + 3·a) = lround(1 + 2a)`
-- raw blue = `lround(1·(1−a))       = lround(1 − a)`
-
-| `a` range     | raw red | raw blue | raw color | gamma output |
-|---------------|---------|----------|-----------|--------------|
-| [0, 0.25)     | 1       | 1        | (1,0,1)   | `#010001`    |
-| [0.25, 0.5]   | 2       | 1        | (2,0,1)   | `#010001` *  |
-| (0.5, 0.75)   | 2       | 0        | (2,0,0)   | `#010000`    |
-| [0.75, 1]     | 3       | 0        | (3,0,0)   | `#020000`    |
-
-\* `gamma_lut[1] == gamma_lut[2] == 1`, so the raw red step from 1→2 around
-tick 3079 is invisible in the output.
-
-### Tick-by-tick
-
-- **3054**: state changes to `TRANSITIONING_TO_DEFAULT_GRADIENT_STATE`,
-  `a = 0`, color = `#010001`.
-- **3054–3104** (`a` 0.00 → 0.50): raw red ticks 1→2 around tick 3079, but
-  gamma_lut collapses both to output 1. Blue still rounds to 1. Output stays
-  `#010001` for 50 ticks.
-- **3105** (`a ≈ 0.51`): blue raw flips to 0 (`lround(0.49) = 0`). Output
-  becomes `#010000`.
-- **3105–3128** (`a` 0.51 → 0.75): raw red still rounds to 2 → gamma still 1.
-  Output stays `#010000` for ~24 ticks.
-- **3129** (`a ≈ 0.75`): raw red flips to 3, `gamma_lut[3] = 2`. Output
-  becomes `#020000` and holds for the remainder.
-
-## Why it looks like a jump
-
-At these brightness levels there are only 3 distinct gamma outputs the
-result can ever land in (`#010001`, `#010000`, `#020000`). With raw color
-endpoints ≤ 3 there isn't enough integer resolution to show a gradual fade
-— every visible step is a quantization boundary, and `gamma_lut` collapsing
-raw 1 and 2 to the same output makes the plateaus long and the visible
-transitions abrupt.
-
-## Options if a smoother fade is wanted
-
-1. **Raise the idle endpoint values** in the gradients (e.g. `(8, 0, 8)`
-   instead of `(1, 0, 1)`). More headroom = more visible steps.
-2. **Use a less aggressive gamma curve** (γ ≈ 2.2 instead of 1.5). Fewer low
-   raws collapse to the same output.
-3. **Interpolate in gamma-corrected space**: apply `gamma_lut` before the
-   fade, then interpolate the 8-bit outputs. Quantization happens once at the
-   right end of the pipeline.
-
-None of these are required — this is a "looks-stepped at idle brightness"
-artifact, not a correctness bug.
-
----
-
-# Gamma LUT collisions at low values
-
-## Observation
-
-The current `gamma_lut` in `src/Color.h` was generated as
-`round((i/255)^1.5 · 255)`. At the low end this produces collisions where
-consecutive inputs map to the same output:
+Introduce a `ColorAlgorithm` abstraction. `Aunisoma::update()` becomes a thin
+shim that delegates to whichever algorithm is currently selected. The
+existing pipeline moves into `LegacyColorAlgorithm` with no behavior changes.
+The new behavior goes into `WaveColorAlgorithm`.
 
 ```
-i:  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
-γ:  1  1  2  3  3  4  5  6  6  7  8  9 10 10 11
+Aunisoma
+ ├─ Sensor[40]                       (unchanged)
+ ├─ Panel[20]                        (unchanged)
+ └─ ColorAlgorithm* current ──┬─ LegacyColorAlgorithm  (wraps existing code)
+                              └─ WaveColorAlgorithm    (new)
 ```
 
-Collisions at 1=2, 4=5, 8=9, 13=14, 20=21, 27=28, … About one every 4–5
-inputs at the bottom.
+Runtime switch mechanism is deferred — `Aunisoma::set_algorithm(int)` is
+stubbed. A serial command from the master, a long-press gesture, or a
+build flag can wire in later.
 
-This compounds the integer-quantization issue in the previous section: the
-raw red value can walk 1→2→3 smoothly, but the LUT collapses 1 and 2 to the
-same output, so only two visible steps survive instead of three.
+## Decisions (from spec discussion)
 
-## Why it happens
+- **Per-panel pulse shape:** each panel does a full up-down animation —
+  idle → attenuated target over `wave_rise_duration_ms` (600ms), then back
+  to idle over `wave_fall_duration_ms` (600ms). Neighbors lag the source
+  by `wave_panel_delay_ms` per panel of distance, with intensity scaled
+  by linear distance falloff.
+- **While sensor is active:** waves pulse continuously. When the current
+  pulse completes its full up-down across the entire strip, a new pulse
+  fires from the origin with a fresh target color.
+- **Wave end on sensor inactive:** the in-flight pulse completes naturally
+  (each panel finishes its up-down) and the wave then goes idle. No
+  separate fade-out phase needed.
+- **Target color pick:** uniform random from the 6 primaries, excluding
+  whichever color the origin panel is currently displaying. Re-rolled on
+  every new pulse.
+- **Overlap rule:** color-wheel opposite of the additive sum of overlapping
+  wave targets (R↔C, G↔M, B↔Y).
+- **Idle color:** `#030000` (red, value 3) everywhere.
+- **Existing algorithm:** keep as-is, switchable at runtime.
 
-Any γ > 1 applied uniformly *compresses* the low end — `(i/255)^γ` is near
-zero and adjacent values round to the same integer. That's the opposite of
-what we want: gamma is meant to compensate for the eye being *more* sensitive
-to changes in dim values, but the 8-bit LUT throws that resolution away
-exactly where the gradient idle values live.
+## New files
 
-## Options
+### `src/ColorAlgorithm.h`
 
-1. **Identity at the bottom, gamma above a knee.** Piecewise LUT:
+Abstract base:
 
-   ```
-   gamma_lut[i] = i                                              for i ≤ T
-   gamma_lut[i] = T + round(((i-T)/(255-T))^γ · (255-T))         for i > T
-   ```
+```cpp
+class ColorAlgorithm {
+public:
+    virtual void update() = 0;
+    virtual Color get_color_for_panel(int panel_index) const = 0;
+    virtual ~ColorAlgorithm() = default;
+};
+```
 
-   With T ≈ 20–32 the bottom is collision-free (raw 1→1, 2→2, 3→3, …) and
-   the top still gets a perceptual curve. Likely the best fix.
+### `src/LegacyColorAlgorithm.{h,cpp}`
 
-2. **Lower γ overall** (γ ≈ 1.1–1.2). Reduces collisions but cannot
-   eliminate them at i=1,2 — no γ > 1 yields a strictly-increasing 8-bit LUT
-   from i=1 upward.
+Owns `ColorManager`, `Reverberation[40]`, `ValueSmoothingFn[20]`. `update()`
+is the current body of `Aunisoma::update()` lifted verbatim. Zero behavior
+change.
 
-3. **γ = 1 (drop gamma correction entirely).** Whether this looks worse at
-   higher brightness depends on the LEDs (APA102/SK9822 fairly linear,
-   WS2812 less so).
+### `src/Wave.{h,cpp}`
 
-4. **Move quantization to the end of the pipeline**: interpolate in
-   gamma-space (apply LUT first, then fade the 8-bit outputs). Orthogonal
-   to fixing the LUT shape; addresses the same visible-fade problem from a
-   different angle.
+One per sensor (40 total).
 
-## Recommended next step
+State:
+- `Sensor* sensor`, `int origin_panel_index`
+- `int max_distance` = `max(origin_panel_index, NUMBER_OF_PANELS - 1 - origin_panel_index)`
+- `Color current_pulse_color`
+- `enum {IDLE, PROPAGATING} state`
+- `Clock pulse_clock` — ms since the current pulse started
 
-Generate a piecewise LUT (option 1) with T = 24 and γ = 1.5 above the knee.
-Replace the table in `src/Color.h:10` and re-run `pio run -e native` to
-verify the cross-fade now traverses more distinct outputs at idle.
+`update()`:
+- On inactive→active sensor edge: pick `current_pulse_color` (caller passes
+  "exclude" color), reset `pulse_clock`, enter PROPAGATING.
+- In PROPAGATING when the current pulse fully completes (see below):
+  - if sensor still active → fire next pulse (re-pick color, reset
+    `pulse_clock`).
+  - if sensor now inactive → enter IDLE.
+
+**Pulse complete** condition: `pulse_clock >= max_distance * panel_delay_ms + rise_duration_ms + fall_duration_ms` — the farthest panel has finished both its rise and its fall back to idle. This guarantees clean separation between consecutive pulses on the same wave.
+
+`float get_intensity_for_panel(int panel_index)`:
+- `distance = |panel_index - origin_panel_index|`
+- `falloff = (max_distance - distance) / max_distance` (linear; tweakable)
+- `panel_delay = distance * panel_delay_ms`
+- `elapsed_in_panel = pulse_clock - panel_delay`
+- if `elapsed_in_panel <= 0`: not yet started → intensity = 0
+- if `elapsed_in_panel < rise_duration_ms`: rising → intensity = falloff × (elapsed_in_panel / rise_duration_ms)
+- if `elapsed_in_panel < rise_duration_ms + fall_duration_ms`: falling → intensity = falloff × (1 − (elapsed_in_panel − rise_duration_ms) / fall_duration_ms)
+- else: pulse for this panel is over → intensity = 0
+
+`Color get_color_for_panel(int panel_index)` returns `current_pulse_color`
+(no crossfade — each panel naturally returns to idle between pulses, so
+the previous pulse's color is gone by the time the next pulse begins).
+
+### `src/WaveColorAlgorithm.{h,cpp}`
+
+Owns `Wave[40]` + per-panel display state.
+
+Per-panel state:
+- `Color displayed` (the most recent resolved output for that panel)
+
+`update()`:
+1. `waves[wave_index].update()` for each wave (handles pulse re-firing internally).
+2. For each panel: collect waves where `intensity > epsilon`. Each wave
+   already exposes `(color, intensity)` per panel — including its own
+   previous→current crossfade. Resolve panel color:
+   - **0 waves** → idle red.
+   - **1 wave** → `lerp(idle, wave.color_at(panel_index), wave.intensity_at(panel_index))`.
+   - **≥2 waves** → `lerp(idle, complement(wave_colors_at(panel_index)), max(intensities))`.
+3. Write straight to `displayed[panel_index]`. The per-pulse crossfade lives
+   in the wave (so a new pulse smoothly retargets each panel as its leading
+   edge passes); no separate per-panel from/target/clock state is needed.
+
+`get_color_for_panel(panel_index)` returns `displayed[panel_index]`.
+
+## Color picking (random, excluding current shown)
+
+Six primaries as constants:
+```
+R = (255,   0,   0)
+G = (  0, 255,   0)
+B = (  0,   0, 255)
+C = (  0, 255, 255)
+M = (255,   0, 255)
+Y = (255, 255,   0)
+```
+
+When a wave starts, `WaveColorAlgorithm` passes the origin panel's currently
+displayed color to `Wave::start(Color exclude)`. Classify `exclude` into the
+nearest primary (by max-channel pattern), drop it from the candidate set,
+pick uniformly from the remaining 5.
+
+## Overlap rule (color-wheel opposite of A+B)
+
+Component-wise add the overlapping wave target colors, classify the sum into
+the nearest primary, return its wheel-opposite via static table:
+
+```
+R↔C   G↔M   B↔Y
+```
+
+For ≥3 overlapping waves, sum them all then take the same opposite. Small
+precomputed 6×6 table covers the 2-wave case; degenerate cases (e.g. both
+waves are R) fall through to "the obvious complement of that single color."
+
+## Modified files
+
+### `src/Aunisoma.{h,cpp}`
+
+- Drop direct ownership of `ColorManager` / `Reverberation[]` /
+  `ValueSmoothingFn[]`.
+- Hold `ColorAlgorithm* current_algorithm` plus pointers to both concrete
+  algorithms (so we can swap without reallocating).
+- `update()` becomes:
+
+```cpp
+current_algorithm->update();
+for (int panel_index = 0; panel_index < NUMBER_OF_PANELS; panel_index++)
+    panels[panel_index]->color = current_algorithm->get_color_for_panel(panel_index);
+```
+
+- Add `void set_algorithm(int kind)` stub (0 = legacy, 1 = wave). Default
+  to wave.
+
+### `src/Config.{h,cpp}`
+
+Add new wave-specific config:
+- `int wave_rise_duration_ms` (default 600 — idle → attenuated target)
+- `int wave_fall_duration_ms` (default 600 — attenuated target → idle)
+- `int wave_panel_delay_ms` (default 150 — per panel of distance from origin)
+- `int wave_inter_pulse_delay_ms` (default 0 — gap between consecutive pulses)
+- `Color wave_idle_color` (default `(3, 0, 0)`)
+
+### `src/Aunisoma-Sketch.cpp`
+
+Pass new config values. Existing gradient setup remains untouched (legacy
+algorithm still needs it).
+
+## Verification
+
+- `pio run -e native`, capture stdout to `script.json`, replay in mock HTML.
+- Walk through:
+  1. Idle holds at `#030000`.
+  2. Single sensor activate → source rises to picked primary over 600ms,
+     then falls back to idle over 600ms; neighbors cascade outward with
+     the same up-down envelope delayed by `wave_panel_delay_ms` per panel
+     of distance, with intensity scaled by linear distance falloff.
+  3. The wave visibly travels across the strip with panels lighting up and
+     going dark as the pulse sweeps past.
+  4. Sensor stays active → after the current pulse fully completes, a
+     new pulse with a different color starts from origin and sweeps
+     outward again. Repeats until the sensor goes inactive.
+  5. Sensor deactivate → in-flight pulse completes naturally; no separate
+     fade-out phase.
+  6. Two sensors at opposite ends → waves propagate inward, overlap band
+     shows wheel-opposite color; each side keeps re-pulsing independently.
+  7. Same sensor toggled twice → second activation picks a different
+     target than the first.
+- Confirm legacy algorithm path still works when `set_algorithm(0)` is
+  invoked (a temporary `#define` at top of `setup()` is sufficient for the
+  smoke test).
+
+## Open question
+
+Inter-pulse gap: should the next pulse fire the instant the previous one
+finishes (continuous), or wait a short configurable delay first? A small
+gap (~500ms) makes individual color changes more readable; zero gap keeps
+the strip in constant motion.
+
+Default plan: zero gap (continuous). Add a `wave_inter_pulse_delay_ms`
+config knob defaulting to 0 so we can tune later without code changes.

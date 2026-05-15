@@ -306,6 +306,20 @@ void setup(void) {
   // biased to stay high longer?
   config.high_interaction_debounce_ms = 200;
 
+  // Wave algorithm parameters. Each panel rises to its attenuated target
+  // over 600ms then falls back to idle over 600ms; neighbors lag by
+  // wave_panel_delay_ms per panel of distance from the source.
+  config.wave_rise_duration_ms = 5000;
+  config.wave_fall_duration_ms = 5000;
+  config.wave_panel_delay_ms = 500;
+  // Zero gap = the next pulse fires the instant the current one finishes
+  // its full up-down across the strip.
+  config.wave_inter_pulse_delay_ms = 0;
+  // Wave reaches up to 8 panels from its source; linear falloff to zero at
+  // that distance.
+  config.wave_max_propagation_distance = 8;
+  config.wave_idle_color = Color(3, 0, 0);
+
   config.init();
 
   aunisoma = new Aunisoma(&config, gradients, 7, &rainbow_gradient, &knight_rider_gradient, sensors);

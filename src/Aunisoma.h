@@ -6,16 +6,21 @@
 #define C_AUNISOMA_AUNISOMA_H
 
 
-#include "ColorManager.h"
+#include "ColorAlgorithm.h"
 #include "Config.h"
 #include "Gradient.h"
+#include "LegacyColorAlgorithm.h"
 #include "Panel.h"
 #include "Sensor.h"
-#include "Reverberation.h"
-#include "ValueSmoothingFn.h"
+#include "WaveColorAlgorithm.h"
 
 #define NUMBER_OF_PANELS 20
 #define NUMBER_OF_SENSORS 40
+
+enum AunisomaAlgorithmKind {
+    AUNISOMA_ALGORITHM_LEGACY = 0,
+    AUNISOMA_ALGORITHM_WAVE = 1
+};
 
 class Aunisoma {
 public:
@@ -27,21 +32,16 @@ public:
              Sensor* sensors);
     Panel* get_panel_at(int);
     void update();
+    void set_algorithm(int kind);
 private:
     Config* config;
     Sensor* sensors;
-    float current_interaction_percent;
     Panel* panels[NUMBER_OF_PANELS];
-    Reverberation* reverberations[NUMBER_OF_SENSORS];
-    ValueSmoothingFn* panel_smoothing_functions[NUMBER_OF_PANELS];
-    ColorManager* color_manager;
+    LegacyColorAlgorithm* legacy_algorithm;
+    WaveColorAlgorithm* wave_algorithm;
+    ColorAlgorithm* current_algorithm;
 
     void _create_panels();
-    void _create_reverberations();
-    void _create_panel_smoothing_functions();
-    bool _is_pong_interactivity();
-    Color _calculate_color_for_value(int panel_index, float value) const;
-    void _calculate_interaction_percent();
 };
 
 

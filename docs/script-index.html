@@ -80,6 +80,14 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
                 Max Power Draw: <input type="text" id="maxPowerDraw">
             </p>
         </td>
+        <td>
+            <p>
+                <label>
+                    <input type="checkbox" id="applyGammaCheckbox" checked/>
+                    Apply gamma LUT
+                </label>
+            </p>
+        </td>
     </tr>
 </table>
 <script>
@@ -95,6 +103,9 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
 
     const PAUSE_BUTTON = document.getElementById("pauseButton");
     const JUMP_TO_STEP_INPUT = document.getElementById("jumpToStepInput");
+    const APPLY_GAMMA_CHECKBOX = document.getElementById("applyGammaCheckbox");
+
+    let applyGamma = APPLY_GAMMA_CHECKBOX.checked;
 
     // TODO: measure more accurately, whether this is linear
     // const DRAW_PER_COLOR_PER_PANEL_AMPS = 0.8046715655; // Amps 12v
@@ -144,10 +155,19 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
     }
 
     function colorToHexString(color) {
+      const redByte   = toByte(color.red);
+      const greenByte = toByte(color.green);
+      const blueByte  = toByte(color.blue);
+      if (applyGamma) {
+        return "#"
+          + toHexByte(GAMMA_LUT[redByte])
+          + toHexByte(GAMMA_LUT[greenByte])
+          + toHexByte(GAMMA_LUT[blueByte]);
+      }
       return "#"
-        + toHexByte(GAMMA_LUT[toByte(color.red)])
-        + toHexByte(GAMMA_LUT[toByte(color.green)])
-        + toHexByte(GAMMA_LUT[toByte(color.blue)]);
+        + toHexByte(redByte)
+        + toHexByte(greenByte)
+        + toHexByte(blueByte);
     }
 
     class ScriptRunner {
@@ -252,6 +272,12 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
         }
         this._runStepAtIndex(index);
       }
+
+      refresh() {
+        if (this.iteration >= 0 && this.script) {
+          this._runStepAtIndex(this.iteration);
+        }
+      }
     }
 
     class PanelUI {
@@ -294,6 +320,11 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
       const file = event.target.files[0];
       console.log(file);
       scriptRunner.loadAndRun(file);
+    });
+
+    APPLY_GAMMA_CHECKBOX.addEventListener("change", () => {
+      applyGamma = APPLY_GAMMA_CHECKBOX.checked;
+      scriptRunner.refresh();
     });
   });
 </script>

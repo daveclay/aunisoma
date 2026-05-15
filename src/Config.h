@@ -6,6 +6,7 @@
 #define C_AUNISOMA_CONFIG_H
 
 
+#include "Color.h"
 #include "Range.h"
 
 // All duration fields below are in milliseconds (wall-clock time, from millis()).
@@ -36,6 +37,18 @@ public:
     int med_interaction_debounce_ms;
 
     int high_interaction_debounce_ms;
+
+    // Wave algorithm parameters (see plan.md). Each panel does a full up-down
+    // animation per pulse: rises from idle to attenuated target over
+    // wave_rise_duration_ms, then falls back over wave_fall_duration_ms.
+    // wave_max_propagation_distance caps how many panels a wave reaches from
+    // its source; intensity falls off linearly to zero at that distance.
+    int wave_rise_duration_ms;
+    int wave_fall_duration_ms;
+    int wave_panel_delay_ms;
+    int wave_inter_pulse_delay_ms;
+    int wave_max_propagation_distance;
+    Color wave_idle_color;
 
     // This is here to make it available to the C++ files, since importing Aunisoma-Sketch isn't good.
     int number_of_panels;
