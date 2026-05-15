@@ -96,6 +96,10 @@ WaveColorAlgorithm::WaveColorAlgorithm(Config* config,
     for (int sensor_index = 0; sensor_index < number_of_sensors; sensor_index++) {
         this->prev_sensor_active[sensor_index] = false;
     }
+
+    this->rainbow_target_active = false;
+    this->rainbow_blend = 0.0f;
+    this->blend_at_transition_start = 0.0f;
 }
 
 void WaveColorAlgorithm::update() {
@@ -114,15 +118,46 @@ void WaveColorAlgorithm::update() {
         }
     }
 
-    // Step 2: advance each wave's pulse state.
+    // Step 2: advance each wave's pulse state. Keep this running even in
+    // rainbow mode so that when we drop back to wave mode the waves are in
+    // their natural positions rather than frozen in time.
     for (int sensor_index = 0; sensor_index < this->number_of_sensors; sensor_index++) {
         this->waves[sensor_index]->update_pulse_state();
     }
 
-    // Step 3: resolve per-panel color from contributing waves.
+    // Step 3: detect rainbow target changes and advance the crossfade blend.
+    bool high_interaction_now = this->_is_high_interaction();
+    if (high_interaction_now != this->rainbow_target_active) {
+        this->blend_at_transition_start = this->rainbow_blend;
+        this->transition_clock.restart();
+        this->rainbow_target_active = high_interaction_now;
+    }
+
+    int transition_duration_ms = this->config->wave_rainbow_transition_duration_ms;
+    if (transition_duration_ms < 1) transition_duration_ms = 1;
+    this->transition_clock.update();
+    float transition_progress = static_cast<float>(this->transition_clock.elapsed_ms)
+                              / static_cast<float>(transition_duration_ms);
+    if (transition_progress > 1.0f) transition_progress = 1.0f;
+    float blend_target = this->rainbow_target_active ? 1.0f : 0.0f;
+    this->rainbow_blend = this->blend_at_transition_start
+                       + (blend_target - this->blend_at_transition_start) * transition_progress;
+
+    // Rainbow scroll clock keeps ticking once rainbow has any presence so
+    // mid-fade transitions don't snap the rainbow back to offset zero.
+    if (this->rainbow_blend > 0.0f && this->rainbow_clock.isStopped()) {
+        this->rainbow_clock.restart();
+    }
+    if (!this->rainbow_clock.isStopped()) {
+        this->rainbow_clock.update();
+    }
+
+    // Step 4: resolve per-panel color. Always compute the wave-blended color;
+    // if any rainbow is visible, lerp toward the rainbow sample.
     Color idle_color = this->config->wave_idle_color;
 
     for (int panel_index = 0; panel_index < this->number_of_panels; panel_index++) {
+
         // For ≥2 waves we blend in HSV: intensity-weighted circular mean of
         // target hues, intensity-weighted mean of target saturations, and
         // max of intensity for brightness. Using the target color (instead of
@@ -196,7 +231,15 @@ void WaveColorAlgorithm::update() {
             resolved = hsv_to_rgb(resolved_hue, resolved_saturation, resolved_value);
         }
 
-        this->displayed_colors[panel_index] = resolved;
+        // Crossfade in/out of the rainbow override.
+        if (this->rainbow_blend <= 0.0f) {
+            this->displayed_colors[panel_index] = resolved;
+        } else if (this->rainbow_blend >= 1.0f) {
+            this->displayed_colors[panel_index] = this->_rainbow_color_for_panel(panel_index);
+        } else {
+            Color rainbow_color = this->_rainbow_color_for_panel(panel_index);
+            this->displayed_colors[panel_index] = resolved.interpolate(rainbow_color, this->rainbow_blend);
+        }
     }
 }
 
@@ -233,6 +276,29 @@ Color WaveColorAlgorithm::_pick_shared_or_new_target(int activating_sensor_index
         return best_color;
     }
     return this->_pick_random_target(this->displayed_colors[activating_origin_panel]);
+}
+
+bool WaveColorAlgorithm::_is_high_interaction() const {
+    int active_sensor_count = 0;
+    for (int sensor_index = 0; sensor_index < this->number_of_sensors; sensor_index++) {
+        if (this->sensors[sensor_index].active) active_sensor_count++;
+    }
+    float fraction = static_cast<float>(active_sensor_count) / static_cast<float>(this->number_of_sensors);
+    return fraction >= this->config->high_interaction_threshold_percent;
+}
+
+Color WaveColorAlgorithm::_rainbow_color_for_panel(int panel_index) const {
+    int scroll_duration_ms = this->config->wave_rainbow_scroll_duration_ms;
+    if (scroll_duration_ms <= 0) scroll_duration_ms = 8000;
+
+    float scroll_offset = static_cast<float>(this->rainbow_clock.elapsed_ms)
+                        / static_cast<float>(scroll_duration_ms);
+    float panel_fraction = static_cast<float>(panel_index)
+                         / static_cast<float>(this->number_of_panels);
+    float hue = panel_fraction + scroll_offset;
+    hue = hue - floorf(hue);
+    if (hue < 0) hue += 1.0f;
+    return hsv_to_rgb(hue, 1.0f, 1.0f);
 }
 
 Color WaveColorAlgorithm::_pick_random_target(Color /*exclude_color*/) const {
