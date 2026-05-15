@@ -6,33 +6,6 @@
 static const float WAVE_INTENSITY_EPSILON = 0.001f;
 static const float FULL_CIRCLE_RADIANS = 6.28318530717958647692f;
 
-static const int NUMBER_OF_PRIMARY_COLORS = 6;
-static const Color PRIMARY_COLORS[NUMBER_OF_PRIMARY_COLORS] = {
-    Color(255,   0,   0), // R
-    Color(  0, 255,   0), // G
-    Color(  0,   0, 255), // B
-    Color(  0, 255, 255), // C
-    Color(255,   0, 255), // M
-    Color(255, 255,   0)  // Y
-};
-
-// Classify a color into the nearest of the 6 primaries by which channels are
-// "on" (>= 128). Returns an index into PRIMARY_COLORS, or -1 if the color
-// doesn't match any primary (e.g. idle red at value 3).
-static int classify_primary_index(Color color) {
-    bool red_on   = color.red   >= 128;
-    bool green_on = color.green >= 128;
-    bool blue_on  = color.blue  >= 128;
-
-    if ( red_on && !green_on && !blue_on) return 0; // R
-    if (!red_on &&  green_on && !blue_on) return 1; // G
-    if (!red_on && !green_on &&  blue_on) return 2; // B
-    if (!red_on &&  green_on &&  blue_on) return 3; // C
-    if ( red_on && !green_on &&  blue_on) return 4; // M
-    if ( red_on &&  green_on && !blue_on) return 5; // Y
-    return -1;
-}
-
 // HSV helpers for the overlap blend. Hue is in [0, 1).
 struct Hsv {
     float hue;
@@ -262,44 +235,58 @@ Color WaveColorAlgorithm::_pick_shared_or_new_target(int activating_sensor_index
     return this->_pick_random_target(this->displayed_colors[activating_origin_panel]);
 }
 
-Color WaveColorAlgorithm::_pick_random_target(Color exclude_color) const {
-    // Disallow primaries already in use by any other active wave so two
-    // unrelated interactions don't accidentally pick the same color. Also
-    // exclude the origin panel's currently displayed primary (typically
-    // idle red, but could be a wave color that's still fading out).
-    bool primary_in_use[NUMBER_OF_PRIMARY_COLORS] = {false, false, false, false, false, false};
+Color WaveColorAlgorithm::_pick_random_target(Color /*exclude_color*/) const {
+    // Pick a continuous hue rather than one of 6 primaries. Constraints
+    // (rejection sampled):
+    //   - circular distance to any in-use wave hue >= min_same_distance
+    //     (so unrelated interactions are visibly distinct)
+    //   - circular distance to any in-use wave hue <= 0.5 - min_opposite_distance
+    //     (so two overlapping waves never cancel to gray)
+    //   - circular distance to the idle color hue >= min_same_distance
+    //     (so the activation is visible against the background)
+    // Saturation and value are pinned to 1 so the picked color is a bright,
+    // saturated point on the rainbow.
+    constexpr float min_same_distance     = 0.06f;
+    constexpr float min_opposite_distance = 0.06f;
+    constexpr int   max_attempts          = 32;
+
+    Hsv idle_hsv = rgb_to_hsv(this->config->wave_idle_color);
+    float idle_hue = idle_hsv.hue;
+
+    float in_use_hues[40];  // sized for NUMBER_OF_SENSORS upper bound
+    int in_use_count = 0;
     for (int sensor_index = 0; sensor_index < this->number_of_sensors; sensor_index++) {
         Wave* wave = this->waves[sensor_index];
         if (!wave->is_active()) continue;
-        int wave_primary_index = classify_primary_index(wave->get_target_color());
-        if (wave_primary_index >= 0) primary_in_use[wave_primary_index] = true;
+        Hsv target_hsv = rgb_to_hsv(wave->get_target_color());
+        in_use_hues[in_use_count++] = target_hsv.hue;
     }
 
-    int displayed_exclude_index = classify_primary_index(exclude_color);
+    float candidate_hue = 0.0f;
+    for (int attempt = 0; attempt < max_attempts; attempt++) {
+        candidate_hue = static_cast<float>(random(10000)) / 10000.0f;
 
-    int candidates[NUMBER_OF_PRIMARY_COLORS];
-    int candidate_count = 0;
-    for (int primary_index = 0; primary_index < NUMBER_OF_PRIMARY_COLORS; primary_index++) {
-        if (primary_index == displayed_exclude_index) continue;
-        if (primary_in_use[primary_index]) continue;
-        candidates[candidate_count++] = primary_index;
-    }
+        // Same-hue distance from idle.
+        float distance_to_idle = candidate_hue - idle_hue;
+        if (distance_to_idle < 0) distance_to_idle = -distance_to_idle;
+        if (distance_to_idle > 0.5f) distance_to_idle = 1.0f - distance_to_idle;
+        if (distance_to_idle < min_same_distance) continue;
 
-    // If every primary is in use (rare on a 20-panel strip), drop the
-    // in-use exclusion and just avoid the displayed-color primary.
-    if (candidate_count == 0) {
-        for (int primary_index = 0; primary_index < NUMBER_OF_PRIMARY_COLORS; primary_index++) {
-            if (primary_index == displayed_exclude_index) continue;
-            candidates[candidate_count++] = primary_index;
+        // Same-hue and opposite-hue distance from each in-use wave.
+        bool conflict = false;
+        for (int in_use_index = 0; in_use_index < in_use_count; in_use_index++) {
+            float distance = candidate_hue - in_use_hues[in_use_index];
+            if (distance < 0) distance = -distance;
+            if (distance > 0.5f) distance = 1.0f - distance;
+            if (distance < min_same_distance) { conflict = true; break; }
+            if (distance > 0.5f - min_opposite_distance) { conflict = true; break; }
         }
-    }
-    // Pathological fallback: also drop the displayed-color exclusion.
-    if (candidate_count == 0) {
-        for (int primary_index = 0; primary_index < NUMBER_OF_PRIMARY_COLORS; primary_index++) {
-            candidates[candidate_count++] = primary_index;
-        }
+        if (conflict) continue;
+
+        return hsv_to_rgb(candidate_hue, 1.0f, 1.0f);
     }
 
-    int pick = random(candidate_count);
-    return PRIMARY_COLORS[candidates[pick]];
+    // Couldn't satisfy all constraints in time (e.g. too many in-use hues);
+    // accept whatever was last sampled rather than spin forever.
+    return hsv_to_rgb(candidate_hue, 1.0f, 1.0f);
 }
