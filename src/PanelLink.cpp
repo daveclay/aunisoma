@@ -71,12 +71,19 @@ bool PanelLink::map_panels(const char* panel_ids) {
 }
 
 void PanelLink::map_panels_until_ok(const char* panel_ids) {
+    // Toggle LED_BUILTIN each attempt so a hang here is visible from outside.
+    // Caller must have already pinMode(LED_BUILTIN, OUTPUT)'d.
+    bool led_state = false;
     for (int i = 0; i < 100; i++) {
+        led_state = !led_state;
+        digitalWrite(LED_BUILTIN, led_state ? HIGH : LOW);
         if (map_panels(panel_ids)) {
+            digitalWrite(LED_BUILTIN, HIGH);
             return;
         }
-        delay(100);
+        delay(500);
     }
+    digitalWrite(LED_BUILTIN, LOW);
 }
 
 bool PanelLink::send_colors(const char* color_hex, char pir_out[PANEL_COUNT]) {

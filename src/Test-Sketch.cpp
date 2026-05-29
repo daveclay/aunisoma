@@ -11,7 +11,11 @@
 static char panel_ids[] = "281A221B162515111220181914171F131D211E23";
 
 static PanelLink link;
-static char panel_color_hex[PanelLink::PANEL_COUNT * PanelLink::COLOR_HEX_LEN];
+// +1 for the trailing '\0' — Serial2.print(const char*) reads until null,
+// so the buffer must be terminated or it will emit garbage past the 120
+// hex bytes. Static storage zero-inits the terminator and write_panel
+// never touches the last byte.
+static char panel_color_hex[PanelLink::PANEL_COUNT * PanelLink::COLOR_HEX_LEN + 1];
 static char pir_readings[PanelLink::PANEL_COUNT];
 
 struct RGB {
@@ -40,22 +44,21 @@ static void write_panel(int panel_index, RGB color) {
 }
 
 void setup(void) {
+    pinMode(LED_BUILTIN, OUTPUT);
+    digitalWrite(LED_BUILTIN, LOW);
+
     Serial.begin(9600);
     link.begin();
 
-    pinMode(LED_BUILTIN, OUTPUT);
-
-    for (int panel_index = 0; panel_index < PanelLink::PANEL_COUNT; panel_index++) {
-        write_panel(panel_index, IDLE_RED);
-        pir_readings[panel_index] = '0';
-    }
 
     link.map_panels_until_ok(panel_ids);
+
+    for (int panel_index = 0; panel_index < PanelLink::PANEL_COUNT; panel_index++) {
+        pir_readings[panel_index] = '0';
+    }
 }
 
 void loop(void) {
-    link.send_colors(panel_color_hex, pir_readings);
-
     for (int panel_index = 0; panel_index < PanelLink::PANEL_COUNT; panel_index++) {
         RGB next;
         switch (pir_readings[panel_index]) {
@@ -66,4 +69,7 @@ void loop(void) {
         }
         write_panel(panel_index, next);
     }
+
+    link.send_colors(panel_color_hex, pir_readings);
+    delay(100);
 }

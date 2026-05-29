@@ -31,7 +31,11 @@ char RAINBOW_COLORS[] = "FF0000FF4D00FF9900FFE600CCFF0080FF0033FF0000FF1A00FF660
 #define SIZE_OF_COLOR 6  // number of chars to send the SET_LIGHTS message per panel
 
 PanelLink link;
-char panel_colors[(NUMBER_OF_PANELS * SIZE_OF_COLOR)];
+// +1 for the trailing '\0' — Serial2.print(const char*) reads until null,
+// so the buffer must be terminated or it will emit garbage past the 120
+// hex bytes. Static storage zero-inits the terminator and the fill loop
+// below only writes indices 0..119.
+char panel_colors[(NUMBER_OF_PANELS * SIZE_OF_COLOR) + 1];
 char pir_readings[NUMBER_OF_PANELS];
 
 Sensor sensors[NUMBER_OF_SENSORS];
