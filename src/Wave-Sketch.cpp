@@ -91,15 +91,20 @@ void setup(void) {
     // over wave_rise_duration_ms then falls back to idle over
     // wave_fall_duration_ms; neighbors lag by wave_panel_delay_ms per panel
     // of distance from the source.
-    config.wave_rise_duration_ms = 5000;
-    config.wave_fall_duration_ms = 5000;
-    config.wave_panel_delay_ms = 500;
+    config.wave_rise_duration_ms = 200;
+    config.wave_fall_duration_ms = 1000;
+    config.wave_panel_delay_ms = 200;
     // Zero gap = the next pulse fires the instant the current one finishes
     // its full up-down across the strip.
     config.wave_inter_pulse_delay_ms = 0;
-    // Wave reaches up to 8 panels from its source; linear falloff to zero at
-    // that distance.
+    // Wave reaches up to 8 panels from its source; exponential falloff to
+    // zero at that distance.
     config.wave_max_propagation_distance = 8;
+    // Decay constant k for the per-panel exponential intensity falloff.
+    // 0.5 across 8 panels gives ~0.60 at distance 1 and ~0.23 at distance 4
+    // (vs. linear's 0.875 and 0.5) — noticeably exponential without being
+    // extreme. Raise for a sharper drop-off near the source.
+    config.wave_spatial_decay_constant = 0.5f;
     // When the active-sensor fraction crosses high_interaction_threshold_percent
     // the wave algorithm switches to a scrolling rainbow. This is the time for
     // one full revolution.

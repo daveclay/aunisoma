@@ -1,4 +1,6 @@
 #include "Wave.h"
+
+#include <cmath>
 #include "Arduino.h"
 
 Wave::Wave(Sensor* sensor, Config* config, int origin_panel_index) {
@@ -51,9 +53,15 @@ float Wave::get_intensity_for_panel(int panel_index) const {
         return 0.0f;
     }
 
-    // Linear distance falloff: origin = 1.0, max_distance panel = 0.0,
-    // anything beyond max_distance contributes nothing.
-    float falloff = static_cast<float>(this->max_distance - distance) / static_cast<float>(this->max_distance);
+    // Normalized exponential spatial falloff:
+    //   (exp(-k*distance) - exp(-k*max_distance)) / (1 - exp(-k*max_distance))
+    // pinned to 1.0 at the origin and 0.0 at max_distance, with a configurable
+    // decay constant k. Anything beyond max_distance contributes nothing
+    // (early-returned above).
+    float decay = this->config->wave_spatial_decay_constant;
+    float exp_at_edge     = expf(-decay * static_cast<float>(this->max_distance));
+    float exp_at_distance = expf(-decay * static_cast<float>(distance));
+    float falloff = (exp_at_distance - exp_at_edge) / (1.0f - exp_at_edge);
     float envelope = this->_panel_envelope_value(panel_index);
     return falloff * envelope;
 }

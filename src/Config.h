@@ -42,7 +42,9 @@ public:
     // animation per pulse: rises from idle to attenuated target over
     // wave_rise_duration_ms, then falls back over wave_fall_duration_ms.
     // wave_max_propagation_distance caps how many panels a wave reaches from
-    // its source; intensity falls off linearly to zero at that distance.
+    // its source; intensity falls off exponentially (decay constant
+    // wave_spatial_decay_constant), normalized so it is 1.0 at the origin and
+    // 0.0 at max_distance. Larger decay constant -> sharper drop-off.
     // wave_rainbow_scroll_duration_ms is the time for the rainbow override to
     // scroll one full revolution along the strip during high-interaction mode.
     int wave_rise_duration_ms;
@@ -50,6 +52,7 @@ public:
     int wave_panel_delay_ms;
     int wave_inter_pulse_delay_ms;
     int wave_max_propagation_distance;
+    float wave_spatial_decay_constant;
     int wave_rainbow_scroll_duration_ms;
     int wave_rainbow_transition_duration_ms;
     Color wave_idle_color;
