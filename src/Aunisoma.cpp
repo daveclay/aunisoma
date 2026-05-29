@@ -23,10 +23,6 @@ Aunisoma::Aunisoma(Config* config,
                                                       sensors,
                                                       NUMBER_OF_PANELS,
                                                       NUMBER_OF_SENSORS);
-    this->wave_algorithm = new WaveColorAlgorithm(config, sensors, NUMBER_OF_PANELS, NUMBER_OF_SENSORS);
-
-    // Default to the new wave algorithm; swap to legacy at runtime via set_algorithm(0).
-    this->current_algorithm = this->wave_algorithm;
 }
 
 void Aunisoma::_create_panels() {
@@ -41,16 +37,8 @@ Panel* Aunisoma::get_panel_at(int index) {
 }
 
 void Aunisoma::update() {
-    this->current_algorithm->update();
+    this->legacy_algorithm->update();
     for (int panel_index = 0; panel_index < NUMBER_OF_PANELS; panel_index++) {
-        this->panels[panel_index]->color = this->current_algorithm->get_color_for_panel(panel_index);
-    }
-}
-
-void Aunisoma::set_algorithm(int kind) {
-    if (kind == AUNISOMA_ALGORITHM_LEGACY) {
-        this->current_algorithm = this->legacy_algorithm;
-    } else {
-        this->current_algorithm = this->wave_algorithm;
+        this->panels[panel_index]->color = this->legacy_algorithm->get_color_for_panel(panel_index);
     }
 }

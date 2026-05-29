@@ -3,7 +3,7 @@
 #include "Color.h"
 #include "PanelLink.h"
 
-// Wiring-test sketch. Paints every panel red by default; turns a panel green
+// PIR test sketch. Paints every panel red by default; turns a panel green
 // when its front PIR is active, blue when its back PIR is active, teal when
 // both. Raw PIR — no debouncing. Used to verify wiring and PANEL_IDS order
 // independently of any color algorithm.

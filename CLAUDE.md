@@ -10,14 +10,25 @@ Main loop: read sensor values from master → compute color per window → send 
 
 ## Layout
 
-Single source tree under `arduino/`, built two ways via PlatformIO (`arduino/platformio.ini`):
+Single source tree, built several ways via PlatformIO (`platformio.ini`):
 
-- `arduino/src/` — shared source. `Aunisoma-Sketch.cpp` holds `setup()`/`loop()`; `main.cpp` is the desktop driver (excluded from the hardware build).
-- `arduino/lib/mock-arduino/` — desktop-only mocks (`Arduino.{h,cpp}`, `SPI.h`, `Adafruit_DotStar.h`, `wiring_private.h`). Gated to `platforms: native` in its `library.json`, so it is not built on hardware.
+- `src/` — shared source. Three sketches each provide their own `setup()`/`loop()` pair; the `build_src_filter` in `platformio.ini` selects exactly one per env:
+  - `Aunisoma-Sketch.cpp` — production sketch driving the legacy gradient/reverberation/knight-rider algorithm via the `Aunisoma` class.
+  - `Wave-Sketch.cpp` — production sketch driving `WaveColorAlgorithm` directly (no `Aunisoma` wrapper).
+  - `PIR-Test-Sketch.cpp` — wiring test that paints raw PIR state per panel.
+- `main.cpp` — desktop driver; excluded from every hardware build so the Arduino framework's `main()` is used there.
+- `lib/mock-arduino/` — desktop-only mocks (`Arduino.{h,cpp}`, `SPI.h`, `Adafruit_DotStar.h`, `wiring_private.h`). Gated to `platforms: native` in its `library.json`, so it is not built on hardware.
 
 ## Building
 
-- `pio run -e grandcentral_m4` — firmware build.
-- `pio run -e native` — desktop mock build. Run the resulting binary and redirect stdout to a JSON file (e.g. `script.json`) that the mock HTML page replays.
+Hardware:
+- `pio run -e grandcentral_m4` — legacy algorithm firmware.
+- `pio run -e grandcentral_m4_wave` — wave algorithm firmware.
+- `pio run -e grandcentral_m4_pir_test` — PIR wiring test firmware.
 
-`MOCK_INTERACTIONS` is set per environment via `build_flags` (1 for native, 0 for hardware).
+Desktop mock (run the resulting binary and redirect stdout to a JSON file, e.g. `script.json`, that the mock HTML page replays):
+- `pio run -e native` — legacy algorithm.
+- `pio run -e native_wave` — wave algorithm.
+- `pio run -e native_pir_test` — PIR test.
+
+`MOCK_INTERACTIONS` is set per environment via `build_flags` and defaults to 0 in every env; flip it on at build time when you want synthetic PIR activity instead of real sensor reads.

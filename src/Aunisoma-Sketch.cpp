@@ -223,27 +223,6 @@ void setup(void) {
   // biased to stay high longer?
   config.high_interaction_debounce_ms = 200;
 
-  // Wave algorithm parameters. Each panel rises to its attenuated target
-  // over 600ms then falls back to idle over 600ms; neighbors lag by
-  // wave_panel_delay_ms per panel of distance from the source.
-  config.wave_rise_duration_ms = 5000;
-  config.wave_fall_duration_ms = 5000;
-  config.wave_panel_delay_ms = 500;
-  // Zero gap = the next pulse fires the instant the current one finishes
-  // its full up-down across the strip.
-  config.wave_inter_pulse_delay_ms = 0;
-  // Wave reaches up to 8 panels from its source; linear falloff to zero at
-  // that distance.
-  config.wave_max_propagation_distance = 8;
-  // When the active-sensor fraction crosses high_interaction_threshold_percent
-  // the wave algorithm switches to a scrolling rainbow. This is the time for
-  // one full revolution.
-  config.wave_rainbow_scroll_duration_ms = 8000;
-  // Crossfade duration between wave-blended output and the rainbow override
-  // (each direction).
-  config.wave_rainbow_transition_duration_ms = 1200;
-  config.wave_idle_color = Color(3, 0, 0);
-
   config.init();
 
   aunisoma = new Aunisoma(&config, gradients, 7, &rainbow_gradient, &knight_rider_gradient, sensors);

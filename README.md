@@ -19,38 +19,43 @@ That gives you `pio` on your PATH. The Adafruit Grand Central M4 (SAMD51) toolch
 
 ## Sketches
 
-Two firmware sketches share `src/` and the `PanelLink` serial-protocol module. `platformio.ini` defines one environment per sketch.
+Three firmware sketches share `src/` and the `PanelLink` serial-protocol module. `platformio.ini` defines one environment per sketch.
 
-| Sketch      | Source                | PlatformIO env         | Purpose                                                                                |
-| ----------- | --------------------- | ---------------------- | -------------------------------------------------------------------------------------- |
-| Production  | `Aunisoma-Sketch.cpp` | `grandcentral_m4`      | Real installation. Reads sensors, runs the wave/legacy color algorithm, drives panels. |
-| Wiring test | `Test-Sketch.cpp`     | `grandcentral_m4_test` | Bench/install diagnostic. Red idle; green = front PIR, blue = back PIR, teal = both.   |
+| Sketch   | Source                | PlatformIO env             | Purpose                                                                              |
+| -------- | --------------------- | -------------------------- | ------------------------------------------------------------------------------------ |
+| Legacy   | `Aunisoma-Sketch.cpp` | `grandcentral_m4`          | Original gradient/reverberation/knight-rider algorithm via the `Aunisoma` class.     |
+| Wave     | `Wave-Sketch.cpp`     | `grandcentral_m4_wave`     | `WaveColorAlgorithm` driven directly — per-sensor color pulses that propagate.       |
+| PIR test | `PIR-Test-Sketch.cpp` | `grandcentral_m4_pir_test` | Bench/install diagnostic. Red idle; green = front PIR, blue = back PIR, teal = both. |
 
 The `build_src_filter` in `platformio.ini` picks which sketch file gets compiled, so only one `setup()`/`loop()` is linked at a time.
 
 ## Build & install
 
 ```bash
-# Production firmware.
+# Legacy algorithm firmware.
 pio run -e grandcentral_m4
 pio run -e grandcentral_m4 -t upload
 
-# Wiring-test firmware (paint red / green / blue / teal from raw PIR).
-pio run -e grandcentral_m4_test
-pio run -e grandcentral_m4_test -t upload
+# Wave algorithm firmware.
+pio run -e grandcentral_m4_wave
+pio run -e grandcentral_m4_wave -t upload
 
-# Serial monitor (either sketch).
+# PIR test firmware (paint red / green / blue / teal from raw PIR).
+pio run -e grandcentral_m4_pir_test
+pio run -e grandcentral_m4_pir_test -t upload
+
+# Serial monitor (any sketch).
 pio device monitor
 ```
 
-Use the wiring test to verify each window's panel-id mapping in `PANEL_IDS` matches the physical install: trigger one sensor at a time and confirm the window in front of you is the one that changes color. Re-flash the production firmware (`pio run -e grandcentral_m4 -t upload`) when you're done.
+Use the PIR test to verify each window's panel-id mapping in `PANEL_IDS` matches the physical install: trigger one sensor at a time and confirm the window in front of you is the one that changes color. Re-flash the production firmware (`pio run -e grandcentral_m4 -t upload`) when you're done.
 
 ## Run the desktop mock
 
-The `native` env compiles the production sketch against the mocks in `lib/mock-arduino/`. The binary calls `loop()` many times and writes a JSON script to stdout that the [mock HTML page](https://aftxr.com/aunisoma) replays.
+The `native` envs compile a sketch against the mocks in `lib/mock-arduino/`. The binary calls `loop()` many times and writes a JSON script to stdout that the [mock HTML page](https://aftxr.com/aunisoma) replays. `native_wave` and `native_pir_test` are analogous targets for the other two sketches.
 
 ```bash
-pio run -e native
+pio run -e native        # or -e native_wave / -e native_pir_test
 .pio/build/native/program > script.json
 ```
 
