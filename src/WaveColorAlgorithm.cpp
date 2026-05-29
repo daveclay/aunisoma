@@ -232,14 +232,18 @@ void WaveColorAlgorithm::update() {
         }
 
         // Crossfade in/out of the rainbow override.
+        Color final_color;
         if (this->rainbow_blend <= 0.0f) {
-            this->displayed_colors[panel_index] = resolved;
+            final_color = resolved;
         } else if (this->rainbow_blend >= 1.0f) {
-            this->displayed_colors[panel_index] = this->_rainbow_color_for_panel(panel_index);
+            final_color = this->_rainbow_color_for_panel(panel_index);
         } else {
             Color rainbow_color = this->_rainbow_color_for_panel(panel_index);
-            this->displayed_colors[panel_index] = resolved.interpolate(rainbow_color, this->rainbow_blend);
+            final_color = resolved.interpolate(rainbow_color, this->rainbow_blend);
         }
+        // Multi-wave HSV blend can hit saturation 0 at value 1 when hues
+        // cancel — clamp so the panel never displays pure white.
+        this->displayed_colors[panel_index] = final_color.limit();
     }
 }
 
