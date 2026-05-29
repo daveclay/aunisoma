@@ -1,17 +1,16 @@
-#include "SPI.h"
 #include <string.h>
 #include <stdio.h>
 #ifndef ARDUINO
 #include <chrono>
 #endif
-#include "Arduino.h"         // required before wiring_private.h
-#include "wiring_private.h"  // pinPeripheral() function
+#include "Arduino.h"
 #include "Clock.h"
 #include "Cycle.h"
 #include "Color.h"
 #include "Config.h"
 #include "Gradient.h"
 #include "Panel.h"
+#include "PanelLink.h"
 #include "Reverberation.h"
 #include "Sensor.h"
 #include "Interpolation.h"
@@ -31,28 +30,9 @@ char RAINBOW_COLORS[] = "FF0000FF4D00FF9900FFE600CCFF0080FF0033FF0000FF1A00FF660
 
 #define SIZE_OF_COLOR 6  // number of chars to send the SET_LIGHTS message per panel
 
-Uart Serial2(&sercom1, PIN_SERIAL3_RX, PIN_SERIAL3_TX, PAD_SERIAL3_RX, PAD_SERIAL3_TX);
-void SERCOM1_0_Handler() {
-  Serial2.IrqHandler();
-}
-void SERCOM1_1_Handler() {
-  Serial2.IrqHandler();
-}
-void SERCOM1_2_Handler() {
-  Serial2.IrqHandler();
-}
-void SERCOM1_3_Handler() {
-  Serial2.IrqHandler();
-}
-
-// Panel Board Protocol:
-char ENUMERATE = 'E';
-char SET_STATUS = 'S';
-char SET_LIGHTS = 'L';
-char MAP_PANELS = 'M';
-char TERMINATOR = '\n';
-char responseBuffer[512];  // should be 20 panels * however big messages are
+PanelLink link;
 char panel_colors[(NUMBER_OF_PANELS * SIZE_OF_COLOR)];
+char pir_readings[NUMBER_OF_PANELS];
 
 Sensor sensors[NUMBER_OF_SENSORS];
 
@@ -80,127 +60,43 @@ GradientValueMap gradients[7] = {
 
 Aunisoma* aunisoma;
 
-int send_command(char cmd_byte, char params[]) {
-  // Serial.print("Sending ");
-  // Serial.print(" bytes: '");
-  // Serial.print(cmd_byte);
-  // Serial.print(params);
-  // Serial.println("'");
-
-  Serial2.print(cmd_byte);
-  if (params) {
-    Serial2.print(params);
-  }
-  Serial2.print(TERMINATOR);
-  Serial2.flush();
-
-  int bytesRead = Serial2.readBytesUntil(TERMINATOR, responseBuffer, sizeof(responseBuffer));
-  responseBuffer[bytesRead] = '\0';  // Null-terminate the string
-  return bytesRead;
-}
-
-bool send_enumerate() {
-  // Serial.println("Sending enumerate...");
-  int bytesRead = send_command(ENUMERATE, NULL);
-  if (bytesRead > 0) {
-    // two bytes per panel
-    int activePanels = bytesRead / 2;
-    Serial.print("Initialized ");
-    Serial.print(activePanels);
-    Serial.print(" panels from ");
-    Serial.print(bytesRead);
-    Serial.print(" bytes: ");
-    Serial.println(responseBuffer);
-    for (int i = 0; i < bytesRead; i += 2) {
-      if (responseBuffer[i] != 'V') {
-        return false;
-      }
-    }
-
-    return true;
-  } else {
-    return false;
-  }
-}
-
-bool map_panels() {
-  int bytesRead = send_command(MAP_PANELS, panel_ids);
-  if (bytesRead > 1) {
-    Serial.println(responseBuffer);
-    if (responseBuffer[0] == 'O' && responseBuffer[1] == 'K') {
-      return true;
-    }
-  }
-  return false;
-}
-
-
-void initializePanels() {
-  for (int i = 0; i < 100; i++) {
-    if (map_panels()) {
-      return;
-    } else {
-      delay(100);
-    }
-  }
-}
-
 int iterationCount = 0;
 int mockInteractionPeriod = 200;
 
 bool send_colors(char value[]) {
-  int bytesRead = send_command(SET_LIGHTS, value);
-  if (bytesRead > 0) {
-    // Serial.println(responseBuffer);
-    // 3 - skip "OK " and get to the PIRs
-    // Note: this `min(23, )` business is because I was getting a `bytesRead` value of `35`
-    // even though Serial.println(responseBuffer) returned the normal 23 length string,
-    // and that then writes beyond the sensor array lengths
-    // if (iterationCount % mockInteractionPeriod == 0) {
-    //   std::cout << "WTF " << iterationCount << ": ";
-    // }
-    for (int i = 3; i < min(23, bytesRead); i++) {
-      int panel_index = i - 3;
-      int sensor_index = panel_index * 2;
-
-      if (MOCK_INTERACTIONS) {
-        if (iterationCount % mockInteractionPeriod == 0) {
-          bool mock_front_interactivity = random(0, 11) > 5;
-          bool mock_back_interactivity = random(0, 11) > 5;
-          // std::cout << sensor_index << ": " << (mock_interactivity ? "1" : "0") << ", ";
-          sensors[sensor_index].update(mock_front_interactivity);
-          sensors[sensor_index + 1].update(mock_back_interactivity);
-        } else {
-          // If we don't ping them with the previous value, they never reach the
-          // debounce threshold. The debounce has to be called multiple times.
-          sensors[sensor_index].update(sensors[sensor_index].last_reading);
-          sensors[sensor_index + 1].update(sensors[sensor_index + 1].last_reading);
-        }
-      } else {
-        bool front_sensor_active = responseBuffer[i] == '1' || responseBuffer[i] == '3';
-        bool back_sensor_active = responseBuffer[i] == '2' || responseBuffer[i] == '3';
-        sensors[sensor_index].update(front_sensor_active);
-        sensors[sensor_index + 1].update(back_sensor_active);
-      }
-    }
-    // if (iterationCount % mockInteractionPeriod == 0) {
-    //   std::cout << std::endl;
-    // }
-    return true;
-  } else {
+  if (!link.send_colors(value, pir_readings)) {
     return false;
   }
+  for (int panel_index = 0; panel_index < NUMBER_OF_PANELS; panel_index++) {
+    int sensor_index = panel_index * 2;
+    if (MOCK_INTERACTIONS) {
+      if (iterationCount % mockInteractionPeriod == 0) {
+        bool mock_front_interactivity = random(0, 11) > 5;
+        bool mock_back_interactivity = random(0, 11) > 5;
+        sensors[sensor_index].update(mock_front_interactivity);
+        sensors[sensor_index + 1].update(mock_back_interactivity);
+      } else {
+        // If we don't ping them with the previous value, they never reach the
+        // debounce threshold. The debounce has to be called multiple times.
+        sensors[sensor_index].update(sensors[sensor_index].last_reading);
+        sensors[sensor_index + 1].update(sensors[sensor_index + 1].last_reading);
+      }
+    } else {
+      char pir = pir_readings[panel_index];
+      bool front_sensor_active = pir == '1' || pir == '3';
+      bool back_sensor_active = pir == '2' || pir == '3';
+      sensors[sensor_index].update(front_sensor_active);
+      sensors[sensor_index + 1].update(back_sensor_active);
+    }
+  }
+  return true;
 }
 
 void setup(void) {
   Serial.begin(9600);
-  Serial2.setTimeout(1000);
-  Serial2.begin(230400);
+  link.begin();
 
   pinMode(LED_BUILTIN, OUTPUT);
-
-  pinPeripheral(PIN_SERIAL3_RX, PIO_SERCOM);
-  pinPeripheral(PIN_SERIAL3_TX, PIO_SERCOM);
 
   // Seed the RNG so the wave color picks vary between runs.
 #ifdef ARDUINO
@@ -348,7 +244,7 @@ void setup(void) {
 
   aunisoma = new Aunisoma(&config, gradients, 7, &rainbow_gradient, &knight_rider_gradient, sensors);
 
-  initializePanels();
+  link.map_panels_until_ok(panel_ids);
 }
 
 // + 1 for \0 terminated, which snprintf wants
@@ -395,7 +291,7 @@ void loop(void) {
   iterationCount++;
 
   if (iterationCount == 4000) {
-    map_panels();
+    link.map_panels(panel_ids);
     iterationCount = 0;
   }
 

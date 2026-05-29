@@ -17,29 +17,39 @@ uv tool install platformio
 
 That gives you `pio` on your PATH. The Adafruit Grand Central M4 (SAMD51) toolchain is downloaded on first build.
 
-## Build
+## Sketches
 
-The Arduino source lives in `arduino/`. Both targets share `arduino/src/`; `arduino/platformio.ini` defines the two environments.
+Two firmware sketches share `src/` and the `PanelLink` serial-protocol module. `platformio.ini` defines one environment per sketch.
+
+| Sketch      | Source                | PlatformIO env         | Purpose                                                                                |
+| ----------- | --------------------- | ---------------------- | -------------------------------------------------------------------------------------- |
+| Production  | `Aunisoma-Sketch.cpp` | `grandcentral_m4`      | Real installation. Reads sensors, runs the wave/legacy color algorithm, drives panels. |
+| Wiring test | `Test-Sketch.cpp`     | `grandcentral_m4_test` | Bench/install diagnostic. Red idle; green = front PIR, blue = back PIR, teal = both.   |
+
+The `build_src_filter` in `platformio.ini` picks which sketch file gets compiled, so only one `setup()`/`loop()` is linked at a time.
+
+## Build & install
 
 ```bash
-cd arduino
-
-# Firmware for the Adafruit Grand Central M4 (SAMD51).
+# Production firmware.
 pio run -e grandcentral_m4
-
-# Upload to a connected board.
 pio run -e grandcentral_m4 -t upload
 
-# Serial monitor.
+# Wiring-test firmware (paint red / green / blue / teal from raw PIR).
+pio run -e grandcentral_m4_test
+pio run -e grandcentral_m4_test -t upload
+
+# Serial monitor (either sketch).
 pio device monitor
 ```
 
+Use the wiring test to verify each window's panel-id mapping in `PANEL_IDS` matches the physical install: trigger one sensor at a time and confirm the window in front of you is the one that changes color. Re-flash the production firmware (`pio run -e grandcentral_m4 -t upload`) when you're done.
+
 ## Run the desktop mock
 
-The `native` env compiles the same source against the mocks in `arduino/lib/mock-arduino/`. The binary calls `loop()` many times and writes a JSON script to stdout that the [mock HTML page](https://aftxr.com/aunisoma) replays.
+The `native` env compiles the production sketch against the mocks in `lib/mock-arduino/`. The binary calls `loop()` many times and writes a JSON script to stdout that the [mock HTML page](https://aftxr.com/aunisoma) replays.
 
 ```bash
-cd arduino
 pio run -e native
 .pio/build/native/program > script.json
 ```

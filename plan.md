@@ -1,226 +1,197 @@
-# Plan: new wave-based color interaction algorithm
+# Plan: panel-wiring test sketch
 
 ## Goal
 
-Add a new color algorithm. On sensor activation a panel picks a primary from
-{R, G, B, C, M, Y} (excluding its current shown color) and a wave propagates
-outward to the strip ends with distance-decaying intensity. Overlapping waves
-yield color-wheel-opposite complements. Sensor deactivation fades the
-wave's affected panels back to idle red (`#030000`) simultaneously.
+Add a separate "test" sketch that exercises only the panel-link protocol so
+we can verify wiring and PIR reporting on hardware without any color
+algorithm running. Behavior:
 
-The original `ColorManager` / `Reverberation` algorithm is preserved and
-selectable at runtime. New algorithm is the default for now.
+- Every panel starts at red (idle).
+- Front PIR active → that panel goes green.
+- Back PIR active → that panel goes blue.
+- Both PIRs active → that panel goes teal.
 
-## Approach
+Re-use the existing serial protocol code (enumerate, map_panels, set_lights)
+without copy-paste.
 
-Introduce a `ColorAlgorithm` abstraction. `Aunisoma::update()` becomes a thin
-shim that delegates to whichever algorithm is currently selected. The
-existing pipeline moves into `LegacyColorAlgorithm` with no behavior changes.
-The new behavior goes into `WaveColorAlgorithm`.
+## Strategy
+
+The cleanest split: extract the panel-link protocol out of
+`Aunisoma-Sketch.cpp` into its own translation unit, then write a small
+`Test-Sketch.cpp` that uses it. A second PlatformIO environment picks which
+sketch file gets compiled.
 
 ```
-Aunisoma
- ├─ Sensor[40]                       (unchanged)
- ├─ Panel[20]                        (unchanged)
- └─ ColorAlgorithm* current ──┬─ LegacyColorAlgorithm  (wraps existing code)
-                              └─ WaveColorAlgorithm    (new)
+src/
+ ├─ PanelLink.{h,cpp}        (new — owns Serial2 + protocol)
+ ├─ Aunisoma-Sketch.cpp      (modified — calls PanelLink)
+ ├─ Test-Sketch.cpp          (new — calls PanelLink, no algorithm)
+ └─ main.cpp                 (unchanged desktop driver)
 ```
 
-Runtime switch mechanism is deferred — `Aunisoma::set_algorithm(int)` is
-stubbed. A serial command from the master, a long-press gesture, or a
-build flag can wire in later.
-
-## Decisions (from spec discussion)
-
-- **Per-panel pulse shape:** each panel does a full up-down animation —
-  idle → attenuated target over `wave_rise_duration_ms` (600ms), then back
-  to idle over `wave_fall_duration_ms` (600ms). Neighbors lag the source
-  by `wave_panel_delay_ms` per panel of distance, with intensity scaled
-  by linear distance falloff.
-- **While sensor is active:** waves pulse continuously. When the current
-  pulse completes its full up-down across the entire strip, a new pulse
-  fires from the origin with a fresh target color.
-- **Wave end on sensor inactive:** the in-flight pulse completes naturally
-  (each panel finishes its up-down) and the wave then goes idle. No
-  separate fade-out phase needed.
-- **Target color pick:** uniform random from the 6 primaries, excluding
-  whichever color the origin panel is currently displaying. Re-rolled on
-  every new pulse.
-- **Overlap rule:** color-wheel opposite of the additive sum of overlapping
-  wave targets (R↔C, G↔M, B↔Y).
-- **Idle color:** `#030000` (red, value 3) everywhere.
-- **Existing algorithm:** keep as-is, switchable at runtime.
+The alternative — duplicating the protocol helpers inside `Test-Sketch.cpp`
+— is rejected: ~80 lines of Serial2 setup + framing that would silently
+drift. The extraction is small and self-contained.
 
 ## New files
 
-### `src/ColorAlgorithm.h`
+### `src/PanelLink.h`
 
-Abstract base:
+Owns `Serial2`, the SERCOM1 IRQ handlers, response buffer, and protocol
+constants. Exposes:
 
 ```cpp
-class ColorAlgorithm {
+class PanelLink {
 public:
-    virtual void update() = 0;
-    virtual Color get_color_for_panel(int panel_index) const = 0;
-    virtual ~ColorAlgorithm() = default;
+    static constexpr int NUMBER_OF_PANELS = 20;
+    static constexpr int SIZE_OF_COLOR = 6;
+
+    void begin();                                  // Serial2 setup + pinPeripheral
+    bool enumerate();                              // 'E' command
+    bool map_panels(const char* panel_ids);        // 'M' command
+    void map_panels_until_ok(const char* panel_ids); // current initializePanels loop
+
+    // Send 20-panel color hex string. After the master responds with
+    // "OK " + 20 PIR bytes, copies the 20 PIR bytes ('0'/'1'/'2'/'3')
+    // into pir_out. Returns true on success.
+    bool send_colors(const char* color_hex, char pir_out[NUMBER_OF_PANELS]);
 };
 ```
 
-### `src/LegacyColorAlgorithm.{h,cpp}`
+### `src/PanelLink.cpp`
 
-Owns `ColorManager`, `Reverberation[40]`, `ValueSmoothingFn[20]`. `update()`
-is the current body of `Aunisoma::update()` lifted verbatim. Zero behavior
-change.
+- Move `Uart Serial2(...)` declaration and the four `SERCOM1_x_Handler`
+  shims here. These must stay at file scope to be picked up by the
+  Arduino IRQ vector table — wrapping them in the class is not an option.
+- Move `responseBuffer`, command-byte constants (`ENUMERATE`, `SET_STATUS`,
+  `SET_LIGHTS`, `MAP_PANELS`, `TERMINATOR`), `send_command`, the
+  enumerate/map helpers, and the protocol bits of `send_colors`.
+- `send_colors` returns the raw 20 PIR bytes; sensor debounce + the
+  `MOCK_INTERACTIONS` path move *out* of PanelLink and stay in the
+  production sketch (see below). PanelLink is protocol-only.
 
-### `src/Wave.{h,cpp}`
+### `src/Test-Sketch.cpp`
 
-One per sensor (40 total).
+Stand-alone `setup()` / `loop()`. No `Aunisoma`, no `Config`, no `Sensor[]`,
+no gradients.
 
-State:
-- `Sensor* sensor`, `int origin_panel_index`
-- `int max_distance` = `max(origin_panel_index, NUMBER_OF_PANELS - 1 - origin_panel_index)`
-- `Color current_pulse_color`
-- `enum {IDLE, PROPAGATING} state`
-- `Clock pulse_clock` — ms since the current pulse started
+```cpp
+PanelLink link;
+char panel_color_hex[PanelLink::NUMBER_OF_PANELS * PanelLink::SIZE_OF_COLOR];
+char pir_readings[PanelLink::NUMBER_OF_PANELS];
 
-`update()`:
-- On inactive→active sensor edge: pick `current_pulse_color` (caller passes
-  "exclude" color), reset `pulse_clock`, enter PROPAGATING.
-- In PROPAGATING when the current pulse fully completes (see below):
-  - if sensor still active → fire next pulse (re-pick color, reset
-    `pulse_clock`).
-  - if sensor now inactive → enter IDLE.
+constexpr char PANEL_IDS[] = "281A221B162515111220181914171F131D211E23";
 
-**Pulse complete** condition: `pulse_clock >= max_distance * panel_delay_ms + rise_duration_ms + fall_duration_ms` — the farthest panel has finished both its rise and its fall back to idle. This guarantees clean separation between consecutive pulses on the same wave.
+// Test palette (raw 0-255, gamma applied on write).
+constexpr Color IDLE_RED   { 3,   0,   0};
+constexpr Color FRONT_GREEN{ 0, 255,   0};
+constexpr Color BACK_BLUE  { 0,   0, 255};
+constexpr Color BOTH_TEAL  { 0, 255, 255};
 
-`float get_intensity_for_panel(int panel_index)`:
-- `distance = |panel_index - origin_panel_index|`
-- `falloff = (max_distance - distance) / max_distance` (linear; tweakable)
-- `panel_delay = distance * panel_delay_ms`
-- `elapsed_in_panel = pulse_clock - panel_delay`
-- if `elapsed_in_panel <= 0`: not yet started → intensity = 0
-- if `elapsed_in_panel < rise_duration_ms`: rising → intensity = falloff × (elapsed_in_panel / rise_duration_ms)
-- if `elapsed_in_panel < rise_duration_ms + fall_duration_ms`: falling → intensity = falloff × (1 − (elapsed_in_panel − rise_duration_ms) / fall_duration_ms)
-- else: pulse for this panel is over → intensity = 0
+void setup() {
+    Serial.begin(9600);
+    link.begin();
+    link.map_panels_until_ok(PANEL_IDS);
+    // Prime every panel to red so the very first send_colors paints idle.
+    write_all_panels(IDLE_RED);
+}
 
-`Color get_color_for_panel(int panel_index)` returns `current_pulse_color`
-(no crossfade — each panel naturally returns to idle between pulses, so
-the previous pulse's color is gone by the time the next pulse begins).
-
-### `src/WaveColorAlgorithm.{h,cpp}`
-
-Owns `Wave[40]` + per-panel display state.
-
-Per-panel state:
-- `Color displayed` (the most recent resolved output for that panel)
-
-`update()`:
-1. `waves[wave_index].update()` for each wave (handles pulse re-firing internally).
-2. For each panel: collect waves where `intensity > epsilon`. Each wave
-   already exposes `(color, intensity)` per panel — including its own
-   previous→current crossfade. Resolve panel color:
-   - **0 waves** → idle red.
-   - **1 wave** → `lerp(idle, wave.color_at(panel_index), wave.intensity_at(panel_index))`.
-   - **≥2 waves** → `lerp(idle, complement(wave_colors_at(panel_index)), max(intensities))`.
-3. Write straight to `displayed[panel_index]`. The per-pulse crossfade lives
-   in the wave (so a new pulse smoothly retargets each panel as its leading
-   edge passes); no separate per-panel from/target/clock state is needed.
-
-`get_color_for_panel(panel_index)` returns `displayed[panel_index]`.
-
-## Color picking (random, excluding current shown)
-
-Six primaries as constants:
-```
-R = (255,   0,   0)
-G = (  0, 255,   0)
-B = (  0,   0, 255)
-C = (  0, 255, 255)
-M = (255,   0, 255)
-Y = (255, 255,   0)
+void loop() {
+    link.send_colors(panel_color_hex, pir_readings);
+    for (int panel_index = 0; panel_index < PanelLink::NUMBER_OF_PANELS; panel_index++) {
+        Color next;
+        switch (pir_readings[panel_index]) {
+            case '1': next = FRONT_GREEN; break;
+            case '2': next = BACK_BLUE;   break;
+            case '3': next = BOTH_TEAL;   break;
+            default:  next = IDLE_RED;    break;
+        }
+        write_panel_hex(panel_index, next);
+    }
+}
 ```
 
-When a wave starts, `WaveColorAlgorithm` passes the origin panel's currently
-displayed color to `Wave::start(Color exclude)`. Classify `exclude` into the
-nearest primary (by max-channel pattern), drop it from the candidate set,
-pick uniformly from the remaining 5.
+`write_panel_hex` reuses the same `snprintf("%02x%02x%02x", gamma_lut[...])`
+pattern from `Aunisoma-Sketch.cpp` so the on-wire format is identical to
+production. No debouncing — raw PIR. Per `feedback_assume_sensor_legit`,
+this matches what we want: active means real interaction.
 
-## Overlap rule (color-wheel opposite of A+B)
-
-Component-wise add the overlapping wave target colors, classify the sum into
-the nearest primary, return its wheel-opposite via static table:
-
-```
-R↔C   G↔M   B↔Y
-```
-
-For ≥3 overlapping waves, sum them all then take the same opposite. Small
-precomputed 6×6 table covers the 2-wave case; degenerate cases (e.g. both
-waves are R) fall through to "the obvious complement of that single color."
+The 11-hour shutdown guard from production is **not** included — the test
+sketch is run interactively at the workbench, not left running on solar.
 
 ## Modified files
 
-### `src/Aunisoma.{h,cpp}`
-
-- Drop direct ownership of `ColorManager` / `Reverberation[]` /
-  `ValueSmoothingFn[]`.
-- Hold `ColorAlgorithm* current_algorithm` plus pointers to both concrete
-  algorithms (so we can swap without reallocating).
-- `update()` becomes:
-
-```cpp
-current_algorithm->update();
-for (int panel_index = 0; panel_index < NUMBER_OF_PANELS; panel_index++)
-    panels[panel_index]->color = current_algorithm->get_color_for_panel(panel_index);
-```
-
-- Add `void set_algorithm(int kind)` stub (0 = legacy, 1 = wave). Default
-  to wave.
-
-### `src/Config.{h,cpp}`
-
-Add new wave-specific config:
-- `int wave_rise_duration_ms` (default 600 — idle → attenuated target)
-- `int wave_fall_duration_ms` (default 600 — attenuated target → idle)
-- `int wave_panel_delay_ms` (default 150 — per panel of distance from origin)
-- `int wave_inter_pulse_delay_ms` (default 0 — gap between consecutive pulses)
-- `Color wave_idle_color` (default `(3, 0, 0)`)
-
 ### `src/Aunisoma-Sketch.cpp`
 
-Pass new config values. Existing gradient setup remains untouched (legacy
-algorithm still needs it).
+- Delete `Uart Serial2`, the four SERCOM handlers, `responseBuffer`, the
+  command-byte constants, `send_command`, `send_enumerate`, `map_panels`,
+  `initializePanels`, and the protocol slice of `send_colors`.
+- Add `PanelLink link;` at file scope.
+- `setup()` calls `link.begin()` and `link.map_panels_until_ok(panel_ids)`
+  in place of the current Serial2/pinPeripheral block + `initializePanels()`.
+- `loop()` builds the color hex string as today, then calls
+  `link.send_colors(panel_colors, pir_readings)` and walks `pir_readings`
+  to drive `sensors[].update(...)`. The `MOCK_INTERACTIONS` branch stays
+  here (it gates the *sensor* update, not the wire protocol).
 
-## Verification
+Net: production behavior unchanged; only the protocol plumbing moves.
 
-- `pio run -e native`, capture stdout to `script.json`, replay in mock HTML.
-- Walk through:
-  1. Idle holds at `#030000`.
-  2. Single sensor activate → source rises to picked primary over 600ms,
-     then falls back to idle over 600ms; neighbors cascade outward with
-     the same up-down envelope delayed by `wave_panel_delay_ms` per panel
-     of distance, with intensity scaled by linear distance falloff.
-  3. The wave visibly travels across the strip with panels lighting up and
-     going dark as the pulse sweeps past.
-  4. Sensor stays active → after the current pulse fully completes, a
-     new pulse with a different color starts from origin and sweeps
-     outward again. Repeats until the sensor goes inactive.
-  5. Sensor deactivate → in-flight pulse completes naturally; no separate
-     fade-out phase.
-  6. Two sensors at opposite ends → waves propagate inward, overlap band
-     shows wheel-opposite color; each side keeps re-pulsing independently.
-  7. Same sensor toggled twice → second activation picks a different
-     target than the first.
-- Confirm legacy algorithm path still works when `set_algorithm(0)` is
-  invoked (a temporary `#define` at top of `setup()` is sufficient for the
-  smoke test).
+### `platformio.ini`
+
+Add a third environment that swaps which sketch file is built:
+
+```ini
+[env:grandcentral_m4_test]
+extends = env:grandcentral_m4
+build_src_filter = +<*> -<main.cpp> -<Aunisoma-Sketch.cpp>
+```
+
+And update the existing production env's filter so the new test sketch
+isn't compiled into firmware:
+
+```ini
+[env:grandcentral_m4]
+...
+build_src_filter = +<*> -<main.cpp> -<Test-Sketch.cpp>
+```
+
+Native env stays as-is (it builds everything but `main.cpp` provides the
+entry point — having two `setup()`/`loop()` pairs would break the link).
+To keep native compiling, also exclude `Test-Sketch.cpp` from native:
+
+```ini
+[env:native]
+...
+build_src_filter = +<*> -<Test-Sketch.cpp>
+```
 
 ## Open question
 
-Inter-pulse gap: should the next pulse fire the instant the previous one
-finishes (continuous), or wait a short configurable delay first? A small
-gap (~500ms) makes individual color changes more readable; zero gap keeps
-the strip in constant motion.
+`PanelLink` currently has no constructor parameters because the protocol
+is fixed. If we ever need to retarget at a different baud or pin set,
+those become constructor args. Not worth parameterising up front.
 
-Default plan: zero gap (continuous). Add a `wave_inter_pulse_delay_ms`
-config knob defaulting to 0 so we can tune later without code changes.
+## Build / run
+
+- `pio run -e grandcentral_m4` — production firmware (behavior unchanged).
+- `pio run -e grandcentral_m4_test -t upload` — flash the wiring test.
+- `pio run -e native` — desktop mock build (unchanged).
+
+## Verification
+
+1. `pio run -e grandcentral_m4` succeeds with no new warnings; behavior
+   on hardware is the same as before the refactor (smoke test: panels
+   light up with current wave algorithm).
+2. `pio run -e grandcentral_m4_test -t upload`. Power on with no one
+   in front of any window: every panel solid red.
+3. Wave a hand in front of one window's front sensor only: that panel
+   turns green; releases back to red after the front sensor clears.
+4. Same for the back sensor: that panel turns blue.
+5. Trigger both sensors on the same panel: panel turns teal.
+6. Trigger neighbouring panels independently: each panel reflects only
+   its own pair of sensors (no cross-talk → wiring map is correct).
+7. Physically walk past each window in order, triggering one sensor
+   at a time, and confirm the window that lights up is the one you're
+   standing in front of. If `PANEL_IDS` is out of order relative to
+   the install, the wrong window will react — which is the wiring bug
+   this sketch exists to catch.
