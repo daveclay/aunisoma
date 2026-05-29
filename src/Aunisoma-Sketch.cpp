@@ -276,25 +276,25 @@ void setup(void) {
   // The duration for pulses in a reverberation. Must be longer than
   // reverberation_panel_delay_ms or neighbors won't trigger before the
   // source panel finishes animating. Originally 20-40 ticks; baseline
-  // loop period was ~240ms, so rescaled by ~240.
-  config.single_panel_pulse_duration = new Range(4800, 9600);
+  // loop period is ~2.4ms, so rescaled by ~2.4.
+  config.single_panel_pulse_duration = new Range(48, 96);
   // How long to wait to trigger a neighbor Panel to reverberate. If this is longer
   // than the single panel pulse, they won't fire because neighbors are one-shots
   // triggered by the start of the source panel. Originally 3 ticks.
-  config.reverberation_panel_delay_ms = 720;
+  config.reverberation_panel_delay_ms = 7;
   // How long to wait at no interaction before reverting back to the default
-  // gradient color. Originally 1500-2000 ticks (~6-8 min).
-  config.default_gradient_delay_duration_range = new Range(360000, 480000);
+  // gradient color. Originally 1500-2000 ticks (~3.6-4.8 s).
+  config.default_gradient_delay_duration_range = new Range(3600, 4800);
   // Long, highly variable - power consumption should be prioritized.
-  // Originally 6000-12000 ticks (~24-48 min).
-  config.no_interaction_knight_rider_delay_range = new Range(1440000, 2880000);
+  // Originally 6000-12000 ticks (~14.4-28.8 s).
+  config.no_interaction_knight_rider_delay_range = new Range(14400, 28800);
   config.high_interaction_threshold_percent = .25;
   config.intermediate_interaction_threshold_percent = .1;
 
   // How long to wait for a gradient transition while in the medium
   // interactivity state. Longer means people have to move for longer to get
-  // it to switch color. Originally 4000 ticks (~16 min).
-  config.delay_for_gradient_transition_duration = 960000;
+  // it to switch color. Originally 4000 ticks (~9.6 s).
+  config.delay_for_gradient_transition_duration = 9600;
 
   // smoothing amount for panel values. In the web mockup, 10 is a
   // little jumpy, 30 is smooth, 100 blurs so that it never goes
@@ -302,15 +302,15 @@ void setup(void) {
   // NOTE: this is a sample count, NOT a duration.
   config.smoothing_fn_window_size = 10;
   // How long it takes to transition from one gradient to another.
-  // Originally 100 ticks (~24s).
-  config.gradient_transition_animation_duration = 24000;
+  // Originally 100 ticks (~240 ms).
+  config.gradient_transition_animation_duration = 240;
   // Reset to the default gradient is idle-to-idle (small raw color delta), so
   // a shorter duration avoids the visible-step plateau effect — quick fade
   // instead of long "stalled" plateaus.
   config.transition_to_default_gradient_duration = 4000;
   // How long a single state is allowed before resetting to a known state.
-  // Originally 5000 ticks (~20 min). Currently unused; see _update_state_watchdog.
-  config.watchdog_state_duration_limit_ms = 1200000;
+  // Originally 5000 ticks (~12 s). Currently unused; see _update_state_watchdog.
+  config.watchdog_state_duration_limit_ms = 12000;
 
   // Debounce durations (ms) for interaction-level readings. Going low takes
   // longer than going high for knight-rider; no-interaction is biased to stay

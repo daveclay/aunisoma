@@ -10,8 +10,8 @@
 #define NUMBER_OF_PANELS 20
 
 KnightRiderAnimation::KnightRiderAnimation(GradientValueMap* knight_rider_gradient) {
-  // Originally 42 ticks (~10s); rescaled to ms via the ~240ms/loop baseline.
-  this->knight_rider_cycle = new Cycle(10080, false, UP_DOWN_CYCLE);
+  // Originally 42 ticks (~100ms); rescaled to ms via the ~2.4ms/loop baseline.
+  this->knight_rider_cycle = new Cycle(101, false, UP_DOWN_CYCLE);
   this->knight_rider_gradient = knight_rider_gradient;
   this->leading_panel_index = -1;
 }

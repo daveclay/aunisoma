@@ -32,8 +32,8 @@ ColorManager::ColorManager(GradientValueMap* gradients, int number_of_gradients,
     this->config->no_interaction_knight_rider_delay_range->random_int_between()
   );
   // How long to run the idle knight rider animation before going back to idle.
-  // Originally 200 ticks (~48s); rescaled by ~240.
-  this->knight_rider_animation_duration_timer = new Timer(48000);
+  // Originally 200 ticks (~480ms); rescaled by ~2.4.
+  this->knight_rider_animation_duration_timer = new Timer(480);
   this->transition_interpolation = new Interpolation(config->gradient_transition_animation_duration);
   this->rainbow_panel_animation = new DistributedPanelAnimation(config);
   this->knight_rider_animation = new KnightRiderAnimation(knight_rider_gradient);
