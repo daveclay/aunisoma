@@ -57,6 +57,9 @@ The `native` envs compile a sketch against the mocks in `lib/mock-arduino/`. The
 ```bash
 pio run -e native        # or -e native_wave / -e native_pir_test
 .pio/build/native/program > script.json
+
+pio run -e native_wave
+.pio/build/native_wave/program > script.json
 ```
 
 Then open `script.json` in the mock page.

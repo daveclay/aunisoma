@@ -30,8 +30,8 @@ private:
     Clock rainbow_clock;
     Clock transition_clock;
 
-    Color _pick_shared_or_new_target(int activating_sensor_index, int activating_origin_panel);
-    Color _pick_random_target(Color exclude_color) const;
+    Color _pick_target_for_activation(int activating_sensor_index, int activating_origin_panel);
+    Color _pick_random_saturated_color() const;
     bool _is_high_interaction() const;
     Color _rainbow_color_for_panel(int panel_index) const;
 };

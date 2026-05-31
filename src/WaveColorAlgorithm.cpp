@@ -113,7 +113,7 @@ void WaveColorAlgorithm::update() {
         if (active_now && !was_active) {
             Wave* wave = this->waves[sensor_index];
             int origin = wave->get_origin_panel_index();
-            Color target = this->_pick_shared_or_new_target(sensor_index, origin);
+            Color target = this->_pick_target_for_activation(sensor_index, origin);
             wave->start_activation(target);
         }
     }
@@ -251,15 +251,15 @@ Color WaveColorAlgorithm::get_color_for_panel(int panel_index) const {
     return this->displayed_colors[panel_index];
 }
 
-Color WaveColorAlgorithm::_pick_shared_or_new_target(int activating_sensor_index, int activating_origin_panel) {
-    // "Gap of 2 inactive panels" between two origin panels P1 and P2 means
-    // |P1 - P2| - 1 == 2, i.e. |P1 - P2| == 3. We share when the gap is 0
-    // or 1 inactive panels between, so |P1 - P2| <= 2.
-    const int max_share_origin_distance = 2;
+Color WaveColorAlgorithm::_pick_target_for_activation(int activating_sensor_index, int activating_origin_panel) {
+    // Adjacent = origin panels within 1 of each other (also covers the
+    // sibling sensor on the same panel, distance 0). Anything farther is
+    // treated as unrelated and picks a fresh random hue.
+    const int neighbor_max_distance = 1;
 
-    int best_distance = max_share_origin_distance + 1;
-    Color best_color = this->config->wave_idle_color;
-    bool found_shared = false;
+    int closest_distance = neighbor_max_distance + 1;
+    Color neighbor_color = this->config->wave_idle_color;
+    bool found_neighbor = false;
 
     for (int other_sensor_index = 0; other_sensor_index < this->number_of_sensors; other_sensor_index++) {
         if (other_sensor_index == activating_sensor_index) continue;
@@ -268,18 +268,24 @@ Color WaveColorAlgorithm::_pick_shared_or_new_target(int activating_sensor_index
         int other_origin = other->get_origin_panel_index();
         int origin_distance = other_origin - activating_origin_panel;
         if (origin_distance < 0) origin_distance = -origin_distance;
-        if (origin_distance > max_share_origin_distance) continue;
-        if (origin_distance < best_distance) {
-            best_distance = origin_distance;
-            best_color = other->get_target_color();
-            found_shared = true;
+        if (origin_distance > neighbor_max_distance) continue;
+        if (origin_distance < closest_distance) {
+            closest_distance = origin_distance;
+            neighbor_color = other->get_target_color();
+            found_neighbor = true;
         }
     }
 
-    if (found_shared) {
-        return best_color;
+    if (found_neighbor) {
+        // Shift the neighbor's hue by 1/20 of the wheel so a chain of
+        // adjacent activations forms a smooth gradient instead of one
+        // dominant color.
+        Hsv neighbor_hsv = rgb_to_hsv(neighbor_color);
+        float shifted_hue = neighbor_hsv.hue + (1.0f / 20.0f);
+        if (shifted_hue >= 1.0f) shifted_hue -= 1.0f;
+        return hsv_to_rgb(shifted_hue, 1.0f, 1.0f);
     }
-    return this->_pick_random_target(this->displayed_colors[activating_origin_panel]);
+    return this->_pick_random_saturated_color();
 }
 
 bool WaveColorAlgorithm::_is_high_interaction() const {
@@ -305,58 +311,7 @@ Color WaveColorAlgorithm::_rainbow_color_for_panel(int panel_index) const {
     return hsv_to_rgb(hue, 1.0f, 1.0f);
 }
 
-Color WaveColorAlgorithm::_pick_random_target(Color /*exclude_color*/) const {
-    // Pick a continuous hue rather than one of 6 primaries. Constraints
-    // (rejection sampled):
-    //   - circular distance to any in-use wave hue >= min_same_distance
-    //     (so unrelated interactions are visibly distinct)
-    //   - circular distance to any in-use wave hue <= 0.5 - min_opposite_distance
-    //     (so two overlapping waves never cancel to gray)
-    //   - circular distance to the idle color hue >= min_same_distance
-    //     (so the activation is visible against the background)
-    // Saturation and value are pinned to 1 so the picked color is a bright,
-    // saturated point on the rainbow.
-    constexpr float min_same_distance     = 0.06f;
-    constexpr float min_opposite_distance = 0.06f;
-    constexpr int   max_attempts          = 32;
-
-    Hsv idle_hsv = rgb_to_hsv(this->config->wave_idle_color);
-    float idle_hue = idle_hsv.hue;
-
-    float in_use_hues[40];  // sized for NUMBER_OF_SENSORS upper bound
-    int in_use_count = 0;
-    for (int sensor_index = 0; sensor_index < this->number_of_sensors; sensor_index++) {
-        Wave* wave = this->waves[sensor_index];
-        if (!wave->is_active()) continue;
-        Hsv target_hsv = rgb_to_hsv(wave->get_target_color());
-        in_use_hues[in_use_count++] = target_hsv.hue;
-    }
-
-    float candidate_hue = 0.0f;
-    for (int attempt = 0; attempt < max_attempts; attempt++) {
-        candidate_hue = static_cast<float>(random(10000)) / 10000.0f;
-
-        // Same-hue distance from idle.
-        float distance_to_idle = candidate_hue - idle_hue;
-        if (distance_to_idle < 0) distance_to_idle = -distance_to_idle;
-        if (distance_to_idle > 0.5f) distance_to_idle = 1.0f - distance_to_idle;
-        if (distance_to_idle < min_same_distance) continue;
-
-        // Same-hue and opposite-hue distance from each in-use wave.
-        bool conflict = false;
-        for (int in_use_index = 0; in_use_index < in_use_count; in_use_index++) {
-            float distance = candidate_hue - in_use_hues[in_use_index];
-            if (distance < 0) distance = -distance;
-            if (distance > 0.5f) distance = 1.0f - distance;
-            if (distance < min_same_distance) { conflict = true; break; }
-            if (distance > 0.5f - min_opposite_distance) { conflict = true; break; }
-        }
-        if (conflict) continue;
-
-        return hsv_to_rgb(candidate_hue, 1.0f, 1.0f);
-    }
-
-    // Couldn't satisfy all constraints in time (e.g. too many in-use hues);
-    // accept whatever was last sampled rather than spin forever.
+Color WaveColorAlgorithm::_pick_random_saturated_color() const {
+    float candidate_hue = static_cast<float>(random(10000)) / 10000.0f;
     return hsv_to_rgb(candidate_hue, 1.0f, 1.0f);
 }
