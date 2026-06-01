@@ -151,9 +151,9 @@ void loop(void) {
         snprintf(current_panel_color,
                  SIZE_OF_COLOR + 1,
                  "%02x%02x%02x",
-                 gamma_lut[color.red],
-                 gamma_lut[color.green],
-                 gamma_lut[color.blue]);
+                 color.red,
+                 color.green,
+                 color.blue);
         for (int char_index = 0; char_index < SIZE_OF_COLOR; char_index++) {
             panel_colors[(panel_index * SIZE_OF_COLOR) + char_index] = current_panel_color[char_index];
         }
