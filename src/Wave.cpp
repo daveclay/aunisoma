@@ -53,14 +53,16 @@ float Wave::get_intensity_for_panel(int panel_index) const {
         return 0.0f;
     }
 
-    // Exponential spatial falloff: exp(-k*distance). 1.0 at the origin,
-    // decays with configurable constant k. max_distance is a hard cutoff
-    // (early-returned above) rather than a normalization edge, so the panel
-    // at max_distance still contributes exp(-k*max_distance) instead of 0.
+    // Exponential spatial falloff exp(-k*distance), multiplied by a linear
+    // edge taper (1 - distance/max_distance) so the wave fades cleanly to 0
+    // at the boundary instead of dropping off a cliff. The taper also pulls
+    // the outer half of the wave down, concentrating brightness near the
+    // source.
     float decay = this->config->wave_spatial_decay_constant;
-    float falloff = expf(-decay * static_cast<float>(distance));
+    float exponential = expf(-decay * static_cast<float>(distance));
+    float edge_taper = 1.0f - static_cast<float>(distance) / static_cast<float>(this->max_distance);
     float envelope = this->_panel_envelope_value(panel_index);
-    return falloff * envelope;
+    return exponential * edge_taper * envelope;
 }
 
 bool Wave::is_active() const {
