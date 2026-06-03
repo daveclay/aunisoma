@@ -166,18 +166,19 @@ void WaveColorAlgorithm::update() {
 
     for (int panel_index = 0; panel_index < this->number_of_panels; panel_index++) {
 
-        // For ≥2 waves we blend in HSV: intensity-weighted circular mean of
-        // target hues, intensity-weighted mean of target saturations, and
-        // max of intensity for brightness. Using the target color (instead of
-        // the post-intensity displayed color) keeps hue stable at low
+        // For ≥2 waves we sum chroma vectors in the unit disk and apply the
+        // overlap rule: saturation = min(1, magnitude); excess magnitude
+        // above 1 rotates the hue. Using the target color (instead of the
+        // post-intensity displayed color) keeps hue stable at low
         // intensities — otherwise idle red dominates the lerp and the hue
         // reads as 0 (red) even for a cyan-target wave.
         int contributing_wave_count = 0;
         float hue_cos_sum = 0.0f;
         float hue_sin_sum = 0.0f;
-        float saturation_weighted_sum = 0.0f;
         float intensity_weight_sum = 0.0f;
         float max_intensity = 0.0f;
+        float strongest_intensity_at_panel = 0.0f;
+        float strongest_target_hue = 0.0f;
         Color single_wave_displayed = idle_color;
 
         for (int sensor_index = 0; sensor_index < this->number_of_sensors; sensor_index++) {
@@ -196,9 +197,15 @@ void WaveColorAlgorithm::update() {
             Hsv target_hsv = rgb_to_hsv(wave_target);
             hue_cos_sum += cosf(target_hsv.hue * FULL_CIRCLE_RADIANS) * wave_intensity;
             hue_sin_sum += sinf(target_hsv.hue * FULL_CIRCLE_RADIANS) * wave_intensity;
-            saturation_weighted_sum += target_hsv.saturation * wave_intensity;
             intensity_weight_sum += wave_intensity;
             if (wave_intensity > max_intensity) max_intensity = wave_intensity;
+            // Stable reference hue for the coherence-fallback branch. First
+            // wave to tie wins, which is deterministic across ticks because
+            // sensor iteration order is fixed.
+            if (wave_intensity > strongest_intensity_at_panel) {
+                strongest_intensity_at_panel = wave_intensity;
+                strongest_target_hue = target_hsv.hue;
+            }
         }
 
         Color resolved;
@@ -207,24 +214,38 @@ void WaveColorAlgorithm::update() {
         } else if (contributing_wave_count == 1) {
             resolved = single_wave_displayed;
         } else {
-            // Coherence = how aligned the contributing target hues are.
-            // 1.0 = all waves on the same hue, 0.0 = perfectly cancelling
-            // (e.g. complementary primaries with equal intensity).
-            float magnitude = sqrtf(hue_cos_sum * hue_cos_sum + hue_sin_sum * hue_sin_sum);
-            float coherence = intensity_weight_sum > 0 ? magnitude / intensity_weight_sum : 0;
+            float chroma_magnitude = sqrtf(hue_cos_sum * hue_cos_sum + hue_sin_sum * hue_sin_sum);
+            float coherence = intensity_weight_sum > 0 ? chroma_magnitude / intensity_weight_sum : 0;
 
-            float resolved_hue = atan2f(hue_sin_sum, hue_cos_sum) / FULL_CIRCLE_RADIANS;
+            // When coherence is high enough, atan2 gives a well-defined
+            // direction and chroma_magnitude is the right rotation driver.
+            // When the chroma sum collapses (waves on opposite sides of the
+            // wheel cancel), anchor to the brightest contributing wave's
+            // hue and drive rotation off total chromatic presence instead.
+            // Both branches produce a saturated rotated color — no gray
+            // fallback.
+            float base_hue;
+            float effective_magnitude;
+            if (coherence >= this->config->wave_overlap_coherence_fallback_threshold) {
+                base_hue = atan2f(hue_sin_sum, hue_cos_sum) / FULL_CIRCLE_RADIANS;
+                if (base_hue < 0) base_hue += 1.0f;
+                effective_magnitude = chroma_magnitude;
+            } else {
+                base_hue = strongest_target_hue;
+                effective_magnitude = intensity_weight_sum;
+            }
+
+            float overshoot = effective_magnitude > 1.0f ? effective_magnitude - 1.0f : 0.0f;
+            float resolved_hue = base_hue + overshoot * this->config->wave_overlap_hue_rotation_per_unit;
+            resolved_hue = resolved_hue - floorf(resolved_hue);
             if (resolved_hue < 0) resolved_hue += 1.0f;
 
-            float mean_target_saturation = intensity_weight_sum > 0
-                ? saturation_weighted_sum / intensity_weight_sum
-                : 0;
-
-            // When hues sit on opposite sides of the wheel and cancel (e.g.
-            // red + cyan), the resulting direction is unstable. Fall back to
-            // a neutral gray at the brighter wave's intensity — the natural
-            // midpoint of two complements.
-            float resolved_saturation = coherence < 0.1f ? 0.0f : mean_target_saturation;
+            // Saturation is always 1 in the ≥2-wave path. Tying it to
+            // chroma_magnitude let low-intensity overlap collapse to gray
+            // (two faint same-hue waves at the edge of their range produced
+            // a near-zero chroma sum → near-zero saturation). Wave-edge
+            // fade is already handled by resolved_value (max_intensity).
+            float resolved_saturation = 1.0f;
 
             // Brightness pins to the brightest contributing wave so a faint
             // wave overlapping a bright one doesn't dim the bright one.

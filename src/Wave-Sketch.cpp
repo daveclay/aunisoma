@@ -116,6 +116,12 @@ void setup(void) {
     config.wave_rainbow_transition_duration_ms = 1200;
     config.wave_idle_color = Color(3, 0, 0);
 
+    // Overlap blend: rotate hue by 30°/unit of chroma overshoot above 1.0,
+    // and trust the chroma sum's direction unless coherence drops below 10%
+    // (e.g. red + cyan at equal intensity, where atan2 is unstable).
+    config.wave_overlap_hue_rotation_per_unit = 1.0f / 12.0f;
+    config.wave_overlap_coherence_fallback_threshold = 0.1f;
+
     config.init();
 
     wave_algorithm = new WaveColorAlgorithm(&config, sensors, NUMBER_OF_PANELS, NUMBER_OF_SENSORS);

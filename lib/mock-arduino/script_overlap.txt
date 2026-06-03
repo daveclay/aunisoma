@@ -1,0 +1,39 @@
+# Test PIR script that exercises the chroma-vector overlap rotation in
+# WaveColorAlgorithm. Use with the native_wave build:
+#
+#   AUNISOMA_MOCK_SCRIPT=lib/mock-arduino/script_overlap.txt \
+#       .pio/build/native_wave/program > /tmp/wave_overlap.json
+#
+# Format: <iteration> <20-char PIR string>. One digit per panel
+# (0=none, 1=front, 2=back, 3=both). Each iteration is ~240ms mock time.
+#
+# Sequence:
+#   iter   5: panel 5 front active. Wave 5 picks a random target hue H.
+#   iter  20: panel 6 front active. Adjacent (distance 1) to wave 5, so
+#             _pick_target_for_activation chains the hue: panel 6 target
+#             is H + 1/20.
+#   iter  35: panel 7 front active. Adjacent to wave 6, target is H + 2/20.
+#   iter 35-499: all three sensors held active → three near-same-hue waves
+#             continuously pulse. At panel 6 the chroma sum magnitude
+#             exceeds 1.0 during pulse peaks, which the new algorithm maps
+#             to a hue rotated around the wheel rather than a saturation
+#             clamp.
+#   iter 500: release all sensors. Waves finish their current pulses and
+#             fall to idle.
+#
+# Expected output (qualitative — actual hues depend on the random seed):
+#   - Iter 0 to ~6: panel 6 idle (RGB roughly (3,0,0)).
+#   - Iter 7 onward: panel 6 picks up wave 5's spatial contribution, ramps
+#     into a saturated color.
+#   - Iter 35 to 499: panel 6 spends most pulse peaks in
+#     chroma_magnitude > 1.0 territory. The displayed hue at peaks should
+#     be measurably rotated away from the wave-5 target hue (≈30° at
+#     chroma_magnitude ≈ 2, given wave_overlap_hue_rotation_per_unit =
+#     1/12). Saturation stays near 1.0.
+#   - Iter ≥ ~520: all waves fall to idle.
+
+0      00000000000000000000
+5      00000100000000000000
+20     00000110000000000000
+35     00000111000000000000
+500    00000000000000000000

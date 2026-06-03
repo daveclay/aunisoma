@@ -57,6 +57,15 @@ public:
     int wave_rainbow_transition_duration_ms;
     Color wave_idle_color;
 
+    // Overlap blend tuning. Above magnitude 1.0 on the chroma sum, saturation
+    // clamps and the excess rotates the hue by this fraction of the wheel per
+    // unit of overshoot (1/12 ≈ 30°/unit). The coherence threshold gates
+    // whether the chroma sum's direction is trusted or we anchor to the
+    // brightest contributing wave's hue (numerical stability, not a "go gray"
+    // gate — both branches produce a saturated color).
+    float wave_overlap_hue_rotation_per_unit;
+    float wave_overlap_coherence_fallback_threshold;
+
     // This is here to make it available to the C++ files, since importing Aunisoma-Sketch isn't good.
     int number_of_panels;
 

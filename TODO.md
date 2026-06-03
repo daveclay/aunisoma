@@ -1,7 +1,10 @@
-in the real project, green and teal were picked almost all the time. Yellow once in a while, magenta once in a while.
-Never orange, and never red. 
+Change WaveColorAlgorithm. Goal is to have overlapping waves result in more colorful animations.
 
-Instead of trying to keep the same color for adjacent active panels, the first panel should pick a random target 
-color (any random color but must be 100% saturated) and if the neighbor becomes active, move it's target color 
-around the color wheel by 1/20 amount. A panel that becomes active without any neighbors should pick a random target 
-color. Do not bother to try to "avoid" similar colors in that case - random colors should be sufficient.
+New interaction on panel should still pick target color as it does today. But, when interaction waves overlap and new
+color is calculated, instead of maxing out saturation and clamping, if max saturation is reached, move 
+around the color wheel based on how many waves are overlapping.
+
+Might be better to calculate wave overlap using vectors instead of RGB colors so that values beyond 255 can be 
+handled and translated to color wheel. Open to suggestions though.
+
+Write to plan.md

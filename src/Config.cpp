@@ -22,6 +22,8 @@ Config::Config() : initial_trigger_panel_animation_loop_duration_ms(0), reverber
                    low_interaction_debounce_ms(0),
                    med_interaction_debounce_ms(0),
                    high_interaction_debounce_ms(0),
+                   wave_overlap_hue_rotation_per_unit(0),
+                   wave_overlap_coherence_fallback_threshold(0),
                    number_of_panels(0) {
 }
 
