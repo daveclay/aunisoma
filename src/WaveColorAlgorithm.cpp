@@ -110,11 +110,19 @@ void WaveColorAlgorithm::update() {
         bool was_active = this->prev_sensor_active[sensor_index];
         this->prev_sensor_active[sensor_index] = active_now;
 
+        // Only start a wave on a rising edge if the wave is currently idle.
+        // PIR smoothing can briefly dip below the active threshold and recover
+        // mid-pulse; treating that as a new activation would restart the
+        // pulse_clock and snap the propagation back to the source. The
+        // end-of-pulse path in Wave::update_pulse_state already re-checks the
+        // sensor and restarts cleanly at the natural cycle boundary.
         if (active_now && !was_active) {
             Wave* wave = this->waves[sensor_index];
-            int origin = wave->get_origin_panel_index();
-            Color target = this->_pick_target_for_activation(sensor_index, origin);
-            wave->start_activation(target);
+            if (!wave->is_active()) {
+                int origin = wave->get_origin_panel_index();
+                Color target = this->_pick_target_for_activation(sensor_index, origin);
+                wave->start_activation(target);
+            }
         }
     }
 
