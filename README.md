@@ -19,13 +19,14 @@ That gives you `pio` on your PATH. The Adafruit Grand Central M4 (SAMD51) toolch
 
 ## Sketches
 
-Three firmware sketches share `src/` and the `PanelLink` serial-protocol module. `platformio.ini` defines one environment per sketch.
+Four firmware sketches share `src/` and the `PanelLink` serial-protocol module. `platformio.ini` defines one environment per sketch.
 
-| Sketch   | Source                | PlatformIO env             | Purpose                                                                              |
-| -------- | --------------------- | -------------------------- | ------------------------------------------------------------------------------------ |
-| Legacy   | `Aunisoma-Sketch.cpp` | `grandcentral_m4`          | Original gradient/reverberation/knight-rider algorithm via the `Aunisoma` class.     |
-| Wave     | `Wave-Sketch.cpp`     | `grandcentral_m4_wave`     | `WaveColorAlgorithm` driven directly — per-sensor color pulses that propagate.       |
-| PIR test | `PIR-Test-Sketch.cpp` | `grandcentral_m4_pir_test` | Bench/install diagnostic. Red idle; green = front PIR, blue = back PIR, teal = both. |
+| Sketch         | Source                              | PlatformIO env              | Purpose                                                                                                          |
+| -------------- | ----------------------------------- | --------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Legacy         | `Aunisoma-Sketch.cpp`               | `grandcentral_m4`           | Original gradient/reverberation/knight-rider algorithm via the `Aunisoma` class.                                 |
+| Wave           | `Wave-Sketch.cpp`                   | `grandcentral_m4_wave`      | `WaveColorAlgorithm` driven directly — per-sensor color pulses that propagate.                                   |
+| PIR test       | `PIR-Test-Sketch.cpp`               | `grandcentral_m4_pir_test`  | Bench/install diagnostic. Red idle; green = front PIR, blue = back PIR, teal = both.                             |
+| Animation test | `AnimationPerformanceTest-Sketch.cpp` | `grandcentral_m4_anim_test` | Pulses every panel in lockstep from `(3,0,0)` to `(255,0,0)` to isolate loop latency vs. Serial2/master latency. |
 
 The `build_src_filter` in `platformio.ini` picks which sketch file gets compiled, so only one `setup()`/`loop()` is linked at a time.
 
@@ -44,18 +45,24 @@ pio run -e grandcentral_m4_wave -t upload
 pio run -e grandcentral_m4_pir_test
 pio run -e grandcentral_m4_pir_test -t upload
 
+# Animation performance test firmware (synced red pulse across all panels).
+pio run -e grandcentral_m4_anim_test
+pio run -e grandcentral_m4_anim_test -t upload
+
 # Serial monitor (any sketch).
 pio device monitor
 ```
 
 Use the PIR test to verify each window's panel-id mapping in `PANEL_IDS` matches the physical install: trigger one sensor at a time and confirm the window in front of you is the one that changes color. Re-flash the production firmware (`pio run -e grandcentral_m4 -t upload`) when you're done.
 
+Use the animation performance test to isolate flicker. Every panel is sent the identical red value on every frame, so if the strip stays uniform but the pulse looks coarse, the bottleneck is the arduino loop; if panels visibly drift or tear against each other, the bottleneck lives in the Serial2 link, the master, or the master→panel fan-out.
+
 ## Run the desktop mock
 
-The `native` envs compile a sketch against the mocks in `lib/mock-arduino/`. The binary calls `loop()` many times and writes a JSON script to stdout that the [mock HTML page](https://aftxr.com/aunisoma) replays. `native_wave` and `native_pir_test` are analogous targets for the other two sketches.
+The `native` envs compile a sketch against the mocks in `lib/mock-arduino/`. The binary calls `loop()` many times and writes a JSON script to stdout that the [mock HTML page](https://aftxr.com/aunisoma) replays. `native_wave`, `native_pir_test`, and `native_anim_test` are analogous targets for the other sketches.
 
 ```bash
-pio run -e native        # or -e native_wave / -e native_pir_test
+pio run -e native        # or -e native_wave / -e native_pir_test / -e native_anim_test
 .pio/build/native/program > script.json
 
 pio run -e native_wave
