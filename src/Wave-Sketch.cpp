@@ -106,7 +106,7 @@ void setup(void) {
     // range. Raise for a sharper drop-off near the source. A more linear (lower)
     // value tends to make a higher-value color wavefront rather than a softer
     // fade-in to target color. Increasing wave distance helps larger values
-    config.wave_spatial_decay_constant = 0.5f;
+    config.wave_spatial_decay_constant = 0.65f;
     // When the active-sensor fraction crosses high_interaction_threshold_percent
     // the wave algorithm switches to a scrolling rainbow. This is the time for
     // one full revolution.
