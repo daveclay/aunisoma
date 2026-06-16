@@ -30,6 +30,10 @@ Four firmware sketches share `src/` and the `PanelLink` serial-protocol module. 
 
 The `build_src_filter` in `platformio.ini` picks which sketch file gets compiled, so only one `setup()`/`loop()` is linked at a time.
 
+### Battery-life test variant
+
+`grandcentral_m4_wave_battery` builds the Wave sketch with `-DMOCK_BATTERY_TEST=1`. It ignores real PIR readings and simulates **people walking by on a path in front of the windows**: while the path is occupied, one or more groups (up to 4) each cover a contiguous run of 1–10 windows (front sensors only, back never), so more than 10 windows can be active at once; when it clears, everything goes idle. Occupied and clear spells run from 15 seconds to 2 minutes and share the same range, so the path is occupied ~50% of the time averaged over a ~5-minute window (any single minute may be all-on or all-off). The wave algorithm then drives the LEDs from that occupancy, so the measured current is the real propagating load — not a fixed per-LED duty. Use it to estimate average draw for battery sizing; it's a power-draw test, not an animation test. `native_wave_battery` is the desktop counterpart.
+
 ## Build & install
 
 ```bash
@@ -49,6 +53,10 @@ pio run -e grandcentral_m4_pir_test -t upload
 pio run -e grandcentral_m4_anim_test
 pio run -e grandcentral_m4_anim_test -t upload
 
+# Wave battery-life test firmware (mock front-side ~50% activity for power-draw testing).
+pio run -e grandcentral_m4_wave_battery
+pio run -e grandcentral_m4_wave_battery -t upload
+
 # Serial monitor (any sketch).
 pio device monitor
 ```
@@ -59,7 +67,7 @@ Use the animation performance test to isolate flicker. Every panel is sent the i
 
 ## Run the desktop mock
 
-The `native` envs compile a sketch against the mocks in `lib/mock-arduino/`. The binary calls `loop()` many times and writes a JSON script to stdout that the [mock HTML page](https://aftxr.com/aunisoma) replays. `native_wave`, `native_pir_test`, and `native_anim_test` are analogous targets for the other sketches.
+The `native` envs compile a sketch against the mocks in `lib/mock-arduino/`. The binary calls `loop()` many times and writes a JSON script to stdout that the [mock HTML page](https://aftxr.com/aunisoma) replays. `native_wave`, `native_pir_test`, `native_anim_test`, and `native_wave_battery` are analogous targets for the other sketches and variants.
 
 ```bash
 pio run -e native        # or -e native_wave / -e native_pir_test / -e native_anim_test
