@@ -84,9 +84,9 @@ static void update_battery_mock_sensors() {
             int number_of_groups = random(1, MOCK_MAX_GROUPS + 1);  // 1-4 groups
             for (int group = 0; group < number_of_groups; group++) {
                 int group_size = random(1, 11);  // 1-10 windows per group
-                int group_start = random(0, NUMBER_OF_PANELS - group_size + 1);
+                int group_start_panel = random(0, NUMBER_OF_PANELS - group_size + 1);
                 for (int offset = 0; offset < group_size; offset++) {
-                    int target_panel = group_start + offset;
+                    int target_panel = group_start_panel + offset;
                     if (target_panel < NUMBER_OF_PANELS) {
                         mock_panel_active[target_panel] = true;
                     }
@@ -151,7 +151,7 @@ void setup(void) {
 #endif
 
     config.number_of_panels = NUMBER_OF_PANELS;
-    config.high_interaction_threshold_percent = .25;
+    config.high_interaction_threshold_percent = .6;
 
     // Wave algorithm parameters. Each panel rises to its attenuated target
     // over wave_rise_duration_ms then falls back to idle over
