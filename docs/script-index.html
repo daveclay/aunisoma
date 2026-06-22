@@ -1,6 +1,5 @@
 <html>
-<body>
-<style>
+<style lang="css">
     body {
         background-color: black;
         font-family: monospace;
@@ -27,6 +26,7 @@
         overflow-x: clip;
         text-align: center;
         padding-left: 6px; /* align it center, for some reason */
+        font-size: 10px;
     }
     .panelReverberationInfo {
         display: inline-block;
@@ -44,6 +44,7 @@
         padding: 5px;
     }
 </style>
+<body>
 <div id="stage"></div>
 <div id="panelTemplate" class="panelContainer">
     <div class="panel"></div>
@@ -206,7 +207,7 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
       }
 
       _runInterval() {
-          this.interval = setInterval(() => this.runNextStep(), 50);
+          this.interval = setInterval(() => this.runNextStep(), 100);
       }
 
       runPreviousStep() {
@@ -291,9 +292,8 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
       }
 
       update() {
-        let backgroundColor = colorToHexString(this.color);
-        this.panelElement.style.backgroundColor = backgroundColor;
-        this.panelInfoElement.innerHTML = (this.active ? "active" : "&nbsp;") + ` ${backgroundColor}`;
+          this.panelElement.style.backgroundColor = colorToHexString(this.color);
+        this.panelInfoElement.innerHTML = (this.active ? "active" : "&nbsp;") + ` ${this.color.red},${this.color.green},${this.color.blue}`;
         this.amps = getPowerDrawAmps(this.color);
       }
     }
