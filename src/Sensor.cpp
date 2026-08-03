@@ -15,6 +15,17 @@ Sensor::Sensor() {
 
 void Sensor::update(bool reading) {
     float ave = this->smoothing_fn->get_smoothed_value(reading ? 1 : 0);
-    this->active = ave > .75;// this->debounce->update(reading);
+    if (reading) {
+        // A high reading is a real interaction — activate immediately so the
+        // color transition starts the moment someone arrives, instead of
+        // waiting for the average to climb (16 loops of latency).
+        this->active = true;
+    } else {
+        // Release only after the reading has stayed low long enough to drag
+        // the average down (~11 loops). Holding through brief PIR dips keeps
+        // an active animation from flickering into a fade-out/reactivate
+        // cycle mid-interaction.
+        this->active = ave > .5;
+    }
     this->last_reading = reading;
 }

@@ -24,6 +24,14 @@ Config::Config() : initial_trigger_panel_animation_loop_duration_ms(0), reverber
                    high_interaction_debounce_ms(0),
                    wave_overlap_hue_rotation_per_unit(0),
                    wave_overlap_coherence_fallback_threshold(0),
+                   glow_fade_in_duration_ms(0),
+                   glow_fade_out_duration_ms(0),
+                   glow_pulse_min_period_ms(0),
+                   glow_pulse_max_period_ms(0),
+                   glow_pulse_min_value(0),
+                   glow_ripple_distance(0),
+                   glow_ripple_start_delay_ms(0),
+                   glow_ripple_peak_lag_ms(0),
                    number_of_panels(0) {
 }
 

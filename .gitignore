@@ -16,3 +16,5 @@ arduino/src/cmake-build-debug/
 python/code.py-ignore
 
 script.json
+
+lib/mock-arduino/script.txt

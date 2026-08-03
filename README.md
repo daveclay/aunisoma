@@ -19,12 +19,13 @@ That gives you `pio` on your PATH. The Adafruit Grand Central M4 (SAMD51) toolch
 
 ## Sketches
 
-Four firmware sketches share `src/` and the `PanelLink` serial-protocol module. `platformio.ini` defines one environment per sketch.
+Five firmware sketches share `src/` and the `PanelLink` serial-protocol module. `platformio.ini` defines one environment per sketch.
 
 | Sketch         | Source                              | PlatformIO env              | Purpose                                                                                                          |
 | -------------- | ----------------------------------- | --------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | Legacy         | `Aunisoma-Sketch.cpp`               | `grandcentral_m4`           | Original gradient/reverberation/knight-rider algorithm via the `Aunisoma` class.                                 |
 | Wave           | `Wave-Sketch.cpp`                   | `grandcentral_m4_wave`      | `WaveColorAlgorithm` driven directly — per-sensor color pulses that propagate.                                   |
+| Glow           | `Glow-Sketch.cpp`                   | `grandcentral_m4_glow`      | `GlowColorAlgorithm` — each sensor (front and back are independent interactions with their own colors) pulses its own panel's brightness 100%→25%→100% on a random 800–1200 ms period; 200 ms fade-in, 3000 ms fall-off. A panel active from both sides intermingles the two pulses. Neighbors within 2 panels (distance and timing configurable) follow the source with a per-distance lag — brightening staggered behind it, repeating its pulse dips delayed so every pulse travels outward while the sensor stays active, and trailing its fade-out. |
 | PIR test       | `PIR-Test-Sketch.cpp`               | `grandcentral_m4_pir_test`  | Bench/install diagnostic. Red idle; green = front PIR, blue = back PIR, teal = both.                             |
 | Animation test | `AnimationPerformanceTest-Sketch.cpp` | `grandcentral_m4_anim_test` | Pulses every panel in lockstep from `(3,0,0)` to `(255,0,0)` to isolate loop latency vs. Serial2/master latency. |
 
@@ -44,6 +45,10 @@ pio run -e grandcentral_m4 -t upload
 # Wave algorithm firmware.
 pio run -e grandcentral_m4_wave
 pio run -e grandcentral_m4_wave -t upload
+
+# Glow algorithm firmware (per-panel pulsing, no propagation).
+pio run -e grandcentral_m4_glow
+pio run -e grandcentral_m4_glow -t upload
 
 # PIR test firmware (paint red / green / blue / teal from raw PIR).
 pio run -e grandcentral_m4_pir_test
@@ -67,14 +72,19 @@ Use the animation performance test to isolate flicker. Every panel is sent the i
 
 ## Run the desktop mock
 
-The `native` envs compile a sketch against the mocks in `lib/mock-arduino/`. The binary calls `loop()` many times and writes a JSON script to stdout that the [mock HTML page](https://aftxr.com/aunisoma) replays. `native_wave`, `native_pir_test`, `native_anim_test`, and `native_wave_battery` are analogous targets for the other sketches and variants.
+The `native` envs compile a sketch against the mocks in `lib/mock-arduino/`. The binary calls `loop()` many times and writes a JSON script to stdout that the [mock HTML page](https://aftxr.com/aunisoma) replays. `native_wave`, `native_glow`, `native_pir_test`, `native_anim_test`, and `native_wave_battery` are analogous targets for the other sketches and variants.
+
+Every native env has a `mock` target that builds the binary, runs it against `lib/mock-arduino/script.txt` (your editable scratch script — the pinned `test-validation-script.txt` is only for the test procedure), and writes `script.json` in one step:
 
 ```bash
-pio run -e native        # or -e native_wave / -e native_pir_test / -e native_anim_test
-.pio/build/native/program > script.json
+pio run -e native_glow -t mock   # or -e native / -e native_wave / -e native_pir_test / -e native_anim_test
+```
 
-pio run -e native_wave
-.pio/build/native_wave/program > script.json
+Or run the binary by hand:
+
+```bash
+pio run -e native        # or -e native_wave / -e native_glow / -e native_pir_test / -e native_anim_test
+.pio/build/native/program > script.json
 ```
 
 Then open `script.json` in the mock page.

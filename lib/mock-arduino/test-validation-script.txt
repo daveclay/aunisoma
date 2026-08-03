@@ -1,11 +1,15 @@
-# Mock PIR script for the desktop (native) build.
+# Test-validation PIR script for the desktop (native) build.
+#
+# DO NOT EDIT: the CLAUDE.md test procedure's expected PIR-test colors are
+# keyed to the exact iterations in this file. For experiments, edit
+# lib/mock-arduino/script.txt (the gitignored default) instead.
 #
 # Format:  <iteration> <20-char PIR string>
 # Each digit is one panel:  0 = none, 1 = front, 2 = back, 3 = both.
 # Values hold until the next entry. Iteration is millis() in the mock,
 # which advances by 1 per loop().
 #
-# Override the path with the AUNISOMA_MOCK_SCRIPT environment variable.
+# Select this file with the AUNISOMA_MOCK_SCRIPT environment variable.
 
 0      00000000000000000000
 10     100000000e0000000000

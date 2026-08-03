@@ -66,6 +66,31 @@ public:
     float wave_overlap_hue_rotation_per_unit;
     float wave_overlap_coherence_fallback_threshold;
 
+    // Glow algorithm parameters (Glow-Sketch). No propagation: each sensor
+    // lights only its own panel. Fade in over glow_fade_in_duration_ms on the
+    // rising edge, fall off over glow_fade_out_duration_ms on release. While
+    // active, brightness pulses from 100% down to glow_pulse_min_value and
+    // back; each pulse cycle draws a fresh random period from
+    // [glow_pulse_min_period_ms, glow_pulse_max_period_ms].
+    int glow_fade_in_duration_ms;
+    int glow_fade_out_duration_ms;
+    int glow_pulse_min_period_ms;
+    int glow_pulse_max_period_ms;
+    float glow_pulse_min_value;
+
+    // Ripple: neighbors within glow_ripple_distance panels on each side
+    // follow the source with a per-distance lag. A neighbor starts
+    // brightening glow_ripple_start_delay_ms per panel of distance after
+    // the source's rising edge, reaches its peak glow_ripple_peak_lag_ms
+    // per panel after the source peaks, repeats the source's pulse dips
+    // delayed glow_ripple_peak_lag_ms per panel while the sensor stays
+    // active, and trails the fade-out by the same lags. Peak intensity
+    // falls off linearly with distance, reaching zero one panel past
+    // glow_ripple_distance.
+    int glow_ripple_distance;
+    int glow_ripple_start_delay_ms;
+    int glow_ripple_peak_lag_ms;
+
     // This is here to make it available to the C++ files, since importing Aunisoma-Sketch isn't good.
     int number_of_panels;
 
