@@ -7,6 +7,7 @@
 #include "Color.h"
 #include "Config.h"
 #include "GlowColorAlgorithm.h"
+#include "LoopTiming.h"
 #include "PanelLink.h"
 #include "Range.h"
 #include "Sensor.h"
@@ -14,6 +15,14 @@
 #ifndef MOCK_INTERACTIONS
 #define MOCK_INTERACTIONS 0
 #endif
+
+// Loop-timing instrumentation (see LoopTiming.h). Build with
+// -DMEASURE_LOOP_TIMING=1 (the grandcentral_m4_glow_timing env) to print
+// min/avg/max microseconds over USB serial every 100 loops: the loop period
+// plus its three segments (algorithm update, color formatting, master
+// round-trip). With the flag off these calls compile to nothing.
+static const char* TIMING_SEGMENT_NAMES[] = {"update", "format", "send"};
+static LoopTiming loop_timing(TIMING_SEGMENT_NAMES, 3);
 
 // Glow-only sketch. Drives GlowColorAlgorithm directly: no wavefront
 // propagation — each sensor pulses its own panel. Front and back sensors are
@@ -88,7 +97,7 @@ void setup(void) {
 #endif
 
     config.number_of_panels = NUMBER_OF_PANELS;
-    config.high_interaction_threshold_percent = .6;
+    config.high_interaction_threshold_percent = 0.6f;
 
     // Glow parameters. Snap in fast on activation, linger on release.
     config.glow_fade_in_duration_ms = 500;
@@ -129,8 +138,14 @@ void setup(void) {
     link.map_panels_until_ok(panel_ids);
 }
 
-// +1 for \0-terminated, which snprintf wants
-static char current_panel_color[SIZE_OF_COLOR + 1];
+static const char HEX_DIGITS[] = "0123456789abcdef";
+
+// Re-map panels periodically to heal any odd state a panel controller may
+// get into. Wall-clock based, not iteration based, so the cadence doesn't
+// change if the loop rate does — map_panels is a blocking round trip (up to
+// the 1000 ms serial timeout) and stalls the animation while it runs.
+static const long MAP_PANELS_INTERVAL_MS = 15L * 60L * 1000L;
+static long next_map_panels_ms = MAP_PANELS_INTERVAL_MS;
 
 // run for 11 hours, then zero out the panels and do nothing while
 // waiting for me to wake up and come out and turn the power off.
@@ -149,28 +164,37 @@ void loop(void) {
         return;
     }
 
+    loop_timing.begin_loop();
+
     glow_algorithm->update();
+
+    loop_timing.next_segment();
 
     for (int panel_index = 0; panel_index < NUMBER_OF_PANELS; panel_index++) {
         Color color = glow_algorithm->get_color_for_panel(panel_index).limit();
 
-        snprintf(current_panel_color,
-                 SIZE_OF_COLOR + 1,
-                 "%02x%02x%02x",
-                 gamma_lut[color.red],
-                 gamma_lut[color.green],
-                 gamma_lut[color.blue]);
-        for (int char_index = 0; char_index < SIZE_OF_COLOR; char_index++) {
-            panel_colors[(panel_index * SIZE_OF_COLOR) + char_index] = current_panel_color[char_index];
-        }
+        int red_gamma = gamma_lut[color.red];
+        int green_gamma = gamma_lut[color.green];
+        int blue_gamma = gamma_lut[color.blue];
+        char* hex_out = &panel_colors[panel_index * SIZE_OF_COLOR];
+        hex_out[0] = HEX_DIGITS[red_gamma >> 4];
+        hex_out[1] = HEX_DIGITS[red_gamma & 0xF];
+        hex_out[2] = HEX_DIGITS[green_gamma >> 4];
+        hex_out[3] = HEX_DIGITS[green_gamma & 0xF];
+        hex_out[4] = HEX_DIGITS[blue_gamma >> 4];
+        hex_out[5] = HEX_DIGITS[blue_gamma & 0xF];
     }
+
+    loop_timing.next_segment();
 
     send_colors(panel_colors);
 
+    loop_timing.end_loop();
+
     iterationCount++;
 
-    if (iterationCount == 4000) {
+    if (start >= next_map_panels_ms) {
         link.map_panels(panel_ids);
-        iterationCount = 0;
+        next_map_panels_ms = start + MAP_PANELS_INTERVAL_MS;
     }
 }

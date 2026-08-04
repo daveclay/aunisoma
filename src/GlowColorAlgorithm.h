@@ -31,6 +31,12 @@ private:
     Glow** glows;
     Color* displayed_colors;
     bool* prev_sensor_active;
+    // Per-sensor hue of the glow's target color and its unit chroma vector,
+    // cached at activation (the target is constant while active) so the
+    // per-panel blend loop is multiply-adds instead of rgb_to_hsv + trig.
+    float* glow_target_hue;
+    float* glow_hue_cos;
+    float* glow_hue_sin;
     bool rainbow_target_active;
     float rainbow_blend;
     float blend_at_transition_start;

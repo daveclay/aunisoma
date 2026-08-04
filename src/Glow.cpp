@@ -21,9 +21,11 @@ Glow::Glow(Sensor* sensor, Config* config, int panel_index) {
     if (ripple_distance < 0) ripple_distance = 0;
     this->ripple_fade_in_start = new float[ripple_distance + 1];
     this->ripple_fade_out_start = new float[ripple_distance + 1];
+    this->cached_ripple_modulation = new float[ripple_distance + 1];
     for (int distance = 0; distance <= ripple_distance; distance++) {
         this->ripple_fade_in_start[distance] = 0.0f;
         this->ripple_fade_out_start[distance] = 0.0f;
+        this->cached_ripple_modulation[distance] = 1.0f;
     }
 }
 
@@ -88,6 +90,14 @@ void Glow::update() {
             && static_cast<long>(this->fade_clock.elapsed_ms) >= this->config->glow_fade_in_duration_ms) {
             this->state = GLOW_PULSING;
         }
+
+        // Refresh the per-distance modulation cache for this tick's panel
+        // resolution (captures above use the live values instead, so they
+        // are never a tick stale).
+        for (int distance = 1; distance <= this->config->glow_ripple_distance; distance++) {
+            long pulse_lag_ms = static_cast<long>(distance) * this->config->glow_ripple_peak_lag_ms;
+            this->cached_ripple_modulation[distance] = this->_pulse_modulation_at_lag(pulse_lag_ms);
+        }
     } else if (this->state == GLOW_FADING_OUT) {
         // The outermost neighbor trails the source's fade-out by
         // ripple_distance * peak_lag; hold FADING_OUT (source envelope is
@@ -133,8 +143,7 @@ float Glow::get_intensity_for_panel(int target_panel_index) const {
     // per-panel lag so each pulse travels outward. During fade-out the
     // captured start value already includes the modulation.
     if (this->state == GLOW_FADING_IN || this->state == GLOW_PULSING) {
-        long pulse_lag_ms = static_cast<long>(distance) * this->config->glow_ripple_peak_lag_ms;
-        envelope *= this->_pulse_modulation_at_lag(pulse_lag_ms);
+        envelope *= this->cached_ripple_modulation[distance];
     }
     return peak * envelope;
 }

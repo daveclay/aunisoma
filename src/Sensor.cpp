@@ -25,7 +25,7 @@ void Sensor::update(bool reading) {
         // the average down (~11 loops). Holding through brief PIR dips keeps
         // an active animation from flickering into a fade-out/reactivate
         // cycle mid-interaction.
-        this->active = ave > .5;
+        this->active = ave > 0.5f;
     }
     this->last_reading = reading;
 }

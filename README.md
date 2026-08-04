@@ -46,9 +46,14 @@ pio run -e grandcentral_m4 -t upload
 pio run -e grandcentral_m4_wave
 pio run -e grandcentral_m4_wave -t upload
 
-# Glow algorithm firmware (per-panel pulsing, no propagation).
+# Glow algorithm firmware (per-panel pulsing, lagged neighbor ripple).
 pio run -e grandcentral_m4_glow
 pio run -e grandcentral_m4_glow -t upload
+
+# Glow + loop-timing stats: prints "period/update/format/send us min/avg/max"
+# over USB serial every 100 loops. Use with `pio device monitor` to measure
+# the real loop period and where it goes (algorithm vs master round-trip).
+pio run -e grandcentral_m4_glow_timing -t upload
 
 # PIR test firmware (paint red / green / blue / teal from raw PIR).
 pio run -e grandcentral_m4_pir_test

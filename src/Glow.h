@@ -80,6 +80,10 @@ private:
     float fade_out_start_intensity;
     float* ripple_fade_in_start;
     float* ripple_fade_out_start;
+    // Lagged pulse modulation per distance, refreshed once per update() so
+    // the per-panel resolution loop doesn't recompute the cosine for every
+    // panel a glow touches (index 1..glow_ripple_distance; index 0 unused).
+    float* cached_ripple_modulation;
 
     void _begin_pulse_cycle();
     float _fade_envelope() const;

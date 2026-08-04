@@ -93,8 +93,14 @@ GlowColorAlgorithm::GlowColorAlgorithm(Config* config,
     }
 
     this->prev_sensor_active = new bool[number_of_sensors];
+    this->glow_target_hue = new float[number_of_sensors];
+    this->glow_hue_cos = new float[number_of_sensors];
+    this->glow_hue_sin = new float[number_of_sensors];
     for (int sensor_index = 0; sensor_index < number_of_sensors; sensor_index++) {
         this->prev_sensor_active[sensor_index] = false;
+        this->glow_target_hue[sensor_index] = 0.0f;
+        this->glow_hue_cos[sensor_index] = 1.0f;
+        this->glow_hue_sin[sensor_index] = 0.0f;
     }
 
     this->rainbow_target_active = false;
@@ -120,6 +126,13 @@ void GlowColorAlgorithm::update() {
                 int panel_index = glow->get_panel_index();
                 Color target = this->_pick_target_for_activation(sensor_index, panel_index);
                 glow->start_activation(target);
+                // Cache the target's hue and unit chroma vector for the
+                // blend loop; a reactivation keeps its color, so the cached
+                // values stay valid for the glow's whole lifetime.
+                Hsv target_hsv = rgb_to_hsv(target);
+                this->glow_target_hue[sensor_index] = target_hsv.hue;
+                this->glow_hue_cos[sensor_index] = cosf(target_hsv.hue * FULL_CIRCLE_RADIANS);
+                this->glow_hue_sin[sensor_index] = sinf(target_hsv.hue * FULL_CIRCLE_RADIANS);
             } else {
                 glow->reactivate();
             }
@@ -168,6 +181,12 @@ void GlowColorAlgorithm::update() {
     // rotates the hue.
     Color idle_color = this->config->wave_idle_color;
 
+    // Brightest idle channel, used to pin multi-glow brightness; constant
+    // per tick, so computed once here instead of per panel.
+    float idle_value = static_cast<float>(idle_color.red) / 255.0f;
+    if (static_cast<float>(idle_color.green) / 255.0f > idle_value) idle_value = static_cast<float>(idle_color.green) / 255.0f;
+    if (static_cast<float>(idle_color.blue) / 255.0f > idle_value) idle_value = static_cast<float>(idle_color.blue) / 255.0f;
+
     for (int panel_index = 0; panel_index < this->number_of_panels; panel_index++) {
 
         int contributing_glow_count = 0;
@@ -192,9 +211,8 @@ void GlowColorAlgorithm::update() {
             contributing_glow_count++;
             single_glow_displayed = glow_displayed;
 
-            Hsv target_hsv = rgb_to_hsv(glow_target);
-            hue_cos_sum += cosf(target_hsv.hue * FULL_CIRCLE_RADIANS) * glow_intensity;
-            hue_sin_sum += sinf(target_hsv.hue * FULL_CIRCLE_RADIANS) * glow_intensity;
+            hue_cos_sum += this->glow_hue_cos[sensor_index] * glow_intensity;
+            hue_sin_sum += this->glow_hue_sin[sensor_index] * glow_intensity;
             intensity_weight_sum += glow_intensity;
             if (glow_intensity > max_intensity) max_intensity = glow_intensity;
             // Stable reference hue for the coherence-fallback branch. First
@@ -202,7 +220,7 @@ void GlowColorAlgorithm::update() {
             // sensor iteration order is fixed.
             if (glow_intensity > strongest_intensity_at_panel) {
                 strongest_intensity_at_panel = glow_intensity;
-                strongest_target_hue = target_hsv.hue;
+                strongest_target_hue = this->glow_target_hue[sensor_index];
             }
         }
 
@@ -245,9 +263,6 @@ void GlowColorAlgorithm::update() {
             // Brightness pins to the brighter contributing glow so the two
             // out-of-phase pulses read as intermingled shimmer rather than
             // multiplying each other darker.
-            float idle_value = static_cast<float>(idle_color.red) / 255.0f;
-            if (static_cast<float>(idle_color.green) / 255.0f > idle_value) idle_value = static_cast<float>(idle_color.green) / 255.0f;
-            if (static_cast<float>(idle_color.blue) / 255.0f > idle_value) idle_value = static_cast<float>(idle_color.blue) / 255.0f;
             float resolved_value = idle_value * (1.0f - max_intensity) + max_intensity;
 
             resolved = hsv_to_rgb(resolved_hue, resolved_saturation, resolved_value);
