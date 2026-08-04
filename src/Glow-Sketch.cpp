@@ -96,8 +96,8 @@ void setup(void) {
     // While active, brightness dips from 100% to 25% and back; each cycle
     // draws a fresh period from this range so no two sensors stay locked in
     // step for long.
-    config.glow_pulse_min_period_ms = 1400;
-    config.glow_pulse_max_period_ms = 4000;
+    config.glow_pulse_min_period_ms = 2000;
+    config.glow_pulse_max_period_ms = 2000;
     config.glow_pulse_min_value = 0.10f;
 
     // Ripple: the 2 panels on each side follow the source with a
@@ -106,8 +106,8 @@ void setup(void) {
     // (i.e. at 400 ms), repeats the source's pulse dips 200 ms/panel behind
     // so every pulse travels outward, and trails the fade-out by the same
     // lags.
-    config.glow_ripple_distance = 0;
-    config.glow_ripple_start_delay_ms = 700;
+    config.glow_ripple_distance = 2;
+    config.glow_ripple_start_delay_ms = 500;
     config.glow_ripple_peak_lag_ms = 1200;
 
     // High-interaction rainbow override, carried over from the wave sketch.
