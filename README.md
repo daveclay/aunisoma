@@ -75,6 +75,31 @@ Use the PIR test to verify each window's panel-id mapping in `PANEL_IDS` matches
 
 Use the animation performance test to isolate flicker. Every panel is sent the identical red value on every frame, so if the strip stays uniform but the pulse looks coarse, the bottleneck is the arduino loop; if panels visibly drift or tear against each other, the bottleneck lives in the Serial2 link, the master, or the master→panel fan-out.
 
+### Loop timing
+
+`src/LoopTiming.{h,cpp}` is a shared instrumentation module any sketch can use. It tracks the loop period plus up to 8 named segments and prints `<name> us min/avg/max` over USB serial once per window (default 100 loops). The period's min/max spread is the jitter that turns ms-based animation into visible jank; the segment split shows where the time goes (algorithm vs. serial round-trip to the master).
+
+It compiles to inline no-ops unless built with `-DMEASURE_LOOP_TIMING=1`, so call sites are free in production builds and need no `#ifdef`s. The glow sketch is already wired (`grandcentral_m4_glow_timing` env); to instrument another sketch:
+
+```cpp
+#include "LoopTiming.h"
+
+static const char* TIMING_SEGMENT_NAMES[] = {"update", "format", "send"};
+static LoopTiming loop_timing(TIMING_SEGMENT_NAMES, 3);
+
+void loop() {
+    loop_timing.begin_loop();
+    algorithm->update();
+    loop_timing.next_segment();   // closes "update", opens "format"
+    format_colors();
+    loop_timing.next_segment();   // closes "format", opens "send"
+    send_colors(panel_colors);
+    loop_timing.end_loop();       // closes "send", prints once per window
+}
+```
+
+then either add a `*_timing` env that extends the sketch's env with `-DMEASURE_LOOP_TIMING=1` in its `build_flags`, or do a one-off build with `PLATFORMIO_BUILD_FLAGS="-DMEASURE_LOOP_TIMING=1" pio run -e <env>`. Watch the output with `pio device monitor`.
+
 ## Run the desktop mock
 
 The `native` envs compile a sketch against the mocks in `lib/mock-arduino/`. The binary calls `loop()` many times and writes a JSON script to stdout that the [mock HTML page](https://aftxr.com/aunisoma) replays. `native_wave`, `native_glow`, `native_pir_test`, `native_anim_test`, and `native_wave_battery` are analogous targets for the other sketches and variants.
