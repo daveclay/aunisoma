@@ -75,7 +75,8 @@ static Color hsv_to_rgb(float hue, float saturation, float value) {
 GlowColorAlgorithm::GlowColorAlgorithm(Config* config,
                                        Sensor* sensors,
                                        int number_of_panels,
-                                       int number_of_sensors) {
+                                       int number_of_sensors,
+                                       GradientValueMap* knight_rider_gradient) {
     this->config = config;
     this->sensors = sensors;
     this->number_of_panels = number_of_panels;
@@ -118,6 +119,12 @@ GlowColorAlgorithm::GlowColorAlgorithm(Config* config,
     this->rainbow_target_active = false;
     this->rainbow_blend = 0.0f;
     this->blend_at_transition_start = 0.0f;
+
+    this->knight_rider_animation = new KnightRiderAnimation(
+        knight_rider_gradient, config->glow_knight_rider_sweep_duration_ms);
+    this->knight_rider_target_active = false;
+    this->knight_rider_blend = 0.0f;
+    this->knight_rider_blend_at_transition_start = 0.0f;
 }
 
 void GlowColorAlgorithm::update() {
@@ -216,7 +223,73 @@ void GlowColorAlgorithm::update() {
         this->rainbow_clock.update();
     }
 
-    // Step 5: resolve per-panel color. A panel whose own two glows are both
+    // Step 5: idle attract. The idle clock runs only while every glow is
+    // idle; once it reaches the configured delay the knight rider sweep
+    // crossfades in for its run duration, then fades back to idle. Any
+    // interaction (a glow exists again) stops the countdown and fades the
+    // sweep out in favor of the normal glow animation.
+    bool any_glow_active = false;
+    for (int sensor_index = 0; sensor_index < this->number_of_sensors; sensor_index++) {
+        if (this->glows[sensor_index]->is_active()) {
+            any_glow_active = true;
+            break;
+        }
+    }
+
+    if (any_glow_active) {
+        this->idle_clock.stop();
+    } else {
+        if (this->idle_clock.isStopped()) {
+            this->idle_clock.restart();
+        }
+        this->idle_clock.update();
+    }
+
+    if (!this->knight_rider_target_active
+        && !any_glow_active
+        && static_cast<long>(this->idle_clock.elapsed_ms) >= this->config->glow_knight_rider_idle_delay_ms) {
+        this->knight_rider_target_active = true;
+        this->knight_rider_animation->restart();
+        this->knight_rider_run_clock.restart();
+        this->knight_rider_blend_at_transition_start = this->knight_rider_blend;
+        this->knight_rider_transition_clock.restart();
+        // The countdown to the next visit starts now, so continued idleness
+        // brings the sweep back every glow_knight_rider_idle_delay_ms.
+        this->idle_clock.restart();
+    }
+
+    if (this->knight_rider_target_active) {
+        this->knight_rider_run_clock.update();
+        bool run_expired = static_cast<long>(this->knight_rider_run_clock.elapsed_ms)
+                        >= this->config->glow_knight_rider_run_duration_ms;
+        if (any_glow_active || run_expired) {
+            this->knight_rider_target_active = false;
+            this->knight_rider_run_clock.stop();
+            this->knight_rider_blend_at_transition_start = this->knight_rider_blend;
+            this->knight_rider_transition_clock.restart();
+        }
+    }
+
+    int knight_rider_fade_ms = this->config->glow_knight_rider_fade_ms;
+    if (knight_rider_fade_ms < 1) knight_rider_fade_ms = 1;
+    this->knight_rider_transition_clock.update();
+    float knight_rider_fade_progress = static_cast<float>(this->knight_rider_transition_clock.elapsed_ms)
+                                     / static_cast<float>(knight_rider_fade_ms);
+    if (knight_rider_fade_progress > 1.0f) knight_rider_fade_progress = 1.0f;
+    float knight_rider_blend_target = this->knight_rider_target_active ? 1.0f : 0.0f;
+    this->knight_rider_blend = this->knight_rider_blend_at_transition_start
+        + (knight_rider_blend_target - this->knight_rider_blend_at_transition_start) * knight_rider_fade_progress;
+
+    // Keep sweeping while the attract is wanted or still fading out. (On the
+    // trigger tick the blend is still 0, so gating on blend alone would stop
+    // the freshly restarted cycle and freeze the sweep at the left end.)
+    if (this->knight_rider_target_active || this->knight_rider_blend > 0.0f) {
+        this->knight_rider_animation->update();
+    } else if (this->knight_rider_animation->is_running()) {
+        this->knight_rider_animation->stop();
+    }
+
+    // Step 6: resolve per-panel color. A panel whose own two glows are both
     // active dances between their colors. Otherwise a panel can be touched
     // by its own glows and by the lagged neighbor envelopes of glows within
     // glow_ripple_distance. One contributor lerps idle toward its target;
@@ -329,6 +402,13 @@ void GlowColorAlgorithm::update() {
             Color rainbow_color = this->_rainbow_color_for_panel(panel_index);
             final_color = resolved.interpolate(rainbow_color, this->rainbow_blend);
         }
+
+        // Crossfade in/out of the idle-attract knight rider sweep.
+        if (this->knight_rider_blend > 0.0f) {
+            Color knight_rider_color = this->knight_rider_animation->get_color_for_panel(panel_index);
+            final_color = final_color.interpolate(knight_rider_color, this->knight_rider_blend);
+        }
+
         this->displayed_colors[panel_index] = final_color.limit();
     }
 }

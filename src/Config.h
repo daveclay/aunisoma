@@ -106,6 +106,19 @@ public:
     // reads clearly.
     float glow_dance_partner_hue_offset;
 
+    // Idle attract (Glow-Sketch): after glow_knight_rider_idle_delay_ms with
+    // no glow activity anywhere, run the knight rider sweep for
+    // glow_knight_rider_run_duration_ms, then return to idle; while idleness
+    // continues it comes back every glow_knight_rider_idle_delay_ms. One full
+    // left-right-left sweep takes glow_knight_rider_sweep_duration_ms. The
+    // sweep crossfades in and out over glow_knight_rider_fade_ms; any
+    // interaction fades it out immediately in favor of the normal glow
+    // animation.
+    int glow_knight_rider_idle_delay_ms;
+    int glow_knight_rider_run_duration_ms;
+    int glow_knight_rider_sweep_duration_ms;
+    int glow_knight_rider_fade_ms;
+
     // This is here to make it available to the C++ files, since importing Aunisoma-Sketch isn't good.
     int number_of_panels;
 

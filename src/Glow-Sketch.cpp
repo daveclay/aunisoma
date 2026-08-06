@@ -7,6 +7,7 @@
 #include "Color.h"
 #include "Config.h"
 #include "GlowColorAlgorithm.h"
+#include "Gradient.h"
 #include "LoopTiming.h"
 #include "PanelLink.h"
 #include "Range.h"
@@ -48,6 +49,9 @@ static char pir_readings[NUMBER_OF_PANELS];
 static Sensor sensors[NUMBER_OF_SENSORS];
 static Config config;
 static GlowColorAlgorithm* glow_algorithm;
+// Classic red sweep for the idle attract, same points the legacy sketch
+// uses; the tail matches the idle color so far panels stay untouched.
+static GradientValueMap knight_rider_gradient;
 
 static int iterationCount = 0;
 static int mockInteractionPeriod = 200;
@@ -116,6 +120,15 @@ void setup(void) {
     config.glow_dance_period_ms = 2500;
     config.glow_dance_partner_hue_offset = 1.0f / 3.0f;
 
+    // Idle attract: after 10 minutes with nobody around, run the knight
+    // rider sweep for 10 seconds (one full left-right-left trip every 2 s),
+    // crossfading in and out over 1 s. Any interaction fades it out for the
+    // normal glow animation.
+    config.glow_knight_rider_idle_delay_ms = 10 * 60 * 1000;
+    config.glow_knight_rider_run_duration_ms = 10 * 1000;
+    config.glow_knight_rider_sweep_duration_ms = 2000;
+    config.glow_knight_rider_fade_ms = 1000;
+
     // Ripple: the 2 panels on each side follow the source with a
     // per-distance lag — a distance-1 neighbor starts brightening 100 ms
     // after the source and peaks 200 ms after the source's 200 ms peak
@@ -140,7 +153,13 @@ void setup(void) {
 
     config.init();
 
-    glow_algorithm = new GlowColorAlgorithm(&config, sensors, NUMBER_OF_PANELS, NUMBER_OF_SENSORS);
+    knight_rider_gradient.add_rgb_point(0, 255, 25, 0);
+    knight_rider_gradient.add_rgb_point(0.2, 255, 0, 0);
+    knight_rider_gradient.add_rgb_point(1.2, 3, 0, 0);
+    knight_rider_gradient.add_rgb_point(2, 3, 0, 0);
+
+    glow_algorithm = new GlowColorAlgorithm(&config, sensors, NUMBER_OF_PANELS, NUMBER_OF_SENSORS,
+                                            &knight_rider_gradient);
 
     link.map_panels_until_ok(panel_ids);
 }

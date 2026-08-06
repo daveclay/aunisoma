@@ -34,6 +34,10 @@ Config::Config() : initial_trigger_panel_animation_loop_duration_ms(0), reverber
                    glow_ripple_peak_lag_ms(0),
                    glow_dance_period_ms(0),
                    glow_dance_partner_hue_offset(0),
+                   glow_knight_rider_idle_delay_ms(0),
+                   glow_knight_rider_run_duration_ms(0),
+                   glow_knight_rider_sweep_duration_ms(0),
+                   glow_knight_rider_fade_ms(0),
                    number_of_panels(0) {
 }
 

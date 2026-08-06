@@ -5,6 +5,7 @@
 #include "ColorAlgorithm.h"
 #include "Config.h"
 #include "Glow.h"
+#include "KnightRiderAnimation.h"
 #include "Sensor.h"
 
 // Per-panel pulsing. Each sensor (front and back are independent
@@ -20,7 +21,8 @@ public:
     GlowColorAlgorithm(Config* config,
                        Sensor* sensors,
                        int number_of_panels,
-                       int number_of_sensors);
+                       int number_of_sensors,
+                       GradientValueMap* knight_rider_gradient);
     void update() override;
     Color get_color_for_panel(int panel_index) const override;
 
@@ -52,6 +54,19 @@ private:
     float blend_at_transition_start;
     Clock rainbow_clock;
     Clock transition_clock;
+
+    // Idle attract: after glow_knight_rider_idle_delay_ms with every glow
+    // idle, the knight rider sweep crossfades in for
+    // glow_knight_rider_run_duration_ms. idle_clock runs only while the
+    // whole sculpture is dark; any interaction stops it (and fades the
+    // sweep out if it is showing).
+    KnightRiderAnimation* knight_rider_animation;
+    bool knight_rider_target_active;
+    float knight_rider_blend;
+    float knight_rider_blend_at_transition_start;
+    Clock idle_clock;
+    Clock knight_rider_run_clock;
+    Clock knight_rider_transition_clock;
 
     Color _pick_target_for_activation(int activating_sensor_index, int activating_panel_index);
     Color _dance_color_for_panel(int panel_index, float idle_value) const;
