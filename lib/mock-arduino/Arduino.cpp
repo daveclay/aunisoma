@@ -115,9 +115,11 @@ void delay(int) {
 
 // Approximate wall-clock ms per loop() iteration on hardware. Used by the mock
 // to make millis()-driven durations behave the same on native as on the SAMD51.
-// The 240ms figure came from measuring ~300 ticks over 1m12s while running the
-// knight-rider animation.
-#define MOCK_MS_PER_LOOP 240
+// Measured with the LoopTiming instrumentation (grandcentral_m4_glow_timing,
+// Aug 2026): period 62.1-62.5 ms avg with <1 ms jitter, ~61.7 ms of which is
+// the master round-trip. (An older knight-rider blink-count measurement said
+// 240 ms; that was stale.)
+#define MOCK_MS_PER_LOOP 62
 
 long millis() {
     return iteration * MOCK_MS_PER_LOOP;
