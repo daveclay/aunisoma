@@ -103,6 +103,18 @@ GlowColorAlgorithm::GlowColorAlgorithm(Config* config,
         this->glow_hue_sin[sensor_index] = 0.0f;
     }
 
+    this->dance_clocks = new Clock[number_of_panels];
+    this->dance_active = new bool[number_of_panels];
+    this->dance_anchor_is_front = new bool[number_of_panels];
+    for (int panel_index = 0; panel_index < number_of_panels; panel_index++) {
+        this->dance_active[panel_index] = false;
+        this->dance_anchor_is_front[panel_index] = true;
+    }
+    this->prev_glow_active = new bool[number_of_sensors];
+    for (int sensor_index = 0; sensor_index < number_of_sensors; sensor_index++) {
+        this->prev_glow_active[sensor_index] = false;
+    }
+
     this->rainbow_target_active = false;
     this->rainbow_blend = 0.0f;
     this->blend_at_transition_start = 0.0f;
@@ -146,7 +158,38 @@ void GlowColorAlgorithm::update() {
         this->glows[sensor_index]->update();
     }
 
-    // Step 3: detect rainbow target changes and advance the crossfade blend.
+    // Step 3: two-sided dance bookkeeping. While both of a panel's own glows
+    // are active (someone on each side), the panel's color cycles between
+    // the two glows' targets. The clock starts when the second glow arrives,
+    // anchored on the glow that was already running so the cycle departs
+    // from the color the panel is currently showing.
+    for (int panel_index = 0; panel_index < this->number_of_panels; panel_index++) {
+        int front_sensor_index = panel_index * 2;
+        int back_sensor_index = front_sensor_index + 1;
+        bool front_glow_active = this->glows[front_sensor_index]->is_active();
+        bool back_glow_active = this->glows[back_sensor_index]->is_active();
+        bool dance_active_now = front_glow_active && back_glow_active;
+
+        if (dance_active_now && !this->dance_active[panel_index]) {
+            // Anchor on the glow that was running last tick; if both rose in
+            // the same tick, the front arbitrarily leads.
+            this->dance_anchor_is_front[panel_index] =
+                this->prev_glow_active[front_sensor_index]
+                || !this->prev_glow_active[back_sensor_index];
+            this->dance_clocks[panel_index].restart();
+        } else if (!dance_active_now && this->dance_active[panel_index]) {
+            this->dance_clocks[panel_index].stop();
+        }
+        this->dance_active[panel_index] = dance_active_now;
+        this->prev_glow_active[front_sensor_index] = front_glow_active;
+        this->prev_glow_active[back_sensor_index] = back_glow_active;
+
+        if (!this->dance_clocks[panel_index].isStopped()) {
+            this->dance_clocks[panel_index].update();
+        }
+    }
+
+    // Step 4: detect rainbow target changes and advance the crossfade blend.
     bool high_interaction_now = this->_is_high_interaction();
     if (high_interaction_now != this->rainbow_target_active) {
         this->blend_at_transition_start = this->rainbow_blend;
@@ -173,8 +216,9 @@ void GlowColorAlgorithm::update() {
         this->rainbow_clock.update();
     }
 
-    // Step 4: resolve per-panel color. A panel can be touched by its own two
-    // sensors' glows and by the lagged neighbor envelopes of glows within
+    // Step 5: resolve per-panel color. A panel whose own two glows are both
+    // active dances between their colors. Otherwise a panel can be touched
+    // by its own glows and by the lagged neighbor envelopes of glows within
     // glow_ripple_distance. One contributor lerps idle toward its target;
     // two or more blend chroma vectors in the unit disk with the overlap
     // rule: saturation = min(1, magnitude), and excess magnitude above 1
@@ -198,7 +242,12 @@ void GlowColorAlgorithm::update() {
         float strongest_target_hue = 0.0f;
         Color single_glow_displayed = idle_color;
 
-        for (int sensor_index = 0; sensor_index < this->number_of_sensors; sensor_index++) {
+        // The dance takes the whole panel: neighbor ripple contributions are
+        // ignored while both of its own sensors hold it, so the contributor
+        // scan is skipped.
+        bool dancing = this->dance_active[panel_index];
+
+        for (int sensor_index = 0; !dancing && sensor_index < this->number_of_sensors; sensor_index++) {
             Glow* glow = this->glows[sensor_index];
             if (!glow->is_active()) continue;
 
@@ -225,7 +274,9 @@ void GlowColorAlgorithm::update() {
         }
 
         Color resolved;
-        if (contributing_glow_count == 0) {
+        if (dancing) {
+            resolved = this->_dance_color_for_panel(panel_index, idle_value);
+        } else if (contributing_glow_count == 0) {
             resolved = idle_color;
         } else if (contributing_glow_count == 1) {
             resolved = single_glow_displayed;
@@ -314,13 +365,63 @@ Color GlowColorAlgorithm::_pick_target_for_activation(int activating_sensor_inde
     if (found_neighbor) {
         // Shift the neighbor's hue by 1/20 of the wheel so a chain of
         // adjacent activations forms a smooth gradient instead of one
-        // dominant color.
+        // dominant color. The same-panel partner (distance 0) instead gets
+        // the larger dance offset — its color exists to cycle against the
+        // other side's, so it needs visible contrast.
+        float hue_offset = closest_distance == 0
+                         ? this->config->glow_dance_partner_hue_offset
+                         : (1.0f / 20.0f);
         Hsv neighbor_hsv = rgb_to_hsv(neighbor_color);
-        float shifted_hue = neighbor_hsv.hue + (1.0f / 20.0f);
-        if (shifted_hue >= 1.0f) shifted_hue -= 1.0f;
+        float shifted_hue = neighbor_hsv.hue + hue_offset;
+        shifted_hue -= floorf(shifted_hue);
         return hsv_to_rgb(shifted_hue, 1.0f, 1.0f);
     }
     return this->_pick_random_saturated_color();
+}
+
+// Cycle the panel between its two glows' hues along the shortest arc of the
+// wheel. The raw cycle position (cosine, one full anchor → other → anchor
+// trip per glow_dance_period_ms) is weighted by each glow's live intensity:
+// a glow still fading in pulls weakly, so the dance eases in from the
+// anchor's color, and a glow fading out lets go gradually, so the panel
+// settles on the surviving color with no snap when the dance ends.
+Color GlowColorAlgorithm::_dance_color_for_panel(int panel_index, float idle_value) const {
+    int front_sensor_index = panel_index * 2;
+    int back_sensor_index = front_sensor_index + 1;
+    int anchor_sensor_index = this->dance_anchor_is_front[panel_index]
+                            ? front_sensor_index : back_sensor_index;
+    int other_sensor_index = this->dance_anchor_is_front[panel_index]
+                           ? back_sensor_index : front_sensor_index;
+
+    float anchor_intensity = this->glows[anchor_sensor_index]->get_intensity();
+    float other_intensity = this->glows[other_sensor_index]->get_intensity();
+
+    long period_ms = this->config->glow_dance_period_ms;
+    if (period_ms < 1) period_ms = 1;
+    long cycle_elapsed_ms = static_cast<long>(this->dance_clocks[panel_index].elapsed_ms) % period_ms;
+    float cycle_phase = static_cast<float>(cycle_elapsed_ms) / static_cast<float>(period_ms);
+    float raw_weight = 0.5f - 0.5f * cosf(cycle_phase * FULL_CIRCLE_RADIANS);
+
+    float anchor_pull = (1.0f - raw_weight) * anchor_intensity;
+    float other_pull = raw_weight * other_intensity;
+    float pull_sum = anchor_pull + other_pull;
+    float other_weight = pull_sum > 0.0f ? other_pull / pull_sum : 0.0f;
+
+    float anchor_hue = this->glow_target_hue[anchor_sensor_index];
+    float other_hue = this->glow_target_hue[other_sensor_index];
+    float hue_delta = other_hue - anchor_hue;
+    // Wrap to [-0.5, 0.5) so the interpolation takes the short way around.
+    hue_delta -= floorf(hue_delta + 0.5f);
+    float resolved_hue = anchor_hue + hue_delta * other_weight;
+    resolved_hue -= floorf(resolved_hue);
+
+    // Brightness pins to the brighter glow, same as the overlap rule, so the
+    // two out-of-phase pulses shimmer instead of multiplying darker.
+    float stronger_intensity = anchor_intensity > other_intensity
+                             ? anchor_intensity : other_intensity;
+    float resolved_value = idle_value * (1.0f - stronger_intensity) + stronger_intensity;
+
+    return hsv_to_rgb(resolved_hue, 1.0f, resolved_value);
 }
 
 bool GlowColorAlgorithm::_is_high_interaction() const {

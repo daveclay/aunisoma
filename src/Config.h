@@ -91,6 +91,21 @@ public:
     int glow_ripple_start_delay_ms;
     int glow_ripple_peak_lag_ms;
 
+    // Two-sided dance: when both of a panel's own sensors have active glows
+    // (one person on each side), the panel cycles between the two glows'
+    // colors instead of statically blending them. One full
+    // anchor → other → anchor color cycle takes glow_dance_period_ms. Each
+    // color's pull is weighted by its glow's live intensity, so the dance
+    // eases in while the second glow fades in and hands off smoothly to the
+    // surviving color when either side releases.
+    int glow_dance_period_ms;
+    // Hue offset (fraction of the wheel) given to a sensor that activates
+    // while its own panel's other side is already lit. Adjacent-panel
+    // activations keep the small chain-gradient shift; the same-panel
+    // partner gets this larger offset so the dance between the two colors
+    // reads clearly.
+    float glow_dance_partner_hue_offset;
+
     // This is here to make it available to the C++ files, since importing Aunisoma-Sketch isn't good.
     int number_of_panels;
 

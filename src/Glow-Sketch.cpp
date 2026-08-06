@@ -27,9 +27,8 @@ static LoopTiming loop_timing(TIMING_SEGMENT_NAMES, 3);
 // Glow-only sketch. Drives GlowColorAlgorithm directly: no wavefront
 // propagation — each sensor pulses its own panel. Front and back sensors are
 // independent interactions with their own colors; a panel active from both
-// sides intermingles the two pulses because each pulse clock starts on its
-// own sensor's rising edge. Lives alongside Wave-Sketch.cpp as its own build
-// target.
+// sides dances between the two sensors' colors on its own configurable
+// period. Lives alongside Wave-Sketch.cpp as its own build target.
 
 static char panel_ids[] = "281A221B162515111220181914171F131D211E23";
 
@@ -108,6 +107,14 @@ void setup(void) {
     config.glow_pulse_min_period_ms = 3000;
     config.glow_pulse_max_period_ms = 4000;
     config.glow_pulse_min_value = 0.10f;
+
+    // One person on each side of the same panel: that panel cycles between
+    // the two sensors' colors, one full there-and-back trip per period. The
+    // second side's color sits a third of the wheel from the first so the
+    // dance reads clearly (adjacent-panel activations keep the subtle 1/20
+    // chain-gradient shift).
+    config.glow_dance_period_ms = 2500;
+    config.glow_dance_partner_hue_offset = 1.0f / 3.0f;
 
     // Ripple: the 2 panels on each side follow the source with a
     // per-distance lag — a distance-1 neighbor starts brightening 100 ms

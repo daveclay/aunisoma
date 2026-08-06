@@ -11,9 +11,10 @@
 // interactions) drives its own Glow on its own panel; neighbors within
 // glow_ripple_distance follow the source's fade envelope with a
 // per-distance lag, so activation and release visibly propagate outward.
-// Panels touched by more than one glow blend with the same chroma-vector
-// overlap rule WaveColorAlgorithm uses. The high-interaction rainbow
-// override is carried over unchanged.
+// A panel whose own two sensors are both active dances between the two
+// glows' colors on glow_dance_period_ms; other multi-glow panels blend
+// with the same chroma-vector overlap rule WaveColorAlgorithm uses. The
+// high-interaction rainbow override is carried over unchanged.
 class GlowColorAlgorithm : public ColorAlgorithm {
 public:
     GlowColorAlgorithm(Config* config,
@@ -31,6 +32,15 @@ private:
     Glow** glows;
     Color* displayed_colors;
     bool* prev_sensor_active;
+    // Two-sided dance state. dance_clocks runs per panel while both of the
+    // panel's own glows are active; the anchor is the glow that was already
+    // running when the second one arrived, so the cycle departs from the
+    // color the panel is currently showing. prev_glow_active is glow (not
+    // sensor) activity, which outlives the sensor through fade-out.
+    Clock* dance_clocks;
+    bool* dance_active;
+    bool* dance_anchor_is_front;
+    bool* prev_glow_active;
     // Per-sensor hue of the glow's target color and its unit chroma vector,
     // cached at activation (the target is constant while active) so the
     // per-panel blend loop is multiply-adds instead of rgb_to_hsv + trig.
@@ -44,6 +54,7 @@ private:
     Clock transition_clock;
 
     Color _pick_target_for_activation(int activating_sensor_index, int activating_panel_index);
+    Color _dance_color_for_panel(int panel_index, float idle_value) const;
     Color _pick_random_saturated_color() const;
     bool _is_high_interaction() const;
     Color _rainbow_color_for_panel(int panel_index) const;

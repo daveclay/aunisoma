@@ -32,6 +32,8 @@ Config::Config() : initial_trigger_panel_animation_loop_duration_ms(0), reverber
                    glow_ripple_distance(0),
                    glow_ripple_start_delay_ms(0),
                    glow_ripple_peak_lag_ms(0),
+                   glow_dance_period_ms(0),
+                   glow_dance_partner_hue_offset(0),
                    number_of_panels(0) {
 }
 
