@@ -72,6 +72,46 @@ static Color hsv_to_rgb(float hue, float saturation, float value) {
     return Color(red, green, blue);
 }
 
+// HSV hue is not perceptually uniform: red→orange→yellow is packed into the
+// first sixth of the wheel while the green and blue bands sprawl across half
+// of it and read as one color each. Stepping or spreading raw hue evenly
+// therefore makes greens/blues dominate the sculpture. These anchor tables
+// define a piecewise-linear warp between a uniform "wheel position" (equal
+// steps look like equal color changes) and HSV hue: warm hues get a wider
+// share of the position axis, green/cyan/blue a narrower one.
+static const int HUE_WARP_ANCHOR_COUNT = 8;
+static const float HUE_WARP_POSITIONS[HUE_WARP_ANCHOR_COUNT] =
+    { 0.00f, 0.15f, 0.30f, 0.45f, 0.58f, 0.72f, 0.85f, 1.00f };
+static const float HUE_WARP_HUES[HUE_WARP_ANCHOR_COUNT] =
+    { 0.000f, 0.083f, 0.167f, 0.333f, 0.500f, 0.667f, 0.792f, 1.000f };
+//    red     orange  yellow  green   cyan    blue    violet  red
+
+static float hue_from_wheel_position(float wheel_position) {
+    wheel_position -= floorf(wheel_position);
+    for (int segment = 1; segment < HUE_WARP_ANCHOR_COUNT; segment++) {
+        if (wheel_position <= HUE_WARP_POSITIONS[segment]) {
+            float segment_span = HUE_WARP_POSITIONS[segment] - HUE_WARP_POSITIONS[segment - 1];
+            float segment_fraction = (wheel_position - HUE_WARP_POSITIONS[segment - 1]) / segment_span;
+            return HUE_WARP_HUES[segment - 1]
+                 + (HUE_WARP_HUES[segment] - HUE_WARP_HUES[segment - 1]) * segment_fraction;
+        }
+    }
+    return 0.0f;
+}
+
+static float wheel_position_from_hue(float hue) {
+    hue -= floorf(hue);
+    for (int segment = 1; segment < HUE_WARP_ANCHOR_COUNT; segment++) {
+        if (hue <= HUE_WARP_HUES[segment]) {
+            float segment_span = HUE_WARP_HUES[segment] - HUE_WARP_HUES[segment - 1];
+            float segment_fraction = (hue - HUE_WARP_HUES[segment - 1]) / segment_span;
+            return HUE_WARP_POSITIONS[segment - 1]
+                 + (HUE_WARP_POSITIONS[segment] - HUE_WARP_POSITIONS[segment - 1]) * segment_fraction;
+        }
+    }
+    return 0.0f;
+}
+
 GlowColorAlgorithm::GlowColorAlgorithm(Config* config,
                                        Sensor* sensors,
                                        int number_of_panels,
@@ -443,18 +483,21 @@ Color GlowColorAlgorithm::_pick_target_for_activation(int activating_sensor_inde
     }
 
     if (found_neighbor) {
-        // Shift the neighbor's hue by 1/20 of the wheel so a chain of
+        // Shift the neighbor's color by 1/20 of the wheel so a chain of
         // adjacent activations forms a smooth gradient instead of one
-        // dominant color. The same-panel partner (distance 0) instead gets
-        // the larger dance offset — its color exists to cycle against the
-        // other side's, so it needs visible contrast.
-        float hue_offset = closest_distance == 0
-                         ? this->config->glow_dance_partner_hue_offset
-                         : (1.0f / 20.0f);
+        // dominant color. The step happens in warped wheel-position space so
+        // every step looks equally big — raw-hue steps crawl through the
+        // wide green/blue bands and sprint through the warm ones. The
+        // same-panel partner (distance 0) instead gets the larger dance
+        // offset — its color exists to cycle against the other side's, so
+        // it needs visible contrast.
+        float wheel_position_offset = closest_distance == 0
+                                    ? this->config->glow_dance_partner_hue_offset
+                                    : (1.0f / 20.0f);
         Hsv neighbor_hsv = rgb_to_hsv(neighbor_color);
-        float shifted_hue = neighbor_hsv.hue + hue_offset;
-        shifted_hue -= floorf(shifted_hue);
-        return hsv_to_rgb(shifted_hue, 1.0f, 1.0f);
+        float shifted_position = wheel_position_from_hue(neighbor_hsv.hue) + wheel_position_offset;
+        shifted_position -= floorf(shifted_position);
+        return hsv_to_rgb(hue_from_wheel_position(shifted_position), 1.0f, 1.0f);
     }
     return this->_pick_random_saturated_color();
 }
@@ -521,13 +564,13 @@ Color GlowColorAlgorithm::_rainbow_color_for_panel(int panel_index) const {
                         / static_cast<float>(scroll_duration_ms);
     float panel_fraction = static_cast<float>(panel_index)
                          / static_cast<float>(this->number_of_panels);
-    float hue = panel_fraction + scroll_offset;
-    hue = hue - floorf(hue);
-    if (hue < 0) hue += 1.0f;
-    return hsv_to_rgb(hue, 1.0f, 1.0f);
+    float wheel_position = panel_fraction + scroll_offset;
+    wheel_position = wheel_position - floorf(wheel_position);
+    if (wheel_position < 0) wheel_position += 1.0f;
+    return hsv_to_rgb(hue_from_wheel_position(wheel_position), 1.0f, 1.0f);
 }
 
 Color GlowColorAlgorithm::_pick_random_saturated_color() const {
-    float candidate_hue = static_cast<float>(random(10000)) / 10000.0f;
-    return hsv_to_rgb(candidate_hue, 1.0f, 1.0f);
+    float wheel_position = static_cast<float>(random(10000)) / 10000.0f;
+    return hsv_to_rgb(hue_from_wheel_position(wheel_position), 1.0f, 1.0f);
 }
