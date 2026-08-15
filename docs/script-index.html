@@ -89,6 +89,17 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
                 </label>
             </p>
         </td>
+        <td>
+            <p>
+                <label for="stepIntervalInput">ms per step</label>
+            </p>
+            <p>
+                <input type="text" id="stepIntervalInput" value="62"/>
+            </p>
+            <p>
+                (hardware runs one loop every 62 ms)
+            </p>
+        </td>
     </tr>
 </table>
 <script>
@@ -105,6 +116,17 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
     const PAUSE_BUTTON = document.getElementById("pauseButton");
     const JUMP_TO_STEP_INPUT = document.getElementById("jumpToStepInput");
     const APPLY_GAMMA_CHECKBOX = document.getElementById("applyGammaCheckbox");
+    const STEP_INTERVAL_INPUT = document.getElementById("stepIntervalInput");
+
+    // Matches MOCK_MS_PER_LOOP in lib/mock-arduino/Arduino.cpp — the measured
+    // wall-clock time of one loop() iteration on the SAMD51 — so playback at
+    // the default speed matches the real sculpture.
+    const HARDWARE_MS_PER_LOOP = 62;
+
+    function stepIntervalMs() {
+      const parsed = parseInt(STEP_INTERVAL_INPUT.value);
+      return parsed > 0 ? parsed : HARDWARE_MS_PER_LOOP;
+    }
 
     let applyGamma = APPLY_GAMMA_CHECKBOX.checked;
 
@@ -207,7 +229,14 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
       }
 
       _runInterval() {
-          this.interval = setInterval(() => this.runNextStep(), 100);
+          this.interval = setInterval(() => this.runNextStep(), stepIntervalMs());
+      }
+
+      restartIntervalIfRunning() {
+        if (this.interval) {
+          clearInterval(this.interval);
+          this._runInterval();
+        }
       }
 
       runPreviousStep() {
@@ -245,8 +274,12 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
           let index = panel.index;
           let panelUI = this.panelUIs[index]
           panelUI.color = panel;
-          // interactions is "OK 011101..."
-          panelUI.active = interactions.charAt(index + 3) !== "0";
+          // Prefer the per-panel "pir" field (0 = none, 1 = front, 2 = back,
+          // 3 = both); fall back to decoding the "OK 011302..." interactions
+          // string for older script.json files.
+          panelUI.pir = panel.pir !== undefined
+            ? String(panel.pir)
+            : interactions.charAt(index + 3);
           panelUI.update();
           totalAmps += panelUI.amps;
         });
@@ -287,13 +320,16 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
         this.panelInfoElement = this.panelContainerElement.getElementsByClassName("panelInfo")[0];
         this.panelElement = this.panelContainerElement.getElementsByClassName("panel")[0];
         this.amps = 0;
-        this.active = false;
+        this.pir = "0";
         this.color = "000000";
       }
 
       update() {
-          this.panelElement.style.backgroundColor = colorToHexString(this.color);
-        this.panelInfoElement.innerHTML = (this.active ? "active" : "&nbsp;") + ` ${this.color.red},${this.color.green},${this.color.blue}`;
+        // Unknown digits fall through raw so a malformed PIR reply is visible.
+        const PIR_LABELS = { "0": "&nbsp;", "1": "front", "2": "back", "3": "both" };
+        const pirLabel = PIR_LABELS[this.pir] || this.pir;
+        this.panelElement.style.backgroundColor = colorToHexString(this.color);
+        this.panelInfoElement.innerHTML = pirLabel + `<br/>${this.color.red},${this.color.green},${this.color.blue}`;
         this.amps = getPowerDrawAmps(this.color);
       }
     }
@@ -320,6 +356,10 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
       const file = event.target.files[0];
       console.log(file);
       scriptRunner.loadAndRun(file);
+    });
+
+    STEP_INTERVAL_INPUT.addEventListener("change", () => {
+      scriptRunner.restartIntervalIfRunning();
     });
 
     APPLY_GAMMA_CHECKBOX.addEventListener("change", () => {

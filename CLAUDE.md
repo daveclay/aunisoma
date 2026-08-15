@@ -83,12 +83,17 @@ jq -c '.[11].panels[0], .[981].panels[2], .[921].panels[0]' /tmp/aunisoma_native
 Expected:
 
 ```
-{"index":0,"red":"00","green":"ff","blue":"00"}   # front  → green
-{"index":2,"red":"00","green":"00","blue":"ff"}   # back   → blue
-{"index":0,"red":"00","green":"ff","blue":"ff"}   # both   → teal
+{"index":0,"red":"00","green":"ff","blue":"00","pir":"1"}   # front  → green
+{"index":2,"red":"00","green":"00","blue":"ff","pir":"2"}   # back   → blue
+{"index":0,"red":"00","green":"ff","blue":"ff","pir":"3"}   # both   → teal
 ```
 
-Any idle panel at the same iterations must be `{"red":"03","green":"00","blue":"00"}`
+Each panel entry carries a `"pir"` field: the raw PIR reply byte the sketch
+used to compute that entry's colors (`"0"` none, `"1"` front, `"2"` back,
+`"3"` both; emitted as a string so a malformed reply byte — e.g. the stray
+`e` the pinned script feeds panel 9 — stays valid JSON).
+
+Any idle panel at the same iterations must have `"red":"03","green":"00","blue":"00"`
 (idle is RGB `(3,0,0)` and `gamma_lut[3] = 3`). If the PIR test diverges from
 these expected values, stop and investigate before reporting the build as
 working.

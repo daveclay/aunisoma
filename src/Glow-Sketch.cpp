@@ -143,7 +143,7 @@ void setup(void) {
     config.glow_knight_rider_sweep_duration_ms = 2000;
     config.glow_knight_rider_fade_ms = 1000;
 
-    // Ripple: the 2 panels on each side follow the source with a
+    // Ripple: the N panels on each side follow the source with a
     // per-distance lag — a distance-1 neighbor starts brightening 100 ms
     // after the source and peaks 200 ms after the source's 200 ms peak
     // (i.e. at 400 ms), repeats the source's pulse dips 200 ms/panel behind

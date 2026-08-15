@@ -151,7 +151,15 @@ void writeScriptLine(char *colors, char *interactions) {
         char green[] = {outPanelColors[2], outPanelColors[3], '\0' };
         char blue[] = {outPanelColors[4], outPanelColors[5], '\0' };
 
-        std::cout << "\t\t{ \"index\": " << index << ", \"red\": \"" << red << "\", \"green\": \"" << green << "\", \"blue\": \"" << blue << "\"}";
+        // interactions is the master reply "OK <pirs>"; digit per panel:
+        // 0 = none, 1 = front, 2 = back, 3 = both. Emitted as a string, not
+        // a number, so a malformed reply byte still produces valid JSON.
+        char pir = '0';
+        if ((int)strlen(interactions) >= 3 + NUMBER_OF_PANELS) {
+            pir = interactions[3 + index];
+        }
+
+        std::cout << "\t\t{ \"index\": " << index << ", \"red\": \"" << red << "\", \"green\": \"" << green << "\", \"blue\": \"" << blue << "\", \"pir\": \"" << pir << "\"}";
         if (i < 114) {
             std::cout << ",";
         }
