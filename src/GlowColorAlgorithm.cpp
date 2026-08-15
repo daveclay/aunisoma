@@ -466,18 +466,20 @@ Color GlowColorAlgorithm::_pick_target_for_activation(int activating_sensor_inde
     int closest_distance = neighbor_max_distance + 1;
     Color neighbor_color = this->config->wave_idle_color;
     bool found_neighbor = false;
+    bool neighbor_is_to_the_left = false;
 
     for (int other_sensor_index = 0; other_sensor_index < this->number_of_sensors; other_sensor_index++) {
         if (other_sensor_index == activating_sensor_index) continue;
         Glow* other = this->glows[other_sensor_index];
         if (!other->is_active()) continue;
         int other_panel = other->get_panel_index();
-        int panel_distance = other_panel - activating_panel_index;
-        if (panel_distance < 0) panel_distance = -panel_distance;
+        int signed_panel_distance = other_panel - activating_panel_index;
+        int panel_distance = signed_panel_distance < 0 ? -signed_panel_distance : signed_panel_distance;
         if (panel_distance > neighbor_max_distance) continue;
         if (panel_distance < closest_distance) {
             closest_distance = panel_distance;
             neighbor_color = other->get_target_color();
+            neighbor_is_to_the_left = signed_panel_distance < 0;
             found_neighbor = true;
         }
     }
@@ -487,13 +489,23 @@ Color GlowColorAlgorithm::_pick_target_for_activation(int activating_sensor_inde
         // adjacent activations forms a smooth gradient instead of one
         // dominant color. The step happens in warped wheel-position space so
         // every step looks equally big — raw-hue steps crawl through the
-        // wide green/blue bands and sprint through the warm ones. The
-        // same-panel partner (distance 0) instead gets the larger dance
-        // offset — its color exists to cycle against the other side's, so
-        // it needs visible contrast.
-        float wheel_position_offset = closest_distance == 0
-                                    ? this->config->glow_dance_partner_hue_offset
-                                    : (1.0f / 20.0f);
+        // wide green/blue bands and sprint through the warm ones. The step
+        // direction follows the direction of spread: rightward walks step
+        // forward around the wheel, leftward walks step backward, so one
+        // person splitting into both directions diverges into two distinct
+        // gradient trails instead of a mirrored copy. The same-panel partner
+        // (distance 0) instead gets the larger dance offset — its color
+        // exists to cycle against the other side's, so it needs visible
+        // contrast.
+        float wheel_position_offset;
+        if (closest_distance == 0) {
+            wheel_position_offset = this->config->glow_dance_partner_hue_offset;
+        } else {
+            float wheel_position_step = 1.0f / 20.0f;
+            wheel_position_offset = neighbor_is_to_the_left
+                                  ? wheel_position_step
+                                  : -wheel_position_step;
+        }
         Hsv neighbor_hsv = rgb_to_hsv(neighbor_color);
         float shifted_position = wheel_position_from_hue(neighbor_hsv.hue) + wheel_position_offset;
         shifted_position -= floorf(shifted_position);
