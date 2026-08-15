@@ -5,6 +5,7 @@ build
 **/.DS_Store
 
 wtf
+.pio
 
 python/__pycache__/
 

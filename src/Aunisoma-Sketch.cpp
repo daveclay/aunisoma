@@ -5,6 +5,7 @@
 #endif
 #include "Arduino.h"
 #include "Clock.h"
+#include "NightSchedule.h"
 #include "Cycle.h"
 #include "Color.h"
 #include "Config.h"
@@ -96,9 +97,22 @@ bool send_colors(char value[]) {
   return true;
 }
 
+// Nightly schedule: lights on at 20:00, off at 07:00 local time, read from
+// the PCF8523 RTC on SDA/SCL. Without an RTC on the bus this falls back to
+// the old behavior — run 11 hours from power-on, then go dark. While dark,
+// keep the master fed with zeroed colors every 30 s and otherwise do
+// nothing, so the solar can charge the batteries with as little competition
+// as possible from the LEDs.
+static const int LIGHTS_ON_HOUR = 20;
+static const int LIGHTS_OFF_HOUR = 7;
+static const long FALLBACK_RUNTIME_LIMIT_MS = 11L * 60L * 60L * 1000L;
+static const long DARK_RECHECK_DELAY_MS = 30L * 1000L;
+static NightSchedule night_schedule(LIGHTS_ON_HOUR, LIGHTS_OFF_HOUR, FALLBACK_RUNTIME_LIMIT_MS);
+
 void setup(void) {
   Serial.begin(9600);
   link.begin();
+  night_schedule.begin();
 
   pinMode(LED_BUILTIN, OUTPUT);
 
@@ -233,20 +247,11 @@ void setup(void) {
 // + 1 for \0 terminated, which snprintf wants
 char current_panel_color[(SIZE_OF_COLOR + 1)];
 
-// run for 11 hours, then zero out the panels and do nothing while
-// waiting for me to wake up and come out and turn the power off.
-// Note this isn't an accurate clock. It's just attempting to
-// limit the amount of power it draws from the batteries in the
-// morning, allowing the solar power to charge up the batteries
-// with as little competition from the thing actively running LEDs.
-int ACTIVE_RUNTIME_LIMIT_MS = 11 * 60 * 60 * 1000;
-int WAIT_FOR_DAVE_TO_COME_SHUT_ME_OFF_DELAY = 15 * 60 * 1000;
-
 void loop(void) {
   long start = millis();
-  if (start > ACTIVE_RUNTIME_LIMIT_MS) {
+  if (!night_schedule.is_active(start)) {
     send_colors(ZERO_COLORS);
-    delay(WAIT_FOR_DAVE_TO_COME_SHUT_ME_OFF_DELAY);
+    delay(DARK_RECHECK_DELAY_MS);
     return;
   }
 
