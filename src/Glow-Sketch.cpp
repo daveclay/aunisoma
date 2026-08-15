@@ -149,9 +149,9 @@ void setup(void) {
     // (i.e. at 400 ms), repeats the source's pulse dips 200 ms/panel behind
     // so every pulse travels outward, and trails the fade-out by the same
     // lags.
-    config.glow_ripple_distance = 0;
-    config.glow_ripple_start_delay_ms = 300;
-    config.glow_ripple_peak_lag_ms = 900;
+    config.glow_ripple_distance = 1;
+    config.glow_ripple_start_delay_ms = 130;
+    config.glow_ripple_peak_lag_ms = 500;
 
     // High-interaction rainbow override, carried over from the wave sketch.
     config.wave_rainbow_scroll_duration_ms = 2000;
