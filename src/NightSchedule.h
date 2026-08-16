@@ -22,12 +22,19 @@ public:
     bool is_active(long now_ms);
 
 private:
+    void print_status_report();
+
     int lights_on_hour;
     int lights_off_hour;
     long fallback_runtime_limit_ms;
     bool rtc_present;
+    bool seeded_from_build_time;
     bool lights_active;
     long next_rtc_poll_ms;
+    // USB serial connection state from the previous is_active() call; the
+    // RTC status report prints on each false→true edge, i.e. every time a
+    // monitor attaches, so it is visible no matter when the port is opened.
+    bool serial_was_connected;
 };
 
 #endif //NIGHTSCHEDULE_H
