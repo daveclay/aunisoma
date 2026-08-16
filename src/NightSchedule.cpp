@@ -28,11 +28,17 @@ void NightSchedule::begin() {
     rtc_present = rtc.begin();
     if (rtc_present) {
 #ifdef RTC_FORCE_ADJUST
-        // One-shot clock-recovery build: unconditionally set the RTC to this
-        // firmware's build timestamp. Flash once with this flag when the
-        // clock is wrong, then reflash without it — otherwise every reboot
-        // drags the clock back to this build's time.
-        rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+#ifndef RTC_FORCE_ADJUST_EPOCH
+#error "RTC_FORCE_ADJUST needs RTC_FORCE_ADJUST_EPOCH from scripts/set_rtc_time.py; build the *_settime env instead of passing the flag by hand"
+#endif
+        // One-shot clock-recovery build: unconditionally set the RTC to the
+        // build host's wall-clock time, injected as a local-time epoch by
+        // scripts/set_rtc_time.py. Not __DATE__/__TIME__ — those freeze at
+        // compile time of this file, so a cached object serves a stale
+        // timestamp. Flash the *_settime env once, then reflash the normal
+        // env — otherwise every reboot drags the clock back to this build's
+        // time.
+        rtc.adjust(DateTime(static_cast<uint32_t>(RTC_FORCE_ADJUST_EPOCH)));
         seeded_from_build_time = true;
 #else
         if (!rtc.initialized() || rtc.lostPower()) {
@@ -58,10 +64,14 @@ void NightSchedule::print_status_report() {
         Serial.println("h runtime limit from power-on");
     } else {
         if (seeded_from_build_time) {
+#ifdef RTC_FORCE_ADJUST
+            Serial.println("NightSchedule: settime build; clock force-set to the build host's time — reflash the normal firmware");
+#else
             Serial.println("NightSchedule: PCF8523 was unset or lost power; seeded from firmware build timestamp");
+#endif
         }
         DateTime now = rtc.now();
-        char timestamp[24];
+        char timestamp[32];
         std::snprintf(timestamp, sizeof(timestamp), "%04d-%02d-%02d %02d:%02d:%02d",
                       static_cast<int>(now.year()), static_cast<int>(now.month()),
                       static_cast<int>(now.day()), static_cast<int>(now.hour()),

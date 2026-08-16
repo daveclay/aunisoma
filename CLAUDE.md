@@ -26,6 +26,7 @@ Hardware:
 - `pio run -e grandcentral_m4` — legacy algorithm firmware.
 - `pio run -e grandcentral_m4_wave` — wave algorithm firmware.
 - `pio run -e grandcentral_m4_glow` — glow algorithm firmware.
+- `pio run -e grandcentral_m4_glow_settime` — clock-recovery build: force-sets the PCF8523 to the build host's current local time on every boot (injected fresh each build by `scripts/set_rtc_time.py`, immune to build caching). Flash it, verify the time over serial, then reflash `grandcentral_m4_glow`.
 - `pio run -e grandcentral_m4_pir_test` — PIR wiring test firmware.
 
 Desktop mock (run the resulting binary and redirect stdout to a JSON file, e.g. `script.json`, that the mock HTML page replays):
