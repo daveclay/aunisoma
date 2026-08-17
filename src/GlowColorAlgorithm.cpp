@@ -81,7 +81,7 @@ static Color hsv_to_rgb(float hue, float saturation, float value) {
 // share of the position axis, green/cyan/blue a narrower one.
 static const int HUE_WARP_ANCHOR_COUNT = 8;
 static const float HUE_WARP_POSITIONS[HUE_WARP_ANCHOR_COUNT] =
-    { 0.00f, 0.24f, 0.41f, 0.54f, 0.63f, 0.72f, 0.79f, 1.00f };
+    { 0.00f, 0.27f, 0.38f, 0.42f, 0.48f, 0.60f, 0.70f, 1.00f };
 static const float HUE_WARP_HUES[HUE_WARP_ANCHOR_COUNT] =
     { 0.000f, 0.083f, 0.167f, 0.333f, 0.500f, 0.667f, 0.792f, 1.000f };
 //    red     orange  yellow  green   cyan    blue    violet  red

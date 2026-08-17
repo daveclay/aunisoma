@@ -18,6 +18,40 @@
 #define MOCK_INTERACTIONS 0
 #endif
 
+// Scripted playback (grandcentral_m4_glow_scripted): ignore the real PIR
+// readings and replay lib/mock-arduino/script.txt — baked into the firmware
+// as MockScriptData.h by scripts/embed_mock_script.py — on an endless loop,
+// so the sculpture can be compared side by side with the desktop mock replay
+// of the same script. The night schedule is bypassed so the build runs
+// whenever it's flashed.
+#ifndef SCRIPTED_INTERACTIONS
+#define SCRIPTED_INTERACTIONS 0
+#endif
+
+#if SCRIPTED_INTERACTIONS
+#include "MockScriptData.h"
+// Matches MOCK_MS_PER_LOOP in lib/mock-arduino/Arduino.cpp: one script
+// iteration is one mock loop(), which stands in for ~62 ms of hardware time.
+static const long SCRIPT_MS_PER_ITERATION = 62;
+// Quiet gap between repeats so each pass fades out fully before the next.
+static const long SCRIPT_LOOP_TAIL_MS = 3000;
+static const long SCRIPT_LOOP_PERIOD_MS =
+    (long)MOCK_SCRIPT_LAST_ITERATION * SCRIPT_MS_PER_ITERATION + SCRIPT_LOOP_TAIL_MS;
+
+static const char* scripted_pirs(long now_ms) {
+    long script_iteration = (now_ms % SCRIPT_LOOP_PERIOD_MS) / SCRIPT_MS_PER_ITERATION;
+    const char* latest = "00000000000000000000";
+    for (int entry_index = 0; entry_index < MOCK_SCRIPT_ENTRY_COUNT; entry_index++) {
+        if (MOCK_SCRIPT_ITERATIONS[entry_index] <= script_iteration) {
+            latest = MOCK_SCRIPT_PIRS[entry_index];
+        } else {
+            break;
+        }
+    }
+    return latest;
+}
+#endif
+
 // Loop-timing instrumentation (see LoopTiming.h). Build with
 // -DMEASURE_LOOP_TIMING=1 (the grandcentral_m4_glow_timing env) to print
 // min/avg/max microseconds over USB serial every 100 loops: the loop period
@@ -61,6 +95,9 @@ static bool send_colors(char value[]) {
     if (!link.send_colors(value, pir_readings)) {
         return false;
     }
+#if SCRIPTED_INTERACTIONS
+    const char* script_pirs = scripted_pirs(millis());
+#endif
     for (int panel_index = 0; panel_index < NUMBER_OF_PANELS; panel_index++) {
         int sensor_index = panel_index * 2;
         if (MOCK_INTERACTIONS) {
@@ -74,7 +111,11 @@ static bool send_colors(char value[]) {
                 sensors[sensor_index + 1].update(sensors[sensor_index + 1].last_reading);
             }
         } else {
+#if SCRIPTED_INTERACTIONS
+            char pir = script_pirs[panel_index];
+#else
             char pir = pir_readings[panel_index];
+#endif
             bool front_sensor_active = pir == '1' || pir == '3';
             bool back_sensor_active = pir == '2' || pir == '3';
             sensors[sensor_index].update(front_sensor_active);
@@ -189,11 +230,13 @@ static long next_map_panels_ms = MAP_PANELS_INTERVAL_MS;
 
 void loop(void) {
     long start = millis();
+#if !SCRIPTED_INTERACTIONS
     if (!night_schedule.is_active(start)) {
         send_colors(ZERO_COLORS);
         delay(DARK_RECHECK_DELAY_MS);
         return;
     }
+#endif
 
     loop_timing.begin_loop();
 

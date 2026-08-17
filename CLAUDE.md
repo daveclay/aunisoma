@@ -27,6 +27,7 @@ Hardware:
 - `pio run -e grandcentral_m4_wave` — wave algorithm firmware.
 - `pio run -e grandcentral_m4_glow` — glow algorithm firmware.
 - `pio run -e grandcentral_m4_glow_settime` — clock-recovery build: force-sets the PCF8523 to the build host's current local time on every boot (injected fresh each build by `scripts/set_rtc_time.py`, immune to build caching). Flash it, verify the time over serial, then reflash `grandcentral_m4_glow`.
+- `pio run -e grandcentral_m4_glow_scripted` — scripted-playback comparison build: ignores real PIR readings and replays `lib/mock-arduino/script.txt` (baked in at build time by `scripts/embed_mock_script.py`, one script iteration = 62 ms) on an endless loop with a 3 s quiet gap between repeats; bypasses the night schedule. Flash it to watch the sculpture run the same script the desktop mock replays; reflash `grandcentral_m4_glow` when done.
 - `pio run -e grandcentral_m4_pir_test` — PIR wiring test firmware.
 
 Desktop mock (run the resulting binary and redirect stdout to a JSON file, e.g. `script.json`, that the mock HTML page replays):
