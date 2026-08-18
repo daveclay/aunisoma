@@ -3,9 +3,10 @@
 
 // Wall-clock on/off schedule for the sculpture, backed by an Adafruit
 // PCF8523 RTC breakout on the main I2C port (SDA/SCL, address 0x68). The
-// lights run from lights_on_hour to lights_off_hour (local time, 0-23; the
-// window may span midnight) and stay dark the rest of the day so the solar
-// panels can charge the batteries without the LEDs competing.
+// lights run from the on time to the off time (local time, hour 0-23 plus
+// minute 0-59; the window may span midnight) and stay dark the rest of the
+// day so the solar panels can charge the batteries without the LEDs
+// competing.
 //
 // If no RTC answers on I2C — not wired, or the breakout died mid-burn —
 // is_active() falls back to the old behavior: run fallback_runtime_limit_ms
@@ -15,7 +16,9 @@
 
 class NightSchedule {
 public:
-    NightSchedule(int lights_on_hour, int lights_off_hour, long fallback_runtime_limit_ms);
+    NightSchedule(int lights_on_hour, int lights_on_minute,
+                  int lights_off_hour, int lights_off_minute,
+                  long fallback_runtime_limit_ms);
     // Probe the RTC; seed it from the firmware build timestamp if it has
     // never been set or lost battery power.
     void begin();
@@ -24,8 +27,11 @@ public:
 private:
     void print_status_report();
 
-    int lights_on_hour;
-    int lights_off_hour;
+    // On/off times as minutes since midnight, so the schedule can start and
+    // stop on the half hour and the spans-midnight comparison stays a pair
+    // of integer compares.
+    int lights_on_minute_of_day;
+    int lights_off_minute_of_day;
     long fallback_runtime_limit_ms;
     bool rtc_present;
     bool seeded_from_build_time;

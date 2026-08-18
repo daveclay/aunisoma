@@ -135,17 +135,21 @@ static bool send_colors(char value[]) {
     return true;
 }
 
-// Nightly schedule: lights on at 20:00, off at 07:00 local time, read from
+// Nightly schedule: lights on at 20:00, off at 06:00 local time, read from
 // the PCF8523 RTC on SDA/SCL. Without an RTC on the bus this falls back to
-// the old behavior — run 11 hours from power-on, then go dark. While dark,
-// keep the master fed with zeroed colors every 30 s and otherwise do
-// nothing, so the solar can charge the batteries with as little competition
-// as possible from the LEDs.
+// the old behavior — run the window's 10 hours from power-on, then go
+// dark. While dark, keep the master fed with zeroed colors every 30 s and
+// otherwise do nothing, so the solar can charge the batteries with as
+// little competition as possible from the LEDs.
 static const int LIGHTS_ON_HOUR = 20;
-static const int LIGHTS_OFF_HOUR = 7;
-static const long FALLBACK_RUNTIME_LIMIT_MS = 11L * 60L * 60L * 1000L;
+static const int LIGHTS_ON_MINUTE = 0;
+static const int LIGHTS_OFF_HOUR = 6;
+static const int LIGHTS_OFF_MINUTE = 0;
+static const long FALLBACK_RUNTIME_LIMIT_MS = 10L * 60L * 60L * 1000L;
 static const long DARK_RECHECK_DELAY_MS = 30L * 1000L;
-static NightSchedule night_schedule(LIGHTS_ON_HOUR, LIGHTS_OFF_HOUR, FALLBACK_RUNTIME_LIMIT_MS);
+static NightSchedule night_schedule(LIGHTS_ON_HOUR, LIGHTS_ON_MINUTE,
+                                    LIGHTS_OFF_HOUR, LIGHTS_OFF_MINUTE,
+                                    FALLBACK_RUNTIME_LIMIT_MS);
 
 void setup(void) {
     Serial.begin(9600);

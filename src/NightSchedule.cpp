@@ -12,9 +12,11 @@ static RTC_PCF8523 rtc;
 // timing budget.
 static const long RTC_POLL_INTERVAL_MS = 30L * 1000L;
 
-NightSchedule::NightSchedule(int lights_on_hour, int lights_off_hour, long fallback_runtime_limit_ms)
-    : lights_on_hour(lights_on_hour),
-      lights_off_hour(lights_off_hour),
+NightSchedule::NightSchedule(int lights_on_hour, int lights_on_minute,
+                             int lights_off_hour, int lights_off_minute,
+                             long fallback_runtime_limit_ms)
+    : lights_on_minute_of_day(lights_on_hour * 60 + lights_on_minute),
+      lights_off_minute_of_day(lights_off_hour * 60 + lights_off_minute),
       fallback_runtime_limit_ms(fallback_runtime_limit_ms),
       rtc_present(false),
       seeded_from_build_time(false),
@@ -76,13 +78,13 @@ void NightSchedule::print_status_report() {
                       static_cast<int>(now.year()), static_cast<int>(now.month()),
                       static_cast<int>(now.day()), static_cast<int>(now.hour()),
                       static_cast<int>(now.minute()), static_cast<int>(now.second()));
+        char schedule[48];
+        std::snprintf(schedule, sizeof(schedule), "; lights on at %02d:%02d, off at %02d:%02d",
+                      lights_on_minute_of_day / 60, lights_on_minute_of_day % 60,
+                      lights_off_minute_of_day / 60, lights_off_minute_of_day % 60);
         Serial.print("NightSchedule: PCF8523 time ");
         Serial.print(timestamp);
-        Serial.print("; lights on at ");
-        Serial.print(lights_on_hour);
-        Serial.print(":00, off at ");
-        Serial.print(lights_off_hour);
-        Serial.println(":00");
+        Serial.println(schedule);
     }
 }
 #endif
@@ -103,12 +105,15 @@ bool NightSchedule::is_active(long now_ms) {
     if (rtc_present) {
         if (now_ms >= next_rtc_poll_ms) {
             next_rtc_poll_ms = now_ms + RTC_POLL_INTERVAL_MS;
-            int hour_of_day = rtc.now().hour();
-            if (lights_on_hour > lights_off_hour) {
-                // Window spans midnight, e.g. on at 20:00, off at 07:00.
-                lights_active = hour_of_day >= lights_on_hour || hour_of_day < lights_off_hour;
+            DateTime now = rtc.now();
+            int minute_of_day = now.hour() * 60 + now.minute();
+            if (lights_on_minute_of_day > lights_off_minute_of_day) {
+                // Window spans midnight, e.g. on at 20:30, off at 06:00.
+                lights_active = minute_of_day >= lights_on_minute_of_day ||
+                                minute_of_day < lights_off_minute_of_day;
             } else {
-                lights_active = hour_of_day >= lights_on_hour && hour_of_day < lights_off_hour;
+                lights_active = minute_of_day >= lights_on_minute_of_day &&
+                                minute_of_day < lights_off_minute_of_day;
             }
         }
         return lights_active;
