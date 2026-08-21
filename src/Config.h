@@ -121,7 +121,9 @@ public:
 
     // Sustained-crowd flicker (Glow-Sketch): when at least
     // glow_flicker_min_active_panels panels hold active glows continuously
-    // for glow_flicker_trigger_delay_ms — with the sensor state still
+    // for the current trigger delay — re-rolled between
+    // glow_flicker_trigger_min_delay_ms and glow_flicker_trigger_max_delay_ms
+    // after every flicker, so the crowd can't predict it — with the sensor state still
     // changing at least every glow_flicker_change_timeout_ms, so a crowd
     // moving around qualifies but a static arrangement does not — the
     // flicker builds up in sparks: one random panel flickers through random
@@ -142,10 +144,11 @@ public:
     // never look alike — and re-rolls colors within ± glow_flicker_hue_range of it
     // (in perceptual wheel-position units, so 0.5 spans the whole wheel and
     // restores fully random colors; 0 locks the run to a single hue),
-    // giving each run a distinct palette. A trigger delay of 0 disables the
-    // feature.
+    // giving each run a distinct palette. A max trigger delay of 0 disables
+    // the feature.
     int glow_flicker_min_active_panels;
-    int glow_flicker_trigger_delay_ms;
+    int glow_flicker_trigger_min_delay_ms;
+    int glow_flicker_trigger_max_delay_ms;
     int glow_flicker_change_timeout_ms;
     int glow_flicker_ramp_duration_ms;
     int glow_flicker_spark_min_duration_ms;

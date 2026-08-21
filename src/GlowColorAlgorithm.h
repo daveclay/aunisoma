@@ -17,7 +17,8 @@
 // with the same chroma-vector overlap rule WaveColorAlgorithm uses. The
 // high-interaction rainbow override is carried over unchanged. A sustained
 // crowd — multiple panels active with the sensors still changing for
-// glow_flicker_trigger_delay_ms — starts a flicker that builds up one
+// a random glow_flicker_trigger_min_delay_ms..glow_flicker_trigger_max_delay_ms
+// — starts a flicker that builds up one
 // random sparking panel at a time over glow_flicker_ramp_duration_ms,
 // holds the whole sculpture flickering random colors — drawn from a hue
 // neighborhood (± glow_flicker_hue_range) around a base hue rolled fresh
@@ -77,8 +78,10 @@ private:
     // Sustained-crowd flicker: multi_panel_clock runs while at least
     // glow_flicker_min_active_panels panels have active glows AND the sensor
     // state changed within glow_flicker_change_timeout_ms (tracked by
-    // sensor_change_clock); when it reaches glow_flicker_trigger_delay_ms
-    // the flicker ramps up in single-panel sparks over
+    // sensor_change_clock); when it reaches flicker_trigger_delay_ms — the
+    // current countdown target, re-rolled between
+    // glow_flicker_trigger_min_delay_ms and glow_flicker_trigger_max_delay_ms
+    // after each trigger — the flicker ramps up in single-panel sparks over
     // glow_flicker_ramp_duration_ms, holds every panel flickering for
     // glow_flicker_run_duration_ms, then crossfades out like the other
     // overrides. A flickering panel fades through its colors rather than
@@ -106,6 +109,7 @@ private:
     unsigned long* flicker_spark_end_ms;
     float* flicker_panel_strength;
     bool flicker_target_active;
+    long flicker_trigger_delay_ms;
     float flicker_base_hue;
     float flicker_base_wheel_position;
     float flicker_blend;
@@ -119,6 +123,7 @@ private:
     Color _dance_color_for_panel(int panel_index, float idle_value) const;
     Color _pick_random_saturated_color() const;
     Color _pick_flicker_color() const;
+    long _roll_flicker_trigger_delay() const;
     bool _is_high_interaction() const;
     Color _rainbow_color_for_panel(int panel_index) const;
 };

@@ -190,6 +190,7 @@ GlowColorAlgorithm::GlowColorAlgorithm(Config* config,
         this->flicker_panel_strength[panel_index] = 0.0f;
     }
     this->flicker_target_active = false;
+    this->flicker_trigger_delay_ms = this->_roll_flicker_trigger_delay();
     // Random starting point; each flicker run advances it by a golden-ratio
     // step, so the sequence of run palettes walks the whole wheel evenly.
     this->flicker_base_hue = static_cast<float>(random(10000)) / 10000.0f;
@@ -365,7 +366,9 @@ void GlowColorAlgorithm::update() {
     // Step 6: sustained-crowd flicker. The countdown runs while enough
     // panels hold active glows AND the sensor state keeps changing (a crowd
     // moving around, not a static arrangement); either condition breaking
-    // resets it. At glow_flicker_trigger_delay_ms the flicker ramps up in
+    // resets it. At flicker_trigger_delay_ms (a random
+    // glow_flicker_trigger_min_delay_ms..glow_flicker_trigger_max_delay_ms,
+    // re-rolled after every trigger) the flicker ramps up in
     // sparks — one random panel flickers briefly, drops back to idle,
     // another sparks, spawning faster and faster across
     // glow_flicker_ramp_duration_ms — then every panel flickers together
@@ -401,11 +404,12 @@ void GlowColorAlgorithm::update() {
     }
 
     if (!this->flicker_target_active
-        && this->config->glow_flicker_trigger_delay_ms > 0
+        && this->flicker_trigger_delay_ms > 0
         && !this->multi_panel_clock.isStopped()
         && static_cast<long>(this->multi_panel_clock.elapsed_ms)
-           >= this->config->glow_flicker_trigger_delay_ms) {
+           >= this->flicker_trigger_delay_ms) {
         this->flicker_target_active = true;
+        this->flicker_trigger_delay_ms = this->_roll_flicker_trigger_delay();
         this->flicker_run_clock.restart();
         // No crossfade in: the ramp reveals the flicker spark by spark from
         // nothing, so the override runs at full strength immediately and
@@ -843,6 +847,18 @@ Color GlowColorAlgorithm::_pick_random_saturated_color() const {
 // wheel position, so each flicker run reads as one palette. The offset is
 // applied in warped wheel-position space, so the range covers the same
 // perceptual spread wherever the base lands.
+// A max delay of 0 disables the flicker (the trigger check requires a
+// positive delay). The min is clamped up to at least 1 ms so random()'s
+// exclusive upper bound always exceeds it.
+long GlowColorAlgorithm::_roll_flicker_trigger_delay() const {
+    int min_delay_ms = this->config->glow_flicker_trigger_min_delay_ms;
+    int max_delay_ms = this->config->glow_flicker_trigger_max_delay_ms;
+    if (max_delay_ms <= 0) return 0;
+    if (min_delay_ms < 1) min_delay_ms = 1;
+    if (max_delay_ms < min_delay_ms) max_delay_ms = min_delay_ms;
+    return random(min_delay_ms, max_delay_ms + 1);
+}
+
 Color GlowColorAlgorithm::_pick_flicker_color() const {
     float hue_range = this->config->glow_flicker_hue_range;
     if (hue_range < 0.0f) hue_range = 0.0f;
