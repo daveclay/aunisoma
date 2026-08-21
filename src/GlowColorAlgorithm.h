@@ -19,8 +19,9 @@
 // crowd — multiple panels active with the sensors still changing for
 // glow_flicker_trigger_delay_ms — starts a flicker that builds up one
 // random sparking panel at a time over glow_flicker_ramp_duration_ms,
-// holds the whole sculpture flickering random colors for
-// glow_flicker_run_duration_ms, then fades out.
+// holds the whole sculpture flickering random colors — drawn from a hue
+// neighborhood (± glow_flicker_hue_range) around a base hue rolled fresh
+// each run — for glow_flicker_run_duration_ms, then fades out.
 class GlowColorAlgorithm : public ColorAlgorithm {
 public:
     GlowColorAlgorithm(Config* config,
@@ -88,7 +89,14 @@ private:
     // all on the flicker_run_clock timeline. flicker_panel_strength is
     // each panel's share of the override this tick: sparking panels only
     // during the ramp (easing back to idle over glow_flicker_spark_fade_ms
-    // when their spark expires), everyone afterward.
+    // when their spark expires), everyone afterward. Each run anchors to a
+    // fresh base hue and every color re-roll lands within
+    // glow_flicker_hue_range of it (flicker_base_wheel_position), so one
+    // run reads as a distinct palette rather than pure noise. The base
+    // advances by a golden-ratio step in unwarped HSV space per run
+    // (flicker_base_hue): unwarped so the perceptual warp's wide warm band
+    // doesn't over-pick reds, golden-stepped so consecutive runs never
+    // land on similar palettes.
     Color* flicker_colors;
     Color* flicker_from_colors;
     Color* flicker_to_colors;
@@ -98,6 +106,8 @@ private:
     unsigned long* flicker_spark_end_ms;
     float* flicker_panel_strength;
     bool flicker_target_active;
+    float flicker_base_hue;
+    float flicker_base_wheel_position;
     float flicker_blend;
     float flicker_blend_at_transition_start;
     Clock multi_panel_clock;
@@ -108,6 +118,7 @@ private:
     Color _pick_target_for_activation(int activating_sensor_index, int activating_panel_index);
     Color _dance_color_for_panel(int panel_index, float idle_value) const;
     Color _pick_random_saturated_color() const;
+    Color _pick_flicker_color() const;
     bool _is_high_interaction() const;
     Color _rainbow_color_for_panel(int panel_index) const;
 };

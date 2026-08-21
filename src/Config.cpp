@@ -49,6 +49,7 @@ Config::Config() : initial_trigger_panel_animation_loop_duration_ms(0), reverber
                    glow_flicker_min_hold_ms(0),
                    glow_flicker_max_hold_ms(0),
                    glow_flicker_fade_ms(0),
+                   glow_flicker_hue_range(0.5f),
                    number_of_panels(0) {
 }
 

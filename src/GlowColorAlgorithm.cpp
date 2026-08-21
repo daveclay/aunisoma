@@ -99,6 +99,11 @@ static float hue_from_wheel_position(float wheel_position) {
     return 0.0f;
 }
 
+// 1 - 1/phi: successive steps of this size around a circle are a
+// low-discrepancy sequence — no two consecutive landings are ever close,
+// and coverage of the wheel evens out over time.
+static const float FLICKER_BASE_HUE_GOLDEN_STEP = 0.381966f;
+
 static float wheel_position_from_hue(float hue) {
     hue -= floorf(hue);
     for (int segment = 1; segment < HUE_WARP_ANCHOR_COUNT; segment++) {
@@ -185,6 +190,10 @@ GlowColorAlgorithm::GlowColorAlgorithm(Config* config,
         this->flicker_panel_strength[panel_index] = 0.0f;
     }
     this->flicker_target_active = false;
+    // Random starting point; each flicker run advances it by a golden-ratio
+    // step, so the sequence of run palettes walks the whole wheel evenly.
+    this->flicker_base_hue = static_cast<float>(random(10000)) / 10000.0f;
+    this->flicker_base_wheel_position = 0.0f;
     this->flicker_blend = 0.0f;
     this->flicker_blend_at_transition_start = 0.0f;
 }
@@ -404,12 +413,21 @@ void GlowColorAlgorithm::update() {
         this->flicker_blend = 1.0f;
         this->flicker_blend_at_transition_start = 1.0f;
         this->flicker_transition_clock.restart();
+        // Anchor this run to a fresh hue; every color re-roll stays within
+        // glow_flicker_hue_range of it. The base steps by the golden-ratio
+        // conjugate in unwarped HSV space: unwarped because a uniform pick
+        // in warped wheel-position space lands warm ~2/3 of the time (the
+        // warp hands red→yellow 38% of the position axis), golden-stepped
+        // so consecutive runs are always far apart on the wheel.
+        this->flicker_base_hue += FLICKER_BASE_HUE_GOLDEN_STEP;
+        this->flicker_base_hue -= floorf(this->flicker_base_hue);
+        this->flicker_base_wheel_position = wheel_position_from_hue(this->flicker_base_hue);
         for (int panel_index = 0; panel_index < this->number_of_panels; panel_index++) {
             // Every panel starts its color fade from idle, so whenever it
             // first shows the override it eases out of the idle color.
             this->flicker_colors[panel_index] = this->config->wave_idle_color;
             this->flicker_from_colors[panel_index] = this->config->wave_idle_color;
-            this->flicker_to_colors[panel_index] = this->_pick_random_saturated_color();
+            this->flicker_to_colors[panel_index] = this->_pick_flicker_color();
             this->flicker_change_started_ms[panel_index] = 0;
             this->flicker_next_change_ms[panel_index] = 0;
             this->flicker_spark_active[panel_index] = false;
@@ -520,7 +538,7 @@ void GlowColorAlgorithm::update() {
             // so the flicker rolls instead of snapping.
             if (flicker_elapsed_ms >= this->flicker_next_change_ms[panel_index]) {
                 this->flicker_from_colors[panel_index] = this->flicker_colors[panel_index];
-                this->flicker_to_colors[panel_index] = this->_pick_random_saturated_color();
+                this->flicker_to_colors[panel_index] = this->_pick_flicker_color();
                 this->flicker_change_started_ms[panel_index] = flicker_elapsed_ms;
                 this->flicker_next_change_ms[panel_index] = flicker_elapsed_ms
                     + static_cast<unsigned long>(random(min_hold_ms, max_hold_ms + 1));
@@ -818,5 +836,19 @@ Color GlowColorAlgorithm::_rainbow_color_for_panel(int panel_index) const {
 
 Color GlowColorAlgorithm::_pick_random_saturated_color() const {
     float wheel_position = static_cast<float>(random(10000)) / 10000.0f;
+    return hsv_to_rgb(hue_from_wheel_position(wheel_position), 1.0f, 1.0f);
+}
+
+// Flicker colors stay within ± glow_flicker_hue_range of the run's base
+// wheel position, so each flicker run reads as one palette. The offset is
+// applied in warped wheel-position space, so the range covers the same
+// perceptual spread wherever the base lands.
+Color GlowColorAlgorithm::_pick_flicker_color() const {
+    float hue_range = this->config->glow_flicker_hue_range;
+    if (hue_range < 0.0f) hue_range = 0.0f;
+    if (hue_range > 0.5f) hue_range = 0.5f;
+    float offset = (static_cast<float>(random(10000)) / 10000.0f * 2.0f - 1.0f) * hue_range;
+    float wheel_position = this->flicker_base_wheel_position + offset;
+    wheel_position -= floorf(wheel_position);
     return hsv_to_rgb(hue_from_wheel_position(wheel_position), 1.0f, 1.0f);
 }

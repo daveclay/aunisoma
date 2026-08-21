@@ -199,16 +199,17 @@ void setup(void) {
     // 150–400 ms it crossfades from its current color to the next random
     // pick, so the flicker rolls instead of jittering.
     config.glow_flicker_min_active_panels = 2;
-    config.glow_flicker_trigger_delay_ms = 5 * 60 * 1000;
+    config.glow_flicker_trigger_delay_ms = 1 * 60 * 1000;
     config.glow_flicker_change_timeout_ms = 15 * 1000;
     config.glow_flicker_ramp_duration_ms = 10 * 1000;
     config.glow_flicker_spark_min_duration_ms = 300;
     config.glow_flicker_spark_max_duration_ms = 700;
     config.glow_flicker_spark_fade_ms = 200;
-    config.glow_flicker_run_duration_ms = 5 * 1000;
+    config.glow_flicker_run_duration_ms = 1500;
     config.glow_flicker_min_hold_ms = 150;
     config.glow_flicker_max_hold_ms = 400;
     config.glow_flicker_fade_ms = 1000;
+    config.glow_flicker_hue_range = 0.12f;
 
     // Ripple: the N panels on each side follow the source with a
     // per-distance lag — a distance-1 neighbor starts brightening 100 ms

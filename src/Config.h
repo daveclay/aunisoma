@@ -136,7 +136,13 @@ public:
     // colors rather than snapping: each re-roll crossfades from the current
     // color to the next over a random glow_flicker_min_hold_ms..
     // glow_flicker_max_hold_ms, and an expiring spark eases back to idle
-    // over glow_flicker_spark_fade_ms. A trigger delay of 0 disables the
+    // over glow_flicker_spark_fade_ms. Each flicker run anchors to a fresh
+    // base hue — stepped around the wheel by a golden-ratio increment per
+    // run, so palettes stay balanced across colors and consecutive runs
+    // never look alike — and re-rolls colors within ± glow_flicker_hue_range of it
+    // (in perceptual wheel-position units, so 0.5 spans the whole wheel and
+    // restores fully random colors; 0 locks the run to a single hue),
+    // giving each run a distinct palette. A trigger delay of 0 disables the
     // feature.
     int glow_flicker_min_active_panels;
     int glow_flicker_trigger_delay_ms;
@@ -149,6 +155,7 @@ public:
     int glow_flicker_min_hold_ms;
     int glow_flicker_max_hold_ms;
     int glow_flicker_fade_ms;
+    float glow_flicker_hue_range;
 
     // This is here to make it available to the C++ files, since importing Aunisoma-Sketch isn't good.
     int number_of_panels;
