@@ -15,7 +15,12 @@
 // A panel whose own two sensors are both active dances between the two
 // glows' colors on glow_dance_period_ms; other multi-glow panels blend
 // with the same chroma-vector overlap rule WaveColorAlgorithm uses. The
-// high-interaction rainbow override is carried over unchanged.
+// high-interaction rainbow override is carried over unchanged. A sustained
+// crowd — multiple panels active with the sensors still changing for
+// glow_flicker_trigger_delay_ms — starts a flicker that builds up one
+// random sparking panel at a time over glow_flicker_ramp_duration_ms,
+// holds the whole sculpture flickering random colors for
+// glow_flicker_run_duration_ms, then fades out.
 class GlowColorAlgorithm : public ColorAlgorithm {
 public:
     GlowColorAlgorithm(Config* config,
@@ -67,6 +72,38 @@ private:
     Clock idle_clock;
     Clock knight_rider_run_clock;
     Clock knight_rider_transition_clock;
+
+    // Sustained-crowd flicker: multi_panel_clock runs while at least
+    // glow_flicker_min_active_panels panels have active glows AND the sensor
+    // state changed within glow_flicker_change_timeout_ms (tracked by
+    // sensor_change_clock); when it reaches glow_flicker_trigger_delay_ms
+    // the flicker ramps up in single-panel sparks over
+    // glow_flicker_ramp_duration_ms, holds every panel flickering for
+    // glow_flicker_run_duration_ms, then crossfades out like the other
+    // overrides. A flickering panel fades through its colors rather than
+    // snapping: each hold period crossfades flicker_from_colors →
+    // flicker_to_colors, and flicker_colors is the mid-fade color displayed
+    // this tick. flicker_change_started_ms/flicker_next_change_ms bound the
+    // current hold and flicker_spark_end_ms is each panel's spark expiry,
+    // all on the flicker_run_clock timeline. flicker_panel_strength is
+    // each panel's share of the override this tick: sparking panels only
+    // during the ramp (easing back to idle over glow_flicker_spark_fade_ms
+    // when their spark expires), everyone afterward.
+    Color* flicker_colors;
+    Color* flicker_from_colors;
+    Color* flicker_to_colors;
+    unsigned long* flicker_change_started_ms;
+    unsigned long* flicker_next_change_ms;
+    bool* flicker_spark_active;
+    unsigned long* flicker_spark_end_ms;
+    float* flicker_panel_strength;
+    bool flicker_target_active;
+    float flicker_blend;
+    float flicker_blend_at_transition_start;
+    Clock multi_panel_clock;
+    Clock sensor_change_clock;
+    Clock flicker_run_clock;
+    Clock flicker_transition_clock;
 
     Color _pick_target_for_activation(int activating_sensor_index, int activating_panel_index);
     Color _dance_color_for_panel(int panel_index, float idle_value) const;

@@ -38,6 +38,17 @@ Config::Config() : initial_trigger_panel_animation_loop_duration_ms(0), reverber
                    glow_knight_rider_run_duration_ms(0),
                    glow_knight_rider_sweep_duration_ms(0),
                    glow_knight_rider_fade_ms(0),
+                   glow_flicker_min_active_panels(0),
+                   glow_flicker_trigger_delay_ms(0),
+                   glow_flicker_change_timeout_ms(0),
+                   glow_flicker_ramp_duration_ms(0),
+                   glow_flicker_spark_min_duration_ms(0),
+                   glow_flicker_spark_max_duration_ms(0),
+                   glow_flicker_spark_fade_ms(0),
+                   glow_flicker_run_duration_ms(0),
+                   glow_flicker_min_hold_ms(0),
+                   glow_flicker_max_hold_ms(0),
+                   glow_flicker_fade_ms(0),
                    number_of_panels(0) {
 }
 

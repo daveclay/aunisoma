@@ -188,6 +188,28 @@ void setup(void) {
     config.glow_knight_rider_sweep_duration_ms = 2000;
     config.glow_knight_rider_fade_ms = 1000;
 
+    // Sustained-crowd flicker: when at least 2 panels stay active for 5
+    // minutes straight with the sensor state still changing at least every
+    // 15 s (people moving around, not a static arrangement), the flicker
+    // ramps up over 10 s — one random panel flickers for 300–700 ms, eases
+    // back to idle over 200 ms, another sparks, more and more panels
+    // sparking at once as the ramp progresses — then every panel flickers
+    // random colors for 5 s, and the whole thing crossfades out over 1 s.
+    // Rather than snapping, each panel fades through its colors: every
+    // 150–400 ms it crossfades from its current color to the next random
+    // pick, so the flicker rolls instead of jittering.
+    config.glow_flicker_min_active_panels = 2;
+    config.glow_flicker_trigger_delay_ms = 5 * 60 * 1000;
+    config.glow_flicker_change_timeout_ms = 15 * 1000;
+    config.glow_flicker_ramp_duration_ms = 10 * 1000;
+    config.glow_flicker_spark_min_duration_ms = 300;
+    config.glow_flicker_spark_max_duration_ms = 700;
+    config.glow_flicker_spark_fade_ms = 200;
+    config.glow_flicker_run_duration_ms = 5 * 1000;
+    config.glow_flicker_min_hold_ms = 150;
+    config.glow_flicker_max_hold_ms = 400;
+    config.glow_flicker_fade_ms = 1000;
+
     // Ripple: the N panels on each side follow the source with a
     // per-distance lag — a distance-1 neighbor starts brightening 100 ms
     // after the source and peaks 200 ms after the source's 200 ms peak

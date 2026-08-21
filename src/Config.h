@@ -119,6 +119,37 @@ public:
     int glow_knight_rider_sweep_duration_ms;
     int glow_knight_rider_fade_ms;
 
+    // Sustained-crowd flicker (Glow-Sketch): when at least
+    // glow_flicker_min_active_panels panels hold active glows continuously
+    // for glow_flicker_trigger_delay_ms — with the sensor state still
+    // changing at least every glow_flicker_change_timeout_ms, so a crowd
+    // moving around qualifies but a static arrangement does not — the
+    // flicker builds up in sparks: one random panel flickers through random
+    // saturated colors for glow_flicker_spark_min_duration_ms..
+    // glow_flicker_spark_max_duration_ms, drops back to idle, another
+    // sparks. The number of concurrently sparking panels grows with the
+    // square of progress through glow_flicker_ramp_duration_ms — one lone
+    // spark early, piling up late — landing on every panel just as the ramp
+    // ends. Then every panel flickers together for
+    // glow_flicker_run_duration_ms before the whole override crossfades out
+    // over glow_flicker_fade_ms. A flickering panel fades through its
+    // colors rather than snapping: each re-roll crossfades from the current
+    // color to the next over a random glow_flicker_min_hold_ms..
+    // glow_flicker_max_hold_ms, and an expiring spark eases back to idle
+    // over glow_flicker_spark_fade_ms. A trigger delay of 0 disables the
+    // feature.
+    int glow_flicker_min_active_panels;
+    int glow_flicker_trigger_delay_ms;
+    int glow_flicker_change_timeout_ms;
+    int glow_flicker_ramp_duration_ms;
+    int glow_flicker_spark_min_duration_ms;
+    int glow_flicker_spark_max_duration_ms;
+    int glow_flicker_spark_fade_ms;
+    int glow_flicker_run_duration_ms;
+    int glow_flicker_min_hold_ms;
+    int glow_flicker_max_hold_ms;
+    int glow_flicker_fade_ms;
+
     // This is here to make it available to the C++ files, since importing Aunisoma-Sketch isn't good.
     int number_of_panels;
 

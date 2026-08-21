@@ -165,6 +165,28 @@ GlowColorAlgorithm::GlowColorAlgorithm(Config* config,
     this->knight_rider_target_active = false;
     this->knight_rider_blend = 0.0f;
     this->knight_rider_blend_at_transition_start = 0.0f;
+
+    this->flicker_colors = new Color[number_of_panels];
+    this->flicker_from_colors = new Color[number_of_panels];
+    this->flicker_to_colors = new Color[number_of_panels];
+    this->flicker_change_started_ms = new unsigned long[number_of_panels];
+    this->flicker_next_change_ms = new unsigned long[number_of_panels];
+    this->flicker_spark_active = new bool[number_of_panels];
+    this->flicker_spark_end_ms = new unsigned long[number_of_panels];
+    this->flicker_panel_strength = new float[number_of_panels];
+    for (int panel_index = 0; panel_index < number_of_panels; panel_index++) {
+        this->flicker_colors[panel_index] = config->wave_idle_color;
+        this->flicker_from_colors[panel_index] = config->wave_idle_color;
+        this->flicker_to_colors[panel_index] = config->wave_idle_color;
+        this->flicker_change_started_ms[panel_index] = 0;
+        this->flicker_next_change_ms[panel_index] = 0;
+        this->flicker_spark_active[panel_index] = false;
+        this->flicker_spark_end_ms[panel_index] = 0;
+        this->flicker_panel_strength[panel_index] = 0.0f;
+    }
+    this->flicker_target_active = false;
+    this->flicker_blend = 0.0f;
+    this->flicker_blend_at_transition_start = 0.0f;
 }
 
 void GlowColorAlgorithm::update() {
@@ -174,10 +196,12 @@ void GlowColorAlgorithm::update() {
     // the intensity currently is. Either way the pulse phase restarts on the
     // rising edge, which is what keeps a panel's front and back pulses
     // intermingled instead of in sync.
+    bool any_sensor_changed = false;
     for (int sensor_index = 0; sensor_index < this->number_of_sensors; sensor_index++) {
         bool active_now = this->sensors[sensor_index].active;
         bool was_active = this->prev_sensor_active[sensor_index];
         this->prev_sensor_active[sensor_index] = active_now;
+        if (active_now != was_active) any_sensor_changed = true;
 
         if (active_now && !was_active) {
             Glow* glow = this->glows[sensor_index];
@@ -329,7 +353,210 @@ void GlowColorAlgorithm::update() {
         this->knight_rider_animation->stop();
     }
 
-    // Step 6: resolve per-panel color. A panel whose own two glows are both
+    // Step 6: sustained-crowd flicker. The countdown runs while enough
+    // panels hold active glows AND the sensor state keeps changing (a crowd
+    // moving around, not a static arrangement); either condition breaking
+    // resets it. At glow_flicker_trigger_delay_ms the flicker ramps up in
+    // sparks — one random panel flickers briefly, drops back to idle,
+    // another sparks, spawning faster and faster across
+    // glow_flicker_ramp_duration_ms — then every panel flickers together
+    // for glow_flicker_run_duration_ms, each re-rolling its color on its
+    // own random hold timer, before crossfading back to the normal
+    // animation.
+    if (any_sensor_changed) {
+        this->sensor_change_clock.restart();
+    } else if (!this->sensor_change_clock.isStopped()) {
+        this->sensor_change_clock.update();
+    }
+
+    int active_panel_count = 0;
+    for (int panel_index = 0; panel_index < this->number_of_panels; panel_index++) {
+        if (this->glows[panel_index * 2]->is_active()
+            || this->glows[panel_index * 2 + 1]->is_active()) {
+            active_panel_count++;
+        }
+    }
+
+    bool enough_panels_active = active_panel_count >= this->config->glow_flicker_min_active_panels;
+    bool sensors_still_changing = !this->sensor_change_clock.isStopped()
+        && static_cast<long>(this->sensor_change_clock.elapsed_ms)
+           <= this->config->glow_flicker_change_timeout_ms;
+
+    if (enough_panels_active && sensors_still_changing) {
+        if (this->multi_panel_clock.isStopped()) {
+            this->multi_panel_clock.restart();
+        }
+        this->multi_panel_clock.update();
+    } else {
+        this->multi_panel_clock.stop();
+    }
+
+    if (!this->flicker_target_active
+        && this->config->glow_flicker_trigger_delay_ms > 0
+        && !this->multi_panel_clock.isStopped()
+        && static_cast<long>(this->multi_panel_clock.elapsed_ms)
+           >= this->config->glow_flicker_trigger_delay_ms) {
+        this->flicker_target_active = true;
+        this->flicker_run_clock.restart();
+        // No crossfade in: the ramp reveals the flicker spark by spark from
+        // nothing, so the override runs at full strength immediately and
+        // the per-panel spark states carry the build-up.
+        this->flicker_blend = 1.0f;
+        this->flicker_blend_at_transition_start = 1.0f;
+        this->flicker_transition_clock.restart();
+        for (int panel_index = 0; panel_index < this->number_of_panels; panel_index++) {
+            // Every panel starts its color fade from idle, so whenever it
+            // first shows the override it eases out of the idle color.
+            this->flicker_colors[panel_index] = this->config->wave_idle_color;
+            this->flicker_from_colors[panel_index] = this->config->wave_idle_color;
+            this->flicker_to_colors[panel_index] = this->_pick_random_saturated_color();
+            this->flicker_change_started_ms[panel_index] = 0;
+            this->flicker_next_change_ms[panel_index] = 0;
+            this->flicker_spark_active[panel_index] = false;
+            this->flicker_spark_end_ms[panel_index] = 0;
+        }
+        // Continued crowd activity has to accumulate another full delay
+        // before the flicker comes back.
+        this->multi_panel_clock.restart();
+    }
+
+    long flicker_ramp_duration_ms = this->config->glow_flicker_ramp_duration_ms;
+    if (flicker_ramp_duration_ms < 0) flicker_ramp_duration_ms = 0;
+
+    if (this->flicker_target_active) {
+        this->flicker_run_clock.update();
+        if (static_cast<long>(this->flicker_run_clock.elapsed_ms)
+            >= flicker_ramp_duration_ms + this->config->glow_flicker_run_duration_ms) {
+            this->flicker_target_active = false;
+            this->flicker_blend_at_transition_start = this->flicker_blend;
+            this->flicker_transition_clock.restart();
+        }
+    }
+
+    int flicker_fade_ms = this->config->glow_flicker_fade_ms;
+    if (flicker_fade_ms < 1) flicker_fade_ms = 1;
+    this->flicker_transition_clock.update();
+    float flicker_fade_progress = static_cast<float>(this->flicker_transition_clock.elapsed_ms)
+                                / static_cast<float>(flicker_fade_ms);
+    if (flicker_fade_progress > 1.0f) flicker_fade_progress = 1.0f;
+    float flicker_blend_target = this->flicker_target_active ? 1.0f : 0.0f;
+    this->flicker_blend = this->flicker_blend_at_transition_start
+        + (flicker_blend_target - this->flicker_blend_at_transition_start) * flicker_fade_progress;
+
+    // Keep the spark scheduling and per-panel re-rolls running while the
+    // flicker is wanted or still fading out, so the fade-out flickers all
+    // the way to dark.
+    if (this->flicker_target_active || this->flicker_blend > 0.0f) {
+        this->flicker_run_clock.update();
+        unsigned long flicker_elapsed_ms = this->flicker_run_clock.elapsed_ms;
+        bool in_ramp = this->flicker_target_active
+            && static_cast<long>(flicker_elapsed_ms) < flicker_ramp_duration_ms;
+
+        int spark_fade_ms = this->config->glow_flicker_spark_fade_ms;
+        if (spark_fade_ms < 1) spark_fade_ms = 1;
+
+        if (in_ramp) {
+            // A spark occupies its panel until it has fully eased back to
+            // idle, glow_flicker_spark_fade_ms past its expiry.
+            int active_spark_count = 0;
+            int idle_panel_count = 0;
+            for (int panel_index = 0; panel_index < this->number_of_panels; panel_index++) {
+                if (this->flicker_spark_active[panel_index]
+                    && flicker_elapsed_ms >= this->flicker_spark_end_ms[panel_index]
+                                             + static_cast<unsigned long>(spark_fade_ms)) {
+                    this->flicker_spark_active[panel_index] = false;
+                }
+                if (this->flicker_spark_active[panel_index]) active_spark_count++;
+                else idle_panel_count++;
+            }
+
+            int spark_min_duration_ms = this->config->glow_flicker_spark_min_duration_ms;
+            int spark_max_duration_ms = this->config->glow_flicker_spark_max_duration_ms;
+            if (spark_min_duration_ms < 1) spark_min_duration_ms = 1;
+            if (spark_max_duration_ms < spark_min_duration_ms) spark_max_duration_ms = spark_min_duration_ms;
+
+            // Concurrent spark count grows with the square of ramp
+            // progress: a lone hopping spark early, piling up late so the
+            // ramp lands exactly on the everyone-flickers phase. An expired
+            // spark below target is replaced on a different random panel,
+            // which is what makes each spark visibly return to idle before
+            // the next one lights.
+            float ramp_progress = static_cast<float>(flicker_elapsed_ms)
+                                / static_cast<float>(flicker_ramp_duration_ms);
+            int target_spark_count = static_cast<int>(ceilf(
+                ramp_progress * ramp_progress * static_cast<float>(this->number_of_panels)));
+            if (target_spark_count < 1) target_spark_count = 1;
+            if (target_spark_count > this->number_of_panels) target_spark_count = this->number_of_panels;
+
+            while (active_spark_count < target_spark_count && idle_panel_count > 0) {
+                int pick = static_cast<int>(random(idle_panel_count));
+                for (int panel_index = 0; panel_index < this->number_of_panels; panel_index++) {
+                    if (this->flicker_spark_active[panel_index]) continue;
+                    if (pick == 0) {
+                        this->flicker_spark_active[panel_index] = true;
+                        this->flicker_spark_end_ms[panel_index] = flicker_elapsed_ms
+                            + static_cast<unsigned long>(random(spark_min_duration_ms,
+                                                                spark_max_duration_ms + 1));
+                        // Restart the panel's color fade from idle so the
+                        // spark eases in instead of snapping on.
+                        this->flicker_colors[panel_index] = this->config->wave_idle_color;
+                        this->flicker_next_change_ms[panel_index] = flicker_elapsed_ms;
+                        break;
+                    }
+                    pick--;
+                }
+                active_spark_count++;
+                idle_panel_count--;
+            }
+        }
+
+        int min_hold_ms = this->config->glow_flicker_min_hold_ms;
+        int max_hold_ms = this->config->glow_flicker_max_hold_ms;
+        if (min_hold_ms < 1) min_hold_ms = 1;
+        if (max_hold_ms < min_hold_ms) max_hold_ms = min_hold_ms;
+        for (int panel_index = 0; panel_index < this->number_of_panels; panel_index++) {
+            // Fade through the colors: each hold period crossfades from the
+            // color the panel is currently showing to the next random pick,
+            // so the flicker rolls instead of snapping.
+            if (flicker_elapsed_ms >= this->flicker_next_change_ms[panel_index]) {
+                this->flicker_from_colors[panel_index] = this->flicker_colors[panel_index];
+                this->flicker_to_colors[panel_index] = this->_pick_random_saturated_color();
+                this->flicker_change_started_ms[panel_index] = flicker_elapsed_ms;
+                this->flicker_next_change_ms[panel_index] = flicker_elapsed_ms
+                    + static_cast<unsigned long>(random(min_hold_ms, max_hold_ms + 1));
+            }
+            float hold_progress = static_cast<float>(flicker_elapsed_ms
+                                                     - this->flicker_change_started_ms[panel_index])
+                                / static_cast<float>(this->flicker_next_change_ms[panel_index]
+                                                     - this->flicker_change_started_ms[panel_index]);
+            if (hold_progress > 1.0f) hold_progress = 1.0f;
+            this->flicker_colors[panel_index] = this->flicker_from_colors[panel_index]
+                .interpolate(this->flicker_to_colors[panel_index], hold_progress);
+
+            // Ramp: only sparking panels show the override, an expiring
+            // spark easing back to idle over glow_flicker_spark_fade_ms.
+            // Full phase and fade-out (in_ramp false): everyone at full
+            // strength.
+            float panel_strength;
+            if (!in_ramp) {
+                panel_strength = 1.0f;
+            } else if (!this->flicker_spark_active[panel_index]) {
+                panel_strength = 0.0f;
+            } else if (flicker_elapsed_ms < this->flicker_spark_end_ms[panel_index]) {
+                panel_strength = 1.0f;
+            } else {
+                panel_strength = 1.0f
+                    - static_cast<float>(flicker_elapsed_ms - this->flicker_spark_end_ms[panel_index])
+                      / static_cast<float>(spark_fade_ms);
+                if (panel_strength < 0.0f) panel_strength = 0.0f;
+            }
+            this->flicker_panel_strength[panel_index] = panel_strength;
+        }
+    } else if (!this->flicker_run_clock.isStopped()) {
+        this->flicker_run_clock.stop();
+    }
+
+    // Step 7: resolve per-panel color. A panel whose own two glows are both
     // active dances between their colors. Otherwise a panel can be touched
     // by its own glows and by the lagged neighbor envelopes of glows within
     // glow_ripple_distance. One contributor lerps idle toward its target;
@@ -447,6 +674,13 @@ void GlowColorAlgorithm::update() {
         if (this->knight_rider_blend > 0.0f) {
             Color knight_rider_color = this->knight_rider_animation->get_color_for_panel(panel_index);
             final_color = final_color.interpolate(knight_rider_color, this->knight_rider_blend);
+        }
+
+        // Sustained-crowd flicker: sparking panels only during the ramp,
+        // every panel through the full phase and the fade-out.
+        if (this->flicker_blend > 0.0f && this->flicker_panel_strength[panel_index] > 0.0f) {
+            final_color = final_color.interpolate(this->flicker_colors[panel_index],
+                this->flicker_blend * this->flicker_panel_strength[panel_index]);
         }
 
         this->displayed_colors[panel_index] = final_color.limit();
