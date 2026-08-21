@@ -76,7 +76,8 @@ private:
     Clock knight_rider_transition_clock;
 
     // Sustained-crowd flicker: multi_panel_clock runs while at least
-    // glow_flicker_min_active_panels panels have active glows AND the sensor
+    // glow_flicker_min_active_sensors sensors have active glows (front and
+    // back count separately) AND the sensor
     // state changed within glow_flicker_change_timeout_ms (tracked by
     // sensor_change_clock); when it reaches flicker_trigger_delay_ms — the
     // current countdown target, re-rolled between

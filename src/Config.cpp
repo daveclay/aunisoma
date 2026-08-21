@@ -38,7 +38,7 @@ Config::Config() : initial_trigger_panel_animation_loop_duration_ms(0), reverber
                    glow_knight_rider_run_duration_ms(0),
                    glow_knight_rider_sweep_duration_ms(0),
                    glow_knight_rider_fade_ms(0),
-                   glow_flicker_min_active_panels(0),
+                   glow_flicker_min_active_sensors(0),
                    glow_flicker_trigger_min_delay_ms(0),
                    glow_flicker_trigger_max_delay_ms(0),
                    glow_flicker_change_timeout_ms(0),

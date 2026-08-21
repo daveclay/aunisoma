@@ -120,7 +120,8 @@ public:
     int glow_knight_rider_fade_ms;
 
     // Sustained-crowd flicker (Glow-Sketch): when at least
-    // glow_flicker_min_active_panels panels hold active glows continuously
+    // glow_flicker_min_active_sensors sensors hold active glows continuously
+    // (front and back count separately, so one busy panel contributes 2)
     // for the current trigger delay — re-rolled between
     // glow_flicker_trigger_min_delay_ms and glow_flicker_trigger_max_delay_ms
     // after every flicker, so the crowd can't predict it — with the sensor state still
@@ -146,7 +147,7 @@ public:
     // restores fully random colors; 0 locks the run to a single hue),
     // giving each run a distinct palette. A max trigger delay of 0 disables
     // the feature.
-    int glow_flicker_min_active_panels;
+    int glow_flicker_min_active_sensors;
     int glow_flicker_trigger_min_delay_ms;
     int glow_flicker_trigger_max_delay_ms;
     int glow_flicker_change_timeout_ms;

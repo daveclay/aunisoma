@@ -364,7 +364,7 @@ void GlowColorAlgorithm::update() {
     }
 
     // Step 6: sustained-crowd flicker. The countdown runs while enough
-    // panels hold active glows AND the sensor state keeps changing (a crowd
+    // sensors hold active glows AND the sensor state keeps changing (a crowd
     // moving around, not a static arrangement); either condition breaking
     // resets it. At flicker_trigger_delay_ms (a random
     // glow_flicker_trigger_min_delay_ms..glow_flicker_trigger_max_delay_ms,
@@ -381,20 +381,20 @@ void GlowColorAlgorithm::update() {
         this->sensor_change_clock.update();
     }
 
-    int active_panel_count = 0;
-    for (int panel_index = 0; panel_index < this->number_of_panels; panel_index++) {
-        if (this->glows[panel_index * 2]->is_active()
-            || this->glows[panel_index * 2 + 1]->is_active()) {
-            active_panel_count++;
+    // Front and back count separately: one busy panel contributes 2.
+    int active_glow_count = 0;
+    for (int glow_sensor_index = 0; glow_sensor_index < this->number_of_sensors; glow_sensor_index++) {
+        if (this->glows[glow_sensor_index]->is_active()) {
+            active_glow_count++;
         }
     }
 
-    bool enough_panels_active = active_panel_count >= this->config->glow_flicker_min_active_panels;
+    bool enough_sensors_active = active_glow_count >= this->config->glow_flicker_min_active_sensors;
     bool sensors_still_changing = !this->sensor_change_clock.isStopped()
         && static_cast<long>(this->sensor_change_clock.elapsed_ms)
            <= this->config->glow_flicker_change_timeout_ms;
 
-    if (enough_panels_active && sensors_still_changing) {
+    if (enough_sensors_active && sensors_still_changing) {
         if (this->multi_panel_clock.isStopped()) {
             this->multi_panel_clock.restart();
         }
