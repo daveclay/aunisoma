@@ -200,8 +200,8 @@ void setup(void) {
     // 150–400 ms it crossfades from its current color to the next random
     // pick, so the flicker rolls instead of jittering.
     config.glow_flicker_min_active_sensors = 5;
-    config.glow_flicker_trigger_min_delay_ms = 1 * 60 * 1000;
-    config.glow_flicker_trigger_max_delay_ms = 2 * 60 * 1000;
+    config.glow_flicker_trigger_min_delay_ms = 35 * 1000;
+    config.glow_flicker_trigger_max_delay_ms = 90 * 1000;
     config.glow_flicker_change_timeout_ms = 15 * 1000;
     config.glow_flicker_ramp_duration_ms = 10 * 1000;
     config.glow_flicker_spark_min_duration_ms = 300;
