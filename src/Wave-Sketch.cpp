@@ -169,7 +169,7 @@ void setup(void) {
 #endif
 
     config.number_of_panels = NUMBER_OF_PANELS;
-    config.high_interaction_threshold_percent = .6;
+    config.high_interaction_min_active_sensors = 24;
 
     // Wave algorithm parameters. Each panel rises to its attenuated target
     // over wave_rise_duration_ms then falls back to idle over
@@ -193,7 +193,7 @@ void setup(void) {
     // make a higher-value color wavefront rather than a softer fade-in to
     // target color.
     config.wave_spatial_decay_constant = 0.45f;
-    // When the active-sensor fraction crosses high_interaction_threshold_percent
+    // When the active sensor count reaches high_interaction_min_active_sensors
     // the wave algorithm switches to a scrolling rainbow. This is the time for
     // one full revolution.
     config.wave_rainbow_scroll_duration_ms = 2000;

@@ -820,8 +820,7 @@ bool GlowColorAlgorithm::_is_high_interaction() const {
     for (int sensor_index = 0; sensor_index < this->number_of_sensors; sensor_index++) {
         if (this->sensors[sensor_index].active) active_sensor_count++;
     }
-    float fraction = static_cast<float>(active_sensor_count) / static_cast<float>(this->number_of_sensors);
-    return fraction >= this->config->high_interaction_threshold_percent;
+    return active_sensor_count >= this->config->high_interaction_min_active_sensors;
 }
 
 Color GlowColorAlgorithm::_rainbow_color_for_panel(int panel_index) const {

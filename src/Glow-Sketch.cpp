@@ -159,7 +159,9 @@ void setup(void) {
 #endif
 
     config.number_of_panels = NUMBER_OF_PANELS;
-    config.high_interaction_threshold_percent = 0.6f;
+    // Rainbow override when 16 of the 40 sensors (front and back count
+    // separately) are active at once.
+    config.high_interaction_min_active_sensors = 15;
 
     // Glow parameters. Snap in fast on activation, linger on release.
     config.glow_fade_in_duration_ms = 200;

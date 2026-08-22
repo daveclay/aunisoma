@@ -16,7 +16,12 @@ public:
     Range* reverberation_distance_range;
     int reverberation_panel_delay_ms;
     Range* single_panel_pulse_duration;  // ms
+    // Legacy algorithm only (ColorManager); glow and wave use
+    // high_interaction_min_active_sensors below.
     float high_interaction_threshold_percent;
+    // Glow/wave rainbow override: active sensor count (front and back count
+    // separately) at or above which the scrolling rainbow takes over.
+    int high_interaction_min_active_sensors;
     float intermediate_interaction_threshold_percent;
     int min_max_interaction_gradient_transition_duration;
     Range* default_gradient_delay_duration_range;  // ms

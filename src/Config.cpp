@@ -8,6 +8,7 @@ Config::Config() : initial_trigger_panel_animation_loop_duration_ms(0), reverber
                    reverberation_panel_delay_ms(0),
                    single_panel_pulse_duration(nullptr),
                    high_interaction_threshold_percent(0),
+                   high_interaction_min_active_sensors(0),
                    intermediate_interaction_threshold_percent(0),
                    min_max_interaction_gradient_transition_duration(0),
                    default_gradient_delay_duration_range(nullptr),
