@@ -67,6 +67,13 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
                 <div id="step"></div>
             </p>
             <p>
+                <div id="scriptTime"></div>
+            </p>
+            <p>
+                real timer: <span id="realTimer">0:00.0</span>
+                <button id="resetTimerButton">Reset timer</button>
+            </p>
+            <p>
                 <button id="pauseButton">Pause</button>
             </p>
             <p>
@@ -113,6 +120,9 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
     const CURRENT_POWER_DRAW_ELEMENT = document.getElementById("currentPowerDraw");
     const MAX_POWER_DRAW_ELEMENT = document.getElementById("maxPowerDraw");
 
+    const SCRIPT_TIME_ELEMENT = document.getElementById("scriptTime");
+    const REAL_TIMER_ELEMENT = document.getElementById("realTimer");
+    const RESET_TIMER_BUTTON = document.getElementById("resetTimerButton");
     const PAUSE_BUTTON = document.getElementById("pauseButton");
     const JUMP_TO_STEP_INPUT = document.getElementById("jumpToStepInput");
     const APPLY_GAMMA_CHECKBOX = document.getElementById("applyGammaCheckbox");
@@ -156,6 +166,57 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
 
     function toHexByte(value) {
       return value.toString(16).padStart(2, "0");
+    }
+
+    function formatElapsedMs(elapsedMs) {
+      const totalSeconds = Math.floor(elapsedMs / 1000);
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds - minutes * 60;
+      const tenths = Math.floor((elapsedMs % 1000) / 100);
+      return minutes + ":" + String(seconds).padStart(2, "0") + "." + tenths;
+    }
+
+    // Wall-clock timer shown alongside the step counter so real time can be
+    // synced against script ticks. It pauses with playback; Reset zeroes it
+    // mid-run (e.g. when the sculpture hits a known point in the script).
+    class RealTimer {
+      constructor() {
+        this.accumulatedMs = 0;
+        this.startedAtMs = null;
+        setInterval(() => this.render(), 100);
+      }
+
+      elapsedMs() {
+        const runningMs = this.startedAtMs !== null
+          ? performance.now() - this.startedAtMs
+          : 0;
+        return this.accumulatedMs + runningMs;
+      }
+
+      start() {
+        if (this.startedAtMs === null) {
+          this.startedAtMs = performance.now();
+        }
+      }
+
+      pause() {
+        if (this.startedAtMs !== null) {
+          this.accumulatedMs += performance.now() - this.startedAtMs;
+          this.startedAtMs = null;
+        }
+      }
+
+      reset() {
+        this.accumulatedMs = 0;
+        if (this.startedAtMs !== null) {
+          this.startedAtMs = performance.now();
+        }
+        this.render();
+      }
+
+      render() {
+        REAL_TIMER_ELEMENT.innerText = formatElapsedMs(this.elapsedMs());
+      }
     }
 
     function clone(templateElement) {
@@ -225,6 +286,8 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
       run(script) {
         this.running = true;
         this.script = script;
+        realTimer.reset();
+        realTimer.start();
         this._runInterval();
       }
 
@@ -253,6 +316,7 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
         const nextIndex = this.iteration + 1;
         if (nextIndex >= this.script.length) {
           clearInterval(this.interval);
+          realTimer.pause();
           STEP_ELEMENT.innerText = "Finished " + this.script.length + " steps";
           return;
         }
@@ -264,6 +328,9 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
           this.iteration = index;
           this.step = this.script[this.iteration];
           STEP_ELEMENT.innerText = "running step " + this.iteration + " of " + this.script.length;
+          SCRIPT_TIME_ELEMENT.innerText = "script time: "
+            + formatElapsedMs(this.iteration * HARDWARE_MS_PER_LOOP)
+            + " (@ " + HARDWARE_MS_PER_LOOP + " ms/step)";
           JUMP_TO_STEP_INPUT.value = this.iteration;
           this.update(this.step.panels, this.step.interactions);
       }
@@ -293,9 +360,11 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
         if (this.interval) {
           clearInterval(this.interval);
           this.interval = null;
+          realTimer.pause();
           PAUSE_BUTTON.innerText = "Continue";
         } else {
           this._runInterval();
+          realTimer.start();
           PAUSE_BUTTON.innerText = "Pause";
         }
       }
@@ -334,10 +403,15 @@ Click on a panel to simulate a person interacting with a panel. Click on the pan
       }
     }
 
+    const realTimer = new RealTimer();
     const scriptRunner = new ScriptRunner();
 
     PAUSE_BUTTON.addEventListener("click", () => {
         scriptRunner.togglePause();
+    });
+
+    RESET_TIMER_BUTTON.addEventListener("click", () => {
+        realTimer.reset();
     });
 
     JUMP_TO_STEP_INPUT.addEventListener("change", (event) => {
