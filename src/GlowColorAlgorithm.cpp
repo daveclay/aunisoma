@@ -838,9 +838,14 @@ Color GlowColorAlgorithm::_rainbow_color_for_panel(int panel_index) const {
     return hsv_to_rgb(hue_from_wheel_position(wheel_position), 1.0f, 1.0f);
 }
 
+// Fresh glow hues are picked in unwarped HSV space, same as the flicker's
+// base hue: a uniform pick in warped wheel-position space lands warm ~2/3
+// of the time (the warp hands the red→yellow and violet→red bands most of
+// the position axis). The warp stays a rendering-side tool for stepping
+// *between* colors (neighbor gradient, dance partner offset, rainbow).
 Color GlowColorAlgorithm::_pick_random_saturated_color() const {
-    float wheel_position = static_cast<float>(random(10000)) / 10000.0f;
-    return hsv_to_rgb(hue_from_wheel_position(wheel_position), 1.0f, 1.0f);
+    float hue = static_cast<float>(random(10000)) / 10000.0f;
+    return hsv_to_rgb(hue, 1.0f, 1.0f);
 }
 
 // Flicker colors stay within ± glow_flicker_hue_range of the run's base
