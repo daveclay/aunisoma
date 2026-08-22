@@ -202,6 +202,9 @@ void setup(void) {
     config.glow_flicker_min_active_sensors = 5;
     config.glow_flicker_trigger_min_delay_ms = 35 * 1000;
     config.glow_flicker_trigger_max_delay_ms = 90 * 1000;
+    // The "crowd must keep moving" requirement: the trigger countdown only
+    // accumulates while some sensor changed state this recently. A static
+    // arrangement of 5+ sensors never flickers.
     config.glow_flicker_change_timeout_ms = 15 * 1000;
     config.glow_flicker_ramp_duration_ms = 10 * 1000;
     config.glow_flicker_spark_min_duration_ms = 300;
