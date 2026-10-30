@@ -3,7 +3,7 @@
 
 class PanelLink {
 public:
-    static constexpr int PANEL_COUNT = 20;
+    static constexpr int PANEL_COUNT = 15;
     static constexpr int COLOR_HEX_LEN = 6;
 
     void begin();

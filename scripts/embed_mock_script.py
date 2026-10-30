@@ -10,7 +10,7 @@ Import("env")
 # recompile every build.
 
 SCRIPT_RELATIVE_PATH = os.path.join("lib", "mock-arduino", "script.txt")
-NUMBER_OF_PANELS = 20
+NUMBER_OF_PANELS = 15
 
 script_path = os.path.join(env.subst("$PROJECT_DIR"), SCRIPT_RELATIVE_PATH)
 

@@ -8,7 +8,7 @@
 #include <string.h>
 
 // Note: this avoids having to #include Aunisoma-Sketch.h which defines it globally
-#define NUMBER_OF_PANELS 20
+#define NUMBER_OF_PANELS 15
 
 const int ITERATIONS = 30000;
 

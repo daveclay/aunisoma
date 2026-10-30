@@ -7,7 +7,7 @@
 #include "Gradient.h"
 #include "Maths.h"
 
-#define NUMBER_OF_PANELS 20
+#define NUMBER_OF_PANELS 15
 
 KnightRiderAnimation::KnightRiderAnimation(GradientValueMap* knight_rider_gradient, int sweep_duration_ms) {
   // The default 101 ms is the legacy value: originally 42 ticks, rescaled to

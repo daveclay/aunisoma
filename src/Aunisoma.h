@@ -12,8 +12,8 @@
 #include "Panel.h"
 #include "Sensor.h"
 
-#define NUMBER_OF_PANELS 20
-#define NUMBER_OF_SENSORS 40
+#define NUMBER_OF_PANELS 15
+#define NUMBER_OF_SENSORS 30
 
 class Aunisoma {
 public:

@@ -1933,8 +1933,8 @@ document.addEventListener("DOMContentLoaded",
     /******************************************************************
      * Aunisoma-Sketch.ino
      *****************************************************************/
-    NUMBER_OF_PANELS = 20;
-    NUMBER_OF_SENSORS = 40;
+    NUMBER_OF_PANELS = 15;
+    NUMBER_OF_SENSORS = 30;
 
     let sensors = [];
 
@@ -2203,7 +2203,7 @@ document.addEventListener("DOMContentLoaded",
       while (Object.keys(indexesToTrigger).length < numberOfSensorsToTrigger) {
         let panelIndex;
         do {
-          panelIndex = Math.min(19, Math.round(Math.random() * NUMBER_OF_PANELS));
+          panelIndex = Math.min(NUMBER_OF_PANELS - 1, Math.round(Math.random() * NUMBER_OF_PANELS));
         } while (indexesToTrigger[panelIndex] != null);
         indexesToTrigger[panelIndex] = 1;
       }

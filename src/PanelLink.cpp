@@ -93,7 +93,7 @@ bool PanelLink::send_colors(const char* color_hex, char pir_out[PANEL_COUNT]) {
     }
     // Response is "OK " then PANEL_COUNT PIR bytes. The (3 + PANEL_COUNT)
     // cap mirrors the original sketch — observed bytesRead can exceed the
-    // 23-byte payload, and we must not read past it into pir_out.
+    // 18-byte payload, and we must not read past it into pir_out.
     int limit = min(3 + PANEL_COUNT, bytesRead);
     for (int panel_index = 0; panel_index < PANEL_COUNT; panel_index++) {
         int response_index = 3 + panel_index;

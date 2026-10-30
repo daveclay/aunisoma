@@ -1,6 +1,6 @@
 # Aunisoma
 
-Large interactive sculpture for Burning Man — 20 windows over 70 feet. Each window has an RGB LED strip (0–255 per channel) and two PIR motion sensors (front + back).
+Large interactive sculpture for Burning Man — 15 windows over 70 feet. Each window has an RGB LED strip (0–255 per channel) and two PIR motion sensors (front + back).
 
 This project contains the algorithm that computes each window's color from the PIR status of all windows. It runs on an **Adafruit Grand Central M4** (SAMD51) and talks over serial to a separate "master" controller running the aunisoma firmware (not in this repo), which broadcasts colors to per-window "panel" controllers and collects their PIR readings by timeslot.
 

@@ -8,11 +8,11 @@
 // both. Raw PIR — no debouncing. Used to verify wiring and PANEL_IDS order
 // independently of any color algorithm.
 
-static char panel_ids[] = "281A221B162515111220181914171F131D211E23";
+static char panel_ids[] = "281A221B162515111220181914171F";
 
 static PanelLink link;
 // +1 for the trailing '\0' — Serial2.print(const char*) reads until null,
-// so the buffer must be terminated or it will emit garbage past the 120
+// so the buffer must be terminated or it will emit garbage past the 90
 // hex bytes. Static storage zero-inits the terminator and write_panel
 // never touches the last byte.
 static char panel_color_hex[PanelLink::PANEL_COUNT * PanelLink::COLOR_HEX_LEN + 1];

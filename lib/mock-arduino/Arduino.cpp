@@ -17,7 +17,7 @@ char in[1024];
 char outPanelColors[6];
 int panelColorLengthToRead = 6;
 char currentCommand;
-char lights[21] = "00000000000000000000";
+char lights[NUMBER_OF_PANELS + 1] = "000000000000000";
 
 int iteration = 0;
 
@@ -140,7 +140,7 @@ void writeScriptLine(char *colors, char *interactions) {
     std::cout << "\"interactions\": \"" << interactions << "\", ";
     std::cout << "\"panels\": [\n";
 
-    for (int i = 0; i < 120; i += panelColorLengthToRead) {
+    for (int i = 0; i < NUMBER_OF_PANELS * panelColorLengthToRead; i += panelColorLengthToRead) {
         int panelColorStartIndex = i; // 6 chars per panel, 2 chars per color
         char *start = colors + panelColorStartIndex;
         char *end = start + panelColorLengthToRead;
@@ -160,7 +160,7 @@ void writeScriptLine(char *colors, char *interactions) {
         }
 
         std::cout << "\t\t{ \"index\": " << index << ", \"red\": \"" << red << "\", \"green\": \"" << green << "\", \"blue\": \"" << blue << "\", \"pir\": \"" << pir << "\"}";
-        if (i < 114) {
+        if (i < (NUMBER_OF_PANELS - 1) * panelColorLengthToRead) {
             std::cout << ",";
         }
         std::cout << "\n";
@@ -207,7 +207,7 @@ void Uart::print(const char c) const {
             // 1F22201213191E111A1D21152425171B18281614
             // strcmp(in, "FAILED 1D2416");
             // Initialize
-            strcpy(in, "OK 00000000000000000000");
+            strcpy(in, "OK 000000000000000");
         }
     } else {
         out[outIndex] = c;
@@ -226,12 +226,9 @@ void Uart::flush() const {
 }
 
 int Uart::readBytesUntil(char stop, char buffer[], int length) const {
-    if (currentCommand == 'M') {
+    if (currentCommand == 'M' || currentCommand == 'L') {
         strcpy(buffer, in);
-        return 40;
-    } else if (currentCommand == 'L') {
-        strcpy(buffer, in);
-        return 35;
+        return (int)strlen(buffer);
     } else {
         return 0;
     }

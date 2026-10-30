@@ -30,17 +30,17 @@
 // no legacy gradient/knight-rider state. Lives alongside Aunisoma-Sketch.cpp
 // as a second build target so each algorithm has its own entry point.
 
-static char panel_ids[] = "281A221B162515111220181914171F131D211E23";
+static char panel_ids[] = "281A221B162515111220181914171F";
 
-static char ZERO_COLORS[] = "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+static char ZERO_COLORS[] = "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
 
-#define NUMBER_OF_PANELS 20
-#define NUMBER_OF_SENSORS 40
+#define NUMBER_OF_PANELS 15
+#define NUMBER_OF_SENSORS 30
 #define SIZE_OF_COLOR 6
 
 static PanelLink link;
 // +1 for the trailing '\0' — Serial2.print(const char*) reads until null,
-// so the buffer must be terminated or it will emit garbage past the 120
+// so the buffer must be terminated or it will emit garbage past the 90
 // hex bytes.
 static char panel_colors[(NUMBER_OF_PANELS * SIZE_OF_COLOR) + 1];
 static char pir_readings[NUMBER_OF_PANELS];
@@ -169,7 +169,7 @@ void setup(void) {
 #endif
 
     config.number_of_panels = NUMBER_OF_PANELS;
-    config.high_interaction_min_active_sensors = 24;
+    config.high_interaction_min_active_sensors = 18;
 
     // Wave algorithm parameters. Each panel rises to its attenuated target
     // over wave_rise_duration_ms then falls back to idle over

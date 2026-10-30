@@ -40,7 +40,7 @@ static const long SCRIPT_LOOP_PERIOD_MS =
 
 static const char* scripted_pirs(long now_ms) {
     long script_iteration = (now_ms % SCRIPT_LOOP_PERIOD_MS) / SCRIPT_MS_PER_ITERATION;
-    const char* latest = "00000000000000000000";
+    const char* latest = "000000000000000";
     for (int entry_index = 0; entry_index < MOCK_SCRIPT_ENTRY_COUNT; entry_index++) {
         if (MOCK_SCRIPT_ITERATIONS[entry_index] <= script_iteration) {
             latest = MOCK_SCRIPT_PIRS[entry_index];
@@ -66,17 +66,17 @@ static LoopTiming loop_timing(TIMING_SEGMENT_NAMES, 3);
 // sides dances between the two sensors' colors on its own configurable
 // period. Lives alongside Wave-Sketch.cpp as its own build target.
 
-static char panel_ids[] = "281A221B162515111220181914171F131D211E23";
+static char panel_ids[] = "281A221B162515111220181914171F";
 
-static char ZERO_COLORS[] = "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+static char ZERO_COLORS[] = "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
 
-#define NUMBER_OF_PANELS 20
-#define NUMBER_OF_SENSORS 40
+#define NUMBER_OF_PANELS 15
+#define NUMBER_OF_SENSORS 30
 #define SIZE_OF_COLOR 6
 
 static PanelLink link;
 // +1 for the trailing '\0' — Serial2.print(const char*) reads until null,
-// so the buffer must be terminated or it will emit garbage past the 120
+// so the buffer must be terminated or it will emit garbage past the 90
 // hex bytes.
 static char panel_colors[(NUMBER_OF_PANELS * SIZE_OF_COLOR) + 1];
 static char pir_readings[NUMBER_OF_PANELS];
@@ -159,9 +159,9 @@ void setup(void) {
 #endif
 
     config.number_of_panels = NUMBER_OF_PANELS;
-    // Rainbow override when 16 of the 40 sensors (front and back count
+    // Rainbow override when 11 of the 30 sensors (front and back count
     // separately) are active at once.
-    config.high_interaction_min_active_sensors = 15;
+    config.high_interaction_min_active_sensors = 11;
 
     // Glow parameters. Snap in fast on activation, linger on release.
     config.glow_fade_in_duration_ms = 200;

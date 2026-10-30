@@ -10,18 +10,18 @@
 // per-loop delay. Every panel gets the identical color every frame.
 //
 // Purpose: separate the two sources of visual flicker.
-//   - If the arduino loop is the bottleneck, frames are coarse but all 20
+//   - If the arduino loop is the bottleneck, frames are coarse but all 15
 //     panels still light up identically each frame — the pulse looks chunky
 //     but stays geometrically aligned across the strip.
 //   - If the Serial2 link to the master (or the master->panel fan-out) is
 //     the bottleneck, panels visibly drift apart, tear, or stutter against
 //     each other even though this sketch sends them the same value.
 
-static char panel_ids[] = "281A221B162515111220181914171F131D211E23";
+static char panel_ids[] = "281A221B162515111220181914171F";
 
 static PanelLink link;
 // +1 for the trailing '\0' — Serial2.print(const char*) reads until null,
-// so the buffer must be terminated or it will emit garbage past the 120
+// so the buffer must be terminated or it will emit garbage past the 90
 // hex bytes.
 static char panel_color_hex[PanelLink::PANEL_COUNT * PanelLink::COLOR_HEX_LEN + 1];
 static char pir_readings[PanelLink::PANEL_COUNT];
