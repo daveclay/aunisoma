@@ -152,7 +152,7 @@ void setup(void) {
 #endif
 
     config.number_of_panels = NUMBER_OF_PANELS;
-    config.high_interaction_min_active_sensors = 18;
+    config.high_interaction_min_active_sensors = 8;
 
     // Wave algorithm parameters. Each panel rises to its attenuated target
     // over wave_rise_duration_ms then falls back to idle over
