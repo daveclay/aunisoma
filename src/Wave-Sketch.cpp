@@ -6,7 +6,6 @@
 #include "Arduino.h"
 #include "Color.h"
 #include "Config.h"
-#include "NightSchedule.h"
 #include "PanelLink.h"
 #include "Range.h"
 #include "Sensor.h"
@@ -31,8 +30,6 @@
 // as a second build target so each algorithm has its own entry point.
 
 static char panel_ids[] = "281A221B162515111220181914171F";
-
-static char ZERO_COLORS[] = "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
 
 #define NUMBER_OF_PANELS 15
 #define NUMBER_OF_SENSORS 30
@@ -135,26 +132,12 @@ static bool send_colors(char value[]) {
     return true;
 }
 
-// Nightly schedule: lights on at 20:00, off at 06:00 local time, read from
-// the PCF8523 RTC on SDA/SCL. Without an RTC on the bus this falls back to
-// the old behavior — run the window's 10 hours from power-on, then go
-// dark. While dark, keep the master fed with zeroed colors every 30 s and
-// otherwise do nothing, so the solar can charge the batteries with as
-// little competition as possible from the LEDs.
-static const int LIGHTS_ON_HOUR = 20;
-static const int LIGHTS_ON_MINUTE = 0;
-static const int LIGHTS_OFF_HOUR = 6;
-static const int LIGHTS_OFF_MINUTE = 0;
-static const long FALLBACK_RUNTIME_LIMIT_MS = 10L * 60L * 60L * 1000L;
-static const long DARK_RECHECK_DELAY_MS = 30L * 1000L;
-static NightSchedule night_schedule(LIGHTS_ON_HOUR, LIGHTS_ON_MINUTE,
-                                    LIGHTS_OFF_HOUR, LIGHTS_OFF_MINUTE,
-                                    FALLBACK_RUNTIME_LIMIT_MS);
+// No nightly schedule here: unlike the glow sketch, this one ignores the
+// PCF8523 RTC and runs the wave animation continuously from power-on.
 
 void setup(void) {
     Serial.begin(9600);
     link.begin();
-    night_schedule.begin();
 
     pinMode(LED_BUILTIN, OUTPUT);
 
@@ -219,13 +202,6 @@ void setup(void) {
 static char current_panel_color[SIZE_OF_COLOR + 1];
 
 void loop(void) {
-    long start = millis();
-    if (!night_schedule.is_active(start)) {
-        send_colors(ZERO_COLORS);
-        delay(DARK_RECHECK_DELAY_MS);
-        return;
-    }
-
     wave_algorithm->update();
 
     for (int panel_index = 0; panel_index < NUMBER_OF_PANELS; panel_index++) {
